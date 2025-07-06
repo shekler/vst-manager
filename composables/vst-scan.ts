@@ -15,8 +15,25 @@ export const useVstScan = () => {
 
 	// Common VST3 paths for Windows and Mac
 	const defaultPaths = {
-		windows: ["C:/Program Files/Common Files/VST3", "C:/Program Files/Steinberg/VSTPlugins", "C:/Program Files (x86)/Common Files/VST3", "C:/Program Files (x86)/Steinberg/VSTPlugins"],
-		mac: ["/Library/Audio/Plug-Ins/VST3", "~/Library/Audio/Plug-Ins/VST3", "/Applications"],
+		windows: [
+			"C:/Program Files/Common Files/VST3",
+			"C:/Program Files/Steinberg/VSTPlugins",
+			"C:/Program Files (x86)/Common Files/VST3",
+			"C:/Program Files (x86)/Steinberg/VSTPlugins",
+			// VST2 paths
+			"C:/Program Files/Steinberg/VSTPlugins",
+			"C:/Program Files (x86)/Steinberg/VSTPlugins",
+			"C:/Program Files/Common Files/VST2",
+			"C:/Program Files (x86)/Common Files/VST2",
+		],
+		mac: [
+			"/Library/Audio/Plug-Ins/VST3",
+			"~/Library/Audio/Plug-Ins/VST3",
+			"/Applications",
+			// VST2 paths
+			"/Library/Audio/Plug-Ins/VST",
+			"~/Library/Audio/Plug-Ins/VST",
+		],
 	};
 
 	// Function to get platform-specific paths
@@ -142,10 +159,39 @@ export const useVstScan = () => {
 			return acc;
 		}, {} as Record<string, number>);
 
+		const byCategory = vstScan.value.reduce((acc, plugin) => {
+			if (plugin.category) {
+				acc[plugin.category] = (acc[plugin.category] || 0) + 1;
+			}
+			return acc;
+		}, {} as Record<string, number>);
+
+		const byLicense = vstScan.value.reduce((acc, plugin) => {
+			if (plugin.license) {
+				acc[plugin.license] = (acc[plugin.license] || 0) + 1;
+			}
+			return acc;
+		}, {} as Record<string, number>);
+
+		// Calculate total file size
+		const totalSize = vstScan.value.reduce((sum, plugin) => {
+			return sum + (plugin.fileSize || 0);
+		}, 0);
+
+		// Find newest and oldest plugins
+		const pluginsWithDates = vstScan.value.filter((plugin) => plugin.installDate);
+		const newestPlugin = pluginsWithDates.length > 0 ? pluginsWithDates.reduce((newest, plugin) => (plugin.installDate! > newest.installDate! ? plugin : newest)) : null;
+		const oldestPlugin = pluginsWithDates.length > 0 ? pluginsWithDates.reduce((oldest, plugin) => (plugin.installDate! < oldest.installDate! ? plugin : oldest)) : null;
+
 		return {
 			total,
 			byVendor,
 			byBitness,
+			byCategory,
+			byLicense,
+			totalSize,
+			newestPlugin,
+			oldestPlugin,
 		};
 	};
 
