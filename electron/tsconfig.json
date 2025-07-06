@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "outDir": "../dist/electron",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "resolveJsonModule": true
   },
   "include": [
     "./**/*.ts"
