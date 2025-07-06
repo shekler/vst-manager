@@ -1,54 +1,48 @@
-// electron/main.ts
-import { app, BrowserWindow, ipcMain } from "electron";
-import path from "path";
-import { fileURLToPath } from "node:url"; // <-- Import the helper
-import vstScanner from "vst-scanner";
-const { Scanner } = vstScanner;
+import { app, BrowserWindow } from "electron";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-// Recreate __dirname and __filename for ES module scope
+// The built directory structure
+//
+// ├─┬─┬ dist
+// │ │ └── electron
+// │ ├── main.js
+// │ └── preload.js
+// ├─┬─┬ .output
+// │ │ └── public
+// │ │   ├── ...
+// │ │   └── index.html
+// │ │
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// This is a basic setup from nuxt-electron
-process.env.ROOT = path.join(__dirname, "..");
-process.env.DIST = path.join(process.env.ROOT, "dist-electron");
+process.env.DIST = path.join(__dirname, "../.output/public");
+process.env.VITE_PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, "../.output/public");
 
-let win: BrowserWindow | null;
+const VITE_DEV_SERVER_URL = "http://localhost:3000";
 
 function createWindow() {
-	win = new BrowserWindow({
+	const win = new BrowserWindow({
+		width: 800,
+		height: 600,
 		webPreferences: {
-			// The preload script is essential for the ipcRenderer bridge
-			preload: path.join(__dirname, "preload.js"),
+			// preload: path.join(__dirname, "preload.js"),
 		},
 	});
 
-	const URL = process.env.VITE_DEV_SERVER_URL;
-	win.loadURL(URL!);
+	if (app.isPackaged) {
+		win.loadFile(path.join(process.env.DIST!, "index.html"));
+	} else {
+		win.loadURL(VITE_DEV_SERVER_URL);
+		win.webContents.openDevTools();
+	}
 }
 
-app.on("ready", () => {
-	createWindow();
-
-	ipcMain.handle("scan-vsts", async () => {
-		console.log("Received scan-vsts event from renderer.");
-		const scanner = new Scanner();
-
-		const result = await scanner.scan(
-			{
-				win32: ["C:\\Program Files\\Common Files\\VST3", "C:\\Program Files\\Steinberg\\VstPlugins"],
-				darwin: ["/Library/Audio/Plug-Ins/VST", "/Library/Audio/Plug-Ins/VST3", "/Library/Audio/Plug-Ins/Components"],
-			}[process.platform] ?? []
-		);
-
-		console.log(`Scan complete. Found ${result.vst3.length} VST3 plugins.`);
-		return result;
-	});
-});
-
-// Quit when all windows are closed, except on macOS.
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {
 		app.quit();
 	}
 });
+
+app.whenReady().then(createWindow);

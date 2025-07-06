@@ -1,15 +1,17 @@
 {
-  "name": "nuxt-app",
+  "name": "Plugin Manager",
   "version": "0.0.1",
-  "main": "./dist-electron/main.js",
   "private": true,
+  "main": "dist/electron/main.js",
   "type": "module",
   "scripts": {
-    "build": "nuxt build",
-    "dev": "nuxt dev",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "dev": "concurrently \"npm run dev:nuxt\" \"npm run dev:electron\"",
+    "dev:nuxt": "nuxi dev",
+    "dev:electron": "wait-on http://localhost:3000 && npm run build:electron:dev && electron dist/electron/main.js",
+    "build": "npm run build:nuxt && npm run build:electron",
+    "build:nuxt": "nuxi generate",
+    "build:electron": "tsc --project electron/tsconfig.json && electron-builder",
+    "build:electron:dev": "tsc --project electron/tsconfig.json"
   },
   "dependencies": {
     "@nuxt/devtools": "^2.6.2",
@@ -20,14 +22,36 @@
     "@pinia/nuxt": "^0.11.1",
     "eslint": "^9.30.1",
     "nuxt": "^3.17.6",
-    "typescript": "^5.8.3",
     "vite": "^6.3.5",
-    "vst-scanner": "^0.0.5",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "concurrently": "^9.2.0",
     "electron": "^37.2.0",
-    "nuxt-electron": "^0.7.0"
+    "electron-builder": "^26.0.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.plugin-manager.app",
+    "productName": "Plugin Manager",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/electron/**/*",
+      ".output/public/**/*"
+    ],
+    "mac": {
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }
