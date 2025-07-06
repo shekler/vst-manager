@@ -1,5 +1,7 @@
 {
   "name": "nuxt-app",
+  "version": "0.0.1",
+  "main": "./dist-electron/main.js",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,7 +22,12 @@
     "nuxt": "^3.17.6",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
+    "vst-scanner": "^0.0.5",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "nuxt-electron": "^0.7.0"
   }
 }
