@@ -1,13 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2025-05-15',
-  devtools: { enabled: true },
-  modules: [
-    '@nuxt/image',
-    '@nuxt/devtools',
-    '@nuxt/eslint',
-    '@nuxt/ui',
-    '@nuxtjs/tailwindcss',
-    'nuxt-electron'
-  ]
-})
+	compatibilityDate: "2025-05-15",
+	devtools: { enabled: true },
+	modules: ["@nuxt/image", "@nuxt/devtools", "@nuxt/eslint", "@nuxt/ui", "@nuxtjs/tailwindcss"],
+});
