@@ -1,6 +1,5 @@
 import { ref } from "vue";
 import type { VstPlugin } from "~/types/plugin";
-import { mockPlugins } from "~/data/mock-plugins";
 
 export const useVstScan = () => {
 	const vstScan = ref<VstPlugin[]>([]);
@@ -15,8 +14,8 @@ export const useVstScan = () => {
 
 	// Common VST3 paths for Windows and Mac
 	const defaultPaths = {
-		windows: ["C:/Program Files/Common Files/VST3", "C:/Program Files/Steinberg/VSTPlugins", "C:/Program Files (x86)/Common Files/VST3", "C:/Program Files (x86)/Steinberg/VSTPlugins"],
-		mac: ["/Library/Audio/Plug-Ins/VST3", "~/Library/Audio/Plug-Ins/VST3", "/Applications"],
+		windows: ["C:/Program Files/Common Files/VST3", "C:/Program Files/Steinberg/VSTPlugins"],
+		mac: ["/Library/Audio/Plug-Ins/VST3", "~/Library/Audio/Plug-Ins/VST3"],
 	};
 
 	// Function to get platform-specific paths
@@ -29,54 +28,21 @@ export const useVstScan = () => {
 				return defaultPaths.mac;
 			}
 		}
-		// Fallback - return both
 		return [...defaultPaths.windows, ...defaultPaths.mac];
 	};
 
 	// Function to scan a single directory recursively
 	const scanDirectory = async (dirPath: string): Promise<VstPlugin[]> => {
-		const plugins: VstPlugin[] = [];
-
 		try {
-			// Use Electron's ipcRenderer to access Node.js fs module
 			if (isElectron()) {
 				const result = await (window as any).electronAPI.scanDirectory(dirPath);
 				return result;
 			} else {
-				// Running in browser - throw error
-				throw new Error("VST scanning with embedded metadata is only available in the Electron app. Please run the app using 'npm run dev' to start both Nuxt and Electron.");
+				throw new Error("VST scanning is only available in the Electron app. Please run 'npm run dev'.");
 			}
 		} catch (error) {
 			console.error(`Error scanning directory ${dirPath}:`, error);
 			throw error;
-		}
-
-		return plugins;
-	};
-
-	// Function to load mock data for demonstration
-	const loadMockData = async () => {
-		isScanning.value = true;
-		scanProgress.value = 0;
-		scanError.value = null;
-		vstScan.value = [];
-
-		try {
-			// Simulate scanning progress
-			for (let i = 0; i <= 100; i += 10) {
-				scanProgress.value = i;
-				await new Promise((resolve) => setTimeout(resolve, 100));
-			}
-
-			// Filter to only VST3 plugins for consistency
-			const vst3Plugins = mockPlugins.filter((plugin) => plugin.format === "VST3");
-			vstScan.value = vst3Plugins;
-			scanProgress.value = 100;
-		} catch (error) {
-			scanError.value = error instanceof Error ? error.message : "Unknown error occurred";
-			console.error("Mock data loading failed:", error);
-		} finally {
-			isScanning.value = false;
 		}
 	};
 
@@ -88,9 +54,8 @@ export const useVstScan = () => {
 		vstScan.value = [];
 
 		try {
-			// Check if running in Electron first
 			if (!isElectron()) {
-				throw new Error("VST scanning with embedded metadata is only available in the Electron app. Please run the app using 'npm run dev' to start both Nuxt and Electron.");
+				throw new Error("VST scanning is only available in the Electron app. Please run 'npm run dev'.");
 			}
 
 			const pathsToScan = customPaths || getPlatformPaths();
@@ -105,7 +70,6 @@ export const useVstScan = () => {
 					allPlugins.push(...pluginsInPath);
 				} catch (error) {
 					console.warn(`Failed to scan path: ${path}`, error);
-					// Continue with other paths even if one fails
 				}
 			}
 
@@ -127,28 +91,6 @@ export const useVstScan = () => {
 		await scanForVst3Files(paths);
 	};
 
-	// Function to get scan statistics
-	const getScanStats = () => {
-		if (!vstScan.value) return null;
-
-		const total = vstScan.value.length;
-		const byVendor = vstScan.value.reduce((acc, plugin) => {
-			acc[plugin.vendor] = (acc[plugin.vendor] || 0) + 1;
-			return acc;
-		}, {} as Record<string, number>);
-
-		const byBitness = vstScan.value.reduce((acc, plugin) => {
-			acc[plugin.bitness] = (acc[plugin.bitness] || 0) + 1;
-			return acc;
-		}, {} as Record<string, number>);
-
-		return {
-			total,
-			byVendor,
-			byBitness,
-		};
-	};
-
 	return {
 		vstScan,
 		isScanning,
@@ -156,9 +98,7 @@ export const useVstScan = () => {
 		scanError,
 		scanForVst3Files,
 		scanSpecificPaths,
-		getScanStats,
 		getPlatformPaths,
 		isElectron,
-		loadMockData,
 	};
 };
