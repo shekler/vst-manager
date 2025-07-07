@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
+const vstScanner = require("vst-scanner");
 
 // The built directory structure
 //
@@ -65,31 +66,55 @@ async function scanDirectoryForVst3(dirPath: string): Promise<any[]> {
 
 function extractPluginInfo(filePath: string, fileName: string) {
 	try {
-		// Extract basic information from the file
-		const name = path.parse(fileName).name;
+		// Use vst-scanner to read actual VST3 binary data
+		const pluginInfo = vstScanner.scanFile(filePath);
 
-		// Try to extract vendor from path or filename
-		let vendor = "Unknown";
-		const pathParts = filePath.split(path.sep);
+		if (!pluginInfo) {
+			console.warn(`Could not extract plugin info from ${filePath}`);
+			return null;
+		}
 
-		// Look for common vendor patterns in the path
-		for (let i = pathParts.length - 2; i >= 0; i--) {
-			const part = pathParts[i];
-			if (part && part !== "VST3" && part !== "Plug-Ins" && part !== "Audio") {
-				vendor = part;
-				break;
+		// Extract name from plugin info or fallback to filename
+		const name = pluginInfo.name || pluginInfo.productName || path.parse(fileName).name;
+
+		// Extract vendor from plugin info or fallback to path analysis
+		let vendor = pluginInfo.vendor || pluginInfo.manufacturer || "Unknown";
+		if (vendor === "Unknown") {
+			const pathParts = filePath.split(path.sep);
+			// Look for common vendor patterns in the path
+			for (let i = pathParts.length - 2; i >= 0; i--) {
+				const part = pathParts[i];
+				if (part && part !== "VST3" && part !== "Plug-Ins" && part !== "Audio") {
+					vendor = part;
+					break;
+				}
 			}
 		}
 
-		// Determine bitness based on file size and location
+		// Determine bitness from plugin info or fallback to file analysis
 		let bitness: "64-bit" | "32-bit" | "Unknown" = "Unknown";
-		try {
-			const stats = fs.statSync(filePath);
-			// This is a rough heuristic - 64-bit plugins are typically larger
-			// In a real implementation, you'd need to parse the actual binary
-			bitness = stats.size > 1000000 ? "64-bit" : "32-bit";
-		} catch {
-			bitness = "Unknown";
+		if (pluginInfo.architecture) {
+			bitness = pluginInfo.architecture === "x64" ? "64-bit" : "32-bit";
+		} else {
+			try {
+				const stats = fs.statSync(filePath);
+				// This is a rough heuristic - 64-bit plugins are typically larger
+				bitness = stats.size > 1000000 ? "64-bit" : "32-bit";
+			} catch {
+				bitness = "Unknown";
+			}
+		}
+
+		// Extract additional metadata from VST3 binary
+		const tags: string[] = [];
+		if (pluginInfo.category) {
+			tags.push(pluginInfo.category);
+		}
+		if (pluginInfo.subCategory) {
+			tags.push(pluginInfo.subCategory);
+		}
+		if (pluginInfo.version) {
+			tags.push(`v${pluginInfo.version}`);
 		}
 
 		return {
@@ -99,11 +124,45 @@ function extractPluginInfo(filePath: string, fileName: string) {
 			format: "VST3" as const,
 			bitness: bitness,
 			path: filePath,
-			tags: [], // Empty tags array for now
+			tags: tags,
+			// Additional metadata from VST3 binary
+			version: pluginInfo.version,
+			category: pluginInfo.category,
+			subCategory: pluginInfo.subCategory,
+			description: pluginInfo.description,
+			url: pluginInfo.url,
 		};
 	} catch (error) {
 		console.error(`Error extracting plugin info from ${filePath}:`, error);
-		return null;
+		// Fallback to basic file info if VST scanning fails
+		try {
+			const name = path.parse(fileName).name;
+			let vendor = "Unknown";
+			const pathParts = filePath.split(path.sep);
+			for (let i = pathParts.length - 2; i >= 0; i--) {
+				const part = pathParts[i];
+				if (part && part !== "VST3" && part !== "Plug-Ins" && part !== "Audio") {
+					vendor = part;
+					break;
+				}
+			}
+
+			const stats = fs.statSync(filePath);
+			const bitness = stats.size > 1000000 ? "64-bit" : "32-bit";
+
+			return {
+				id: filePath,
+				name: name,
+				vendor: vendor,
+				format: "VST3" as const,
+				bitness: bitness,
+				path: filePath,
+				tags: [],
+			};
+		} catch (fallbackError) {
+			console.error(`Fallback extraction also failed for ${filePath}:`, fallbackError);
+			return null;
+		}
 	}
 }
 

@@ -44,7 +44,7 @@ export const useVstScan = () => {
 				return result;
 			} else {
 				// Running in browser - throw error
-				throw new Error("VST scanning is only available in the Electron app. Please run the app using 'npm run dev' to start both Nuxt and Electron.");
+				throw new Error("VST scanning with embedded metadata is only available in the Electron app. Please run the app using 'npm run dev' to start both Nuxt and Electron.");
 			}
 		} catch (error) {
 			console.error(`Error scanning directory ${dirPath}:`, error);
@@ -90,7 +90,7 @@ export const useVstScan = () => {
 		try {
 			// Check if running in Electron first
 			if (!isElectron()) {
-				throw new Error("VST scanning is only available in the Electron app. Please run the app using 'npm run dev' to start both Nuxt and Electron.");
+				throw new Error("VST scanning with embedded metadata is only available in the Electron app. Please run the app using 'npm run dev' to start both Nuxt and Electron.");
 			}
 
 			const pathsToScan = customPaths || getPlatformPaths();
