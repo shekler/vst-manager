@@ -22,3 +22,59 @@ logs
 .env
 .env.*
 !.env.example
+
+# Prisma generated files
+/generated/prisma
+
+# Visual Studio files
+.vs/
+
+# Build directories
+build/
+dist_electron/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Native module build artifacts
+vst-scanner-native/build/
+*.node
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.parcel-cache
+
+# Temporary folders
+tmp/
+temp/
