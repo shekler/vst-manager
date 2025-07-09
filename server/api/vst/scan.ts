@@ -8,25 +8,24 @@ import { db } from "../../utils/db"; // Your Prisma client import
 // process.cwd() is the root of your Nuxt project.
 const nativeScannerPath = path.resolve(process.cwd(), "vst-scanner-native", "build", "Release", "vst_scanner_native.node");
 
-// Crucial: Synchronously check if the native addon exists and is readable.
-// If it's missing, the server can't start correctly.
-try {
-	fs.accessSync(nativeScannerPath, fs.constants.R_OK);
-	console.log(`Native VST scanner addon found at: ${nativeScannerPath}`);
-} catch (error) {
-	console.error(`\n--- CRITICAL ERROR: NATIVE VST SCANNER MISSING ---\n`);
-	console.error(`Addon not found or not readable: ${nativeScannerPath}`);
-	console.error(`Please ensure you have:`);
-	console.error(`1. Downloaded and placed VST_SDK_2.4 in 'vst-scanner-native/VST_SDK_2.4'.`);
-	console.error(`2. Installed C++ build tools (Visual Studio, Xcode CLI, build-essential).`);
-	console.error(`3. Run 'node-gyp configure build' inside 'vst-scanner-native/' successfully.`);
-	console.error(`   Error details:`, (error as Error).message);
-	console.error(`\n--- SERVER WILL NOT START ---\n`);
-	process.exit(1); // Exit the process as this is a fatal error for the scanner functionality
-}
+// DISABLED: Native VST scanner addon check
+// try {
+// 	fs.accessSync(nativeScannerPath, fs.constants.R_OK);
+// 	console.log(`Native VST scanner addon found at: ${nativeScannerPath}`);
+// } catch (error) {
+// 	console.error(`\n--- CRITICAL ERROR: NATIVE VST SCANNER MISSING ---\n`);
+// 	console.error(`Addon not found or not readable: ${nativeScannerPath}`);
+// 	console.error(`Please ensure you have:`);
+// 	console.error(`1. Downloaded and placed VST_SDK_2.4 in 'vst-scanner-native/VST_SDK_2.4'.`);
+// 	console.error(`2. Installed C++ build tools (Visual Studio, Xcode CLI, build-essential).`);
+// 	console.error(`3. Run 'node-gyp configure build' inside 'vst-scanner-native/' successfully.`);
+// 	console.error(`   Error details:`, (error as Error).message);
+// 	console.error(`\n--- SERVER WILL NOT START ---\n`);
+// 	process.exit(1); // Exit the process as this is a fatal error for the scanner functionality
+// }
 
-// Load the native addon only if it exists
-const vstScanner = require(nativeScannerPath);
+// DISABLED: Load the native addon
+// const vstScanner = require(nativeScannerPath);
 
 export default defineEventHandler(async (event) => {
 	try {
@@ -60,9 +59,10 @@ export default defineEventHandler(async (event) => {
 				await fs.access(p, fs.constants.F_OK);
 				console.log(`  Processing: ${p}`);
 
-				// !!! CALL TO NATIVE C++ SCANNER !!!
-				const pluginsInPath = vstScanner.scanVstPlugins(p);
-				allPlugins = allPlugins.concat(pluginsInPath);
+				// DISABLED: CALL TO NATIVE C++ SCANNER
+				// const pluginsInPath = vstScanner.scanVstPlugins(p);
+				// allPlugins = allPlugins.concat(pluginsInPath);
+				console.log(`  Skipping native scan for: ${p} (native scanner disabled)`);
 				scannedSuccessfully.push(p);
 			} catch (err) {
 				const errorMsg = (err as Error).message;
