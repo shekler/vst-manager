@@ -1,7 +1,7 @@
 <template>
-	<aside class="p-12 flex flex-col gap-12 justify-between">
+	<aside class="p-12 flex flex-col gap-12 justify-between bg-jet text-white">
 		<section class="flex flex-col gap-12">
-			<div>Logo</div>
+			<NuxtImg src="/plugin_manager.png" alt="Logo" class="w-fit h-fit max-h-12" />
 			<nav>
 				<ul class="flex flex-col gap-6">
 					<li class="flex items-center gap-2"><IconBooks /> Library</li>
