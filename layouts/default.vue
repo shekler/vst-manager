@@ -1,15 +1,18 @@
 <template>
-	<div class="flex flex-col">
-		<div class="grid grid-cols-12 h-dvh">
-			<SiteSidebar class="col-span-3" />
-			<main class="col-span-9 h-dvh overflow-y-auto flex flex-col">
-				<section class="bg-gradient-to-br from-onyx to-jet grow text-white">
-					<slot />
-				</section>
-				<SiteFooter />
-			</main>
-		</div>
-	</div>
+  <div class="bg-jet flex h-dvh flex-col gap-8 p-12">
+    <SiteHeader />
+    <div class="flex h-full gap-12">
+      <SiteSidebar
+        class="from-onyx to-onyx/50 w-fit shrink-0 rounded-lg bg-gradient-to-br"
+      />
+      <main class="flex h-full grow flex-col gap-4 overflow-y-auto">
+        <section class="text-powder grow rounded-lg">
+          <slot />
+        </section>
+        <SiteFooter class="" />
+      </main>
+    </div>
+  </div>
 </template>
 
 <script lang="ts" setup></script>

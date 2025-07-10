@@ -1,7 +1,12 @@
 <template>
-	<footer class="p-2 bg-gray-100 border-t border-gray-200 text-center text-sm text-gray-600">VST Scanner v1.0</footer>
+  <footer
+    class="text-mint/30 flex items-center justify-start px-4 py-2 text-sm"
+  >
+    <span>version {{ version }}</span>
+  </footer>
 </template>
 
-<script lang="ts" setup></script>
-
-<style></style>
+<script lang="ts" setup>
+const config = useRuntimeConfig();
+const version = config.public.version;
+</script>

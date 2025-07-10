@@ -1,24 +1,48 @@
 <template>
-	<aside class="p-12 flex flex-col gap-12 justify-between bg-jet text-powder text-lg">
-		<section class="flex flex-col gap-24">
-			<NuxtImg src="/plugin_manager.png" alt="Logo" class="w-fit h-fit max-h-12" />
-			<nav>
-				<ul class="flex flex-col gap-10">
-					<li class="flex items-center gap-4"><IconBooks class="size-8 rounded-full bg-powder p-1 text-black" /> Library</li>
-					<li class="flex items-center gap-4"><IconBell class="size-8 rounded-full bg-powder p-1 text-black" /> Updates</li>
-					<li class="flex items-center gap-4"><IconSearch class="size-8 rounded-full bg-powder p-1 text-black" /> Search</li>
-				</ul>
-			</nav>
-		</section>
-		<nav>
-			<ul class="flex flex-col gap-10">
-				<li class="flex items-center gap-4"><IconUser class="size-8 rounded-full bg-powder p-1 text-black" /> User</li>
-				<li class="flex items-center gap-4"><IconSettings class="size-8 rounded-full bg-powder p-1 text-black" /> Settings</li>
-			</ul>
-		</nav>
-	</aside>
+  <aside
+    class="text-powder flex flex-col justify-between gap-12 p-8 text-lg shadow-xl"
+  >
+    <nav>
+      <ul class="text-powder/80 flex flex-col items-start gap-3 font-bold">
+        <li class="w-full">
+          <SidebarLink to="/library">
+            <IconBooks class="size-8" />
+            Library
+          </SidebarLink>
+        </li>
+        <li class="w-full">
+          <SidebarLink to="/updates">
+            <IconRefresh class="size-8" />
+            Updates
+          </SidebarLink>
+        </li>
+        <li class="w-full">
+          <SidebarLink to="/search">
+            <IconSearch class="size-8" />
+            Search
+          </SidebarLink>
+        </li>
+      </ul>
+    </nav>
+    <nav>
+      <ul class="flex flex-col gap-10">
+        <li class="-py-2 -mx-3">
+          <SidebarLink to="/settings">
+            <IconSettings class="size-8" />
+            Settings
+          </SidebarLink>
+        </li>
+      </ul>
+    </nav>
+  </aside>
 </template>
 
 <script lang="ts" setup>
-import { IconBooks, IconBell, IconSearch, IconUser, IconSettings } from "@tabler/icons-vue";
+import {
+  IconBooks,
+  IconSearch,
+  IconSettings,
+  IconRefresh,
+} from "@tabler/icons-vue";
+import SidebarLink from "./SidebarLink.vue";
 </script>
