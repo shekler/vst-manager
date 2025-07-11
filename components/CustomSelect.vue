@@ -6,7 +6,7 @@
       @blur="handleBlur"
       type="button"
       class="c-input c-input--select flex w-full items-center justify-between"
-      :class="{ 'ring-mint/50 ring-2': isOpen }"
+      :class="{ 'ring-mint ring-2': isOpen }"
     >
       <span class="text-powder/90">
         {{ selectedLabel || placeholder }}

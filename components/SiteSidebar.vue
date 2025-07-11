@@ -16,12 +16,6 @@
             Updates
           </SidebarLink>
         </li>
-        <li class="w-full">
-          <SidebarLink to="/search">
-            <IconSearch class="size-8" />
-            Search
-          </SidebarLink>
-        </li>
       </ul>
     </nav>
     <nav>

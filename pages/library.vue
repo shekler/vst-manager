@@ -47,16 +47,16 @@
         </div>
       </div>
 
-      <!-- Clear Filters Button -->
-      <div class="mt-4 flex justify-end">
+      <div class="mt-4 flex items-end justify-between">
+        <!-- Results Count -->
+        <div class="text-powder/50 text-sm">
+          Showing {{ filteredPlugins.length }} of {{ plugins.length }} plugins
+        </div>
+
+        <!-- Clear Filters Button -->
         <button @click="clearFilters" class="c-button c-button--red">
           Clear Filters
         </button>
-      </div>
-
-      <!-- Results Count -->
-      <div class="text-powder/50 mt-4 text-sm">
-        Showing {{ filteredPlugins.length }} of {{ plugins.length }} plugins
       </div>
     </div>
 
@@ -152,7 +152,10 @@
       <div class="text-powder/50 text-lg">
         No plugins match your current filters.
       </div>
-      <button @click="clearFilters" class="c-button c-button--red">
+      <button
+        @click="clearFilters"
+        class="c-button c-button--clear mx-auto mt-4"
+      >
         Clear Filters
       </button>
     </div>
