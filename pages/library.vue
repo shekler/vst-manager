@@ -25,20 +25,12 @@
           <label for="manufacturer" class="text-powder/70 text-sm font-bold"
             >Manufacturer</label
           >
-          <select
-            id="manufacturer"
+          <CustomSelect
             v-model="selectedManufacturer"
-            class="c-input c-input--select"
-          >
-            <option value="">All Manufacturers</option>
-            <option
-              v-for="manufacturer in uniqueManufacturers"
-              :key="manufacturer"
-              :value="manufacturer"
-            >
-              {{ manufacturer }}
-            </option>
-          </select>
+            :options="manufacturerOptions"
+            placeholder="All Manufacturers"
+            :show-search="uniqueManufacturers.length > 10"
+          />
         </div>
 
         <!-- Type Filter -->
@@ -46,16 +38,12 @@
           <label for="type" class="text-powder/70 text-sm font-bold"
             >Type</label
           >
-          <select
-            id="type"
+          <CustomSelect
             v-model="selectedType"
-            class="c-input c-input--select"
-          >
-            <option value="">All Types</option>
-            <option v-for="type in uniqueTypes" :key="type" :value="type">
-              {{ type }}
-            </option>
-          </select>
+            :options="typeOptions"
+            placeholder="All Types"
+            :show-search="uniqueTypes.length > 10"
+          />
         </div>
       </div>
 
@@ -175,6 +163,9 @@
 import { ref, computed, onMounted } from "vue";
 import { useFetch } from "#app";
 
+// Import the custom select component
+import CustomSelect from "~/components/CustomSelect.vue";
+
 interface PluginResponse {
   success: boolean;
   plugins?: any[];
@@ -208,6 +199,23 @@ const uniqueTypes = computed(() => {
   const types = plugins.value.map((plugin) => plugin.type);
   return [...new Set(types)].sort();
 });
+
+// Options for custom selects
+const manufacturerOptions = computed(() => [
+  { value: "", label: "All Manufacturers" },
+  ...uniqueManufacturers.value.map((manufacturer) => ({
+    value: manufacturer,
+    label: manufacturer,
+  })),
+]);
+
+const typeOptions = computed(() => [
+  { value: "", label: "All Types" },
+  ...uniqueTypes.value.map((type) => ({
+    value: type,
+    label: type,
+  })),
+]);
 
 // Filtered plugins based on all filters
 const filteredPlugins = computed(() => {

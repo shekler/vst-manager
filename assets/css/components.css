@@ -16,13 +16,13 @@
   &.c-input--search {
     @apply from-onyx/50 to-powder/10;
     &:focus {
-      @apply scale-102 shadow-2xl;
+      @apply ring-mint scale-102 shadow-2xl ring-2;
     }
   }
   &.c-input--select {
-    @apply from-onyx/50 to-powder/10 grow;
+    @apply from-onyx/50 to-powder/10 grow cursor-pointer;
     &:focus {
-      @apply scale-102 shadow-2xl;
+      @apply shadow-2xl;
     }
   }
 }

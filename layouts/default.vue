@@ -5,7 +5,9 @@
       <SiteSidebar
         class="from-onyx to-onyx/50 h-full w-fit rounded-lg bg-gradient-to-br"
       />
-      <main class="flex grow flex-col gap-4 overflow-y-auto">
+      <main
+        class="flex grow flex-col gap-4 overflow-y-auto mask-b-from-95% mask-b-to-100%"
+      >
         <section class="text-powder rounded-lg p-8">
           <slot />
         </section>
