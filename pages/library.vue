@@ -10,19 +10,30 @@
         <div
           class="pointer-events-none absolute top-0 left-0 size-32 -translate-y-1/2 rounded-full bg-white opacity-30 blur-[100px]"
         ></div>
-        <div class="flex flex-col p-4">
-          <div class="leading-none">
-            <div class="text-powder/50">{{ plugin.manufacturer }}</div>
-            <h2 class="text-powder/90 text-xl font-bold">{{ plugin.name }}</h2>
+        <div class="grid grow grid-cols-3 gap-2 p-4">
+          <div class="relative">
+            <NuxtImg
+              :src="plugin.image"
+              :alt="`${plugin.name} Screenshot`"
+              class="absolute inset-0 size-fit max-h-full max-w-full self-center justify-self-center"
+            />
           </div>
-          <div
-            class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm"
-          >
-            <p><b>Version:</b> {{ plugin.version }}</p>
-          </div>
-          <div class="text-powder/50 mt-2 text-sm">
-            <p><b>Updated:</b> {{ plugin.last_updated }}</p>
-            <p><b>Scanned:</b> {{ plugin.date_scanned }}</p>
+          <div class="col-span-2 flex flex-col">
+            <div class="leading-none">
+              <div class="text-powder/50">{{ plugin.manufacturer }}</div>
+              <h2 class="text-powder/90 text-xl font-bold">
+                {{ plugin.name }}
+              </h2>
+            </div>
+            <div
+              class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm"
+            >
+              <p><b>Version:</b> {{ plugin.version }}</p>
+            </div>
+            <div class="text-powder/50 mt-2 text-sm">
+              <p><b>Updated:</b> {{ plugin.last_updated }}</p>
+              <p><b>Scanned:</b> {{ plugin.date_scanned }}</p>
+            </div>
           </div>
         </div>
         <div class="flex">
