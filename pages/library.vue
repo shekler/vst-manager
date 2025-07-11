@@ -1,9 +1,82 @@
 <template>
   <div>
     <h1 class="text-4xl font-bold">Library</h1>
-    <div class="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+
+    <!-- Filter Section -->
+    <div class="from-onyx toonyx/50 mt-6 mb-8 rounded-lg bg-gradient-to-br p-6">
+      <h2 class="text-powder/90 mb-4 text-xl font-bold">Filters</h2>
+      <div class="grid gap-4 md:grid-cols-3">
+        <!-- Search Filter -->
+        <div class="flex flex-col gap-2">
+          <label for="search" class="text-powder/70 text-sm font-bold"
+            >Search</label
+          >
+          <input
+            type="text"
+            id="search"
+            v-model="searchFilter"
+            placeholder="Search plugins..."
+            class="c-input c-input--search"
+          />
+        </div>
+
+        <!-- Manufacturer Filter -->
+        <div class="flex flex-col gap-2">
+          <label for="manufacturer" class="text-powder/70 text-sm font-bold"
+            >Manufacturer</label
+          >
+          <select
+            id="manufacturer"
+            v-model="selectedManufacturer"
+            class="c-input c-input--select"
+          >
+            <option value="">All Manufacturers</option>
+            <option
+              v-for="manufacturer in uniqueManufacturers"
+              :key="manufacturer"
+              :value="manufacturer"
+            >
+              {{ manufacturer }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Type Filter -->
+        <div class="flex flex-col gap-2">
+          <label for="type" class="text-powder/70 text-sm font-bold"
+            >Type</label
+          >
+          <select
+            id="type"
+            v-model="selectedType"
+            class="c-input c-input--select"
+          >
+            <option value="">All Types</option>
+            <option v-for="type in uniqueTypes" :key="type" :value="type">
+              {{ type }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Clear Filters Button -->
+      <div class="mt-4 flex justify-end">
+        <button @click="clearFilters" class="c-button c-button--red">
+          Clear Filters
+        </button>
+      </div>
+
+      <!-- Results Count -->
+      <div class="text-powder/50 mt-4 text-sm">
+        Showing {{ filteredPlugins.length }} of {{ plugins.length }} plugins
+      </div>
+    </div>
+
+    <!-- Plugin Grid -->
+    <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <!-- Plugin library view -->
       <div
-        v-for="plugin in plugins"
+        v-for="plugin in filteredPlugins"
         :key="plugin.name"
         class="from-onyx to-onyx/50 relative flex flex-col overflow-hidden rounded-lg bg-gradient-to-br"
       >
@@ -82,16 +155,36 @@
         </div>
       </div>
     </div>
+
+    <!-- No Results Message -->
+    <div
+      v-if="filteredPlugins.length === 0 && plugins.length > 0"
+      class="mt-8 text-center"
+    >
+      <div class="text-powder/50 text-lg">
+        No plugins match your current filters.
+      </div>
+      <button @click="clearFilters" class="c-button c-button--red">
+        Clear Filters
+      </button>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
+import { ref, computed, onMounted } from "vue";
+import { useFetch } from "#app";
+
 interface PluginResponse {
   success: boolean;
   plugins?: any[];
   message?: string;
 }
 
+// Reactive state
+const searchFilter = ref("");
+const selectedManufacturer = ref("");
+const selectedType = ref("");
 const plugins = ref<any[]>([]);
 
 // Get device's time format
@@ -105,13 +198,54 @@ const getDeviceFormat = (date: string) => {
   return dateFormat.toLocaleDateString(undefined, options);
 };
 
+// Computed properties for unique values
+const uniqueManufacturers = computed(() => {
+  const manufacturers = plugins.value.map((plugin) => plugin.manufacturer);
+  return [...new Set(manufacturers)].sort();
+});
+
+const uniqueTypes = computed(() => {
+  const types = plugins.value.map((plugin) => plugin.type);
+  return [...new Set(types)].sort();
+});
+
+// Filtered plugins based on all filters
+const filteredPlugins = computed(() => {
+  return plugins.value.filter((plugin) => {
+    // Search filter
+    const searchMatch =
+      !searchFilter.value ||
+      plugin.name.toLowerCase().includes(searchFilter.value.toLowerCase()) ||
+      plugin.manufacturer
+        .toLowerCase()
+        .includes(searchFilter.value.toLowerCase());
+
+    // Manufacturer filter
+    const manufacturerMatch =
+      !selectedManufacturer.value ||
+      plugin.manufacturer === selectedManufacturer.value;
+
+    // Type filter
+    const typeMatch = !selectedType.value || plugin.type === selectedType.value;
+
+    return searchMatch && manufacturerMatch && typeMatch;
+  });
+});
+
+// Clear all filters
+const clearFilters = () => {
+  searchFilter.value = "";
+  selectedManufacturer.value = "";
+  selectedType.value = "";
+};
+
 onMounted(async () => {
   try {
-    const response = await $fetch<PluginResponse>("/api/plugins/list");
-    if (response.success && response.plugins) {
-      plugins.value = response.plugins;
+    const { data } = await useFetch<PluginResponse>("/api/plugins/list");
+    if (data.value?.success && data.value.plugins) {
+      plugins.value = data.value.plugins;
     } else {
-      console.error("Failed to fetch plugins:", response.message);
+      console.error("Failed to fetch plugins:", data.value?.message);
     }
   } catch (error) {
     console.error("Error fetching plugins:", error);

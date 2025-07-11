@@ -1,0 +1,28 @@
+.c-button {
+  @apply border-red flex cursor-pointer items-center justify-center rounded-lg border bg-transparent bg-gradient-to-br px-4 py-2 font-bold duration-200;
+  &.c-button--mint {
+    @apply from-mint to-mint/80 text-jet;
+  }
+  &.c-button--red {
+    @apply from-red to-red/70 text-jet;
+    &:hover {
+      @apply bg-red/10 text-red from-transparent to-transparent;
+    }
+  }
+}
+
+.c-input {
+  @apply border-powder/30 text-powder/90 placeholder:text-powder/50 w-full rounded-lg border bg-gradient-to-br px-3 py-2 shadow-xl duration-200;
+  &.c-input--search {
+    @apply from-onyx/50 to-powder/10;
+    &:focus {
+      @apply scale-102 shadow-2xl;
+    }
+  }
+  &.c-input--select {
+    @apply from-onyx/50 to-powder/10 grow;
+    &:focus {
+      @apply scale-102 shadow-2xl;
+    }
+  }
+}

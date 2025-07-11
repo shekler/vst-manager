@@ -6,6 +6,8 @@
 </template>
 
 <script setup lang="ts">
+import { navigateTo } from "#app";
+
 // Redirect to library page on mount
 await navigateTo("/library");
 </script>
