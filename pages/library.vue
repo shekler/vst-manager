@@ -1,39 +1,47 @@
 <template>
-  <section>
+  <div>
     <h1 class="text-4xl font-bold">Library</h1>
     <div class="mt-4 grid grid-cols-4 gap-4">
       <div
         v-for="plugin in plugins"
         :key="plugin.name"
-        class="from-onyx to-onyx/50 relative flex flex-col overflow-hidden rounded-lg bg-gradient-to-br p-4"
+        class="from-onyx to-onyx/50 relative flex flex-col overflow-hidden rounded-lg bg-gradient-to-br"
       >
         <div
-          class="pointer-events-none absolute top-0 left-0 size-32 -translate-y-1/2 rounded-full bg-white opacity-50 blur-[100px]"
+          class="pointer-events-none absolute top-0 left-0 size-32 -translate-y-1/2 rounded-full bg-white opacity-30 blur-[100px]"
         ></div>
-        <div class="leading-none">
-          <div class="text-powder/50">{{ plugin.manufacturer }}</div>
-          <h2 class="text-powder/90 text-xl font-bold">{{ plugin.name }}</h2>
+        <div class="flex flex-col p-4">
+          <div class="leading-none">
+            <div class="text-powder/50">{{ plugin.manufacturer }}</div>
+            <h2 class="text-powder/90 text-xl font-bold">{{ plugin.name }}</h2>
+          </div>
+          <div
+            class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm"
+          >
+            <p><b>Version:</b> {{ plugin.version }}</p>
+          </div>
+          <div class="text-powder/50 mt-2 text-sm">
+            <p><b>Updated:</b> {{ plugin.last_updated }}</p>
+            <p><b>Scanned:</b> {{ plugin.date_scanned }}</p>
+          </div>
         </div>
-        <div
-          class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm"
-        >
-          <p><b>Version:</b> {{ plugin.version }}</p>
-          <p><b>Type:</b> {{ plugin.type }}</p>
+        <div class="flex">
+          <a
+            :href="plugin.url"
+            target="_blank"
+            class="bg-mint text-jet hover:border-mint/50 hover:bg-gradient hover:from-mint/10 hover:to-mint/20 hover:text-mint flex grow justify-center rounded-bl-lg border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"
+          >
+            Manufacturer Page
+          </a>
+          <div
+            class="bg-powder/20 text-powder/70 flex justify-center px-4 py-2 font-bold"
+          >
+            {{ plugin.type }}
+          </div>
         </div>
-        <div class="text-powder/50 mt-2 text-sm">
-          <p><b>Updated:</b> {{ plugin.last_updated }}</p>
-          <p><b>Scanned:</b> {{ plugin.date_scanned }}</p>
-        </div>
-        <a
-          :href="plugin.url"
-          target="_blank"
-          class="text-mint/50 hover:text-mint mt-2 text-sm underline underline-offset-4 duration-200"
-        >
-          Manufacturer Website
-        </a>
       </div>
     </div>
-  </section>
+  </div>
 </template>
 
 <script lang="ts" setup>
