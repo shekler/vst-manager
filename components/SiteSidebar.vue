@@ -26,7 +26,7 @@
     </nav>
     <nav>
       <ul class="flex flex-col gap-10">
-        <li class="-py-2 -mx-3">
+        <li class="w-full">
           <SidebarLink to="/settings">
             <IconSettings class="size-8" />
             Settings

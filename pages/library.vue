@@ -11,7 +11,7 @@
           class="pointer-events-none absolute top-0 left-0 size-32 -translate-y-1/2 rounded-full bg-white opacity-30 blur-[100px]"
         ></div>
         <div class="grid grow grid-cols-3 gap-4 p-4">
-          <div class="relative">
+          <div class="relative" v-if="plugin.image">
             <NuxtImg
               :src="plugin.image"
               :alt="`${plugin.name} Screenshot`"
@@ -63,7 +63,7 @@
             </div>
           </div>
         </div>
-        <div class="flex">
+        <div class="grid grid-cols-2">
           <a
             :href="plugin.url"
             target="_blank"

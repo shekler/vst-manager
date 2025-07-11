@@ -1,8 +1,9 @@
 {
-  "name": "plugin-manager",
+  "name": "vst-manager",
   "version": "0.0.1-alpha.1",
-  "private": true,
+  "description": "A plugin manager for the audio plugins",
   "main": "dist/electron/main.js",
+  "author": "Sven Wolf",
   "scripts": {
     "dev": "concurrently \"npm run dev:nuxt\" \"npm run dev:electron\"",
     "dev:nuxt": "nuxi dev",
