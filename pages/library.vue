@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1 class="text-4xl font-bold">Library</h1>
-    <div class="mt-4 grid grid-cols-4 gap-4">
+    <div class="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       <div
         v-for="plugin in plugins"
         :key="plugin.name"
@@ -71,8 +71,9 @@
           >
             Website
           </a>
+          <!-- open file explorer to plugin path -->
           <a
-            :href="plugin.path"
+            :href="`explorer.exe ${plugin.path}`"
             target="_blank"
             class="bg-powder/90 text-jet hover:border-powder/50 hover:bg-gradient hover:from-powder/10 hover:to-powder/20 hover:text-powder flex grow justify-center rounded-br-lg border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"
           >
