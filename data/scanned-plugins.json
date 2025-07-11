@@ -1,0 +1,224 @@
+{
+  "plugins": [
+    {
+      "id": "1",
+      "name": "Comeback Kid",
+      "path": "C:\\Program Files\\BABY Audio\\Comeback Kid",
+      "manufacturer": "BABY Audio",
+      "url": "https://www.babyaudio.com/products/comeback-kid",
+      "version": "1.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "2",
+      "name": "SSL E-Channel",
+      "path": "C:\\Program Files\\Waves\\Plug-Ins V14\\SSL E-Channel",
+      "manufacturer": "Waves",
+      "url": "https://www.waves.com/plugins/ssl-e-channel",
+      "version": "14.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "3",
+      "name": "CLA-76",
+      "path": "C:\\Program Files\\Waves\\Plug-Ins V14\\CLA-76",
+      "manufacturer": "Waves",
+      "url": "https://www.waves.com/plugins/cla-76-compressor-limiter",
+      "version": "14.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "4",
+      "name": "Virtual Mix Rack",
+      "path": "C:\\Program Files\\Slate Digital\\Virtual Mix Rack",
+      "manufacturer": "Slate Digital",
+      "url": "https://slatedigital.com/virtual-mix-rack/",
+      "version": "2.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "5",
+      "name": "FG-Grey",
+      "path": "C:\\Program Files\\Slate Digital\\FG-Grey",
+      "manufacturer": "Slate Digital",
+      "url": "https://slatedigital.com/fg-grey/",
+      "version": "1.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "6",
+      "name": "AmpHub",
+      "path": "C:\\Program Files\\STL Tones\\AmpHub",
+      "manufacturer": "STL Tones",
+      "url": "https://www.stltones.com/products/amphub",
+      "version": "1.5.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "7",
+      "name": "ToneHub",
+      "path": "C:\\Program Files\\STL Tones\\ToneHub",
+      "manufacturer": "STL Tones",
+      "url": "https://www.stltones.com/products/tonehub",
+      "version": "1.2.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "8",
+      "name": "Pro-Q 3",
+      "path": "C:\\Program Files\\FabFilter\\Pro-Q 3",
+      "manufacturer": "FabFilter",
+      "url": "https://www.fabfilter.com/products/pro-q-3-equalizer-plug-in",
+      "version": "3.7.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "9",
+      "name": "Pro-C 2",
+      "path": "C:\\Program Files\\FabFilter\\Pro-C 2",
+      "manufacturer": "FabFilter",
+      "url": "https://www.fabfilter.com/products/pro-c-2-compressor-plug-in",
+      "version": "2.8.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "10",
+      "name": "Ozone 11",
+      "path": "C:\\Program Files\\iZotope\\Ozone 11",
+      "manufacturer": "iZotope",
+      "url": "https://www.izotope.com/en/products/ozone.html",
+      "version": "11.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "11",
+      "name": "RX 10",
+      "path": "C:\\Program Files\\iZotope\\RX 10",
+      "manufacturer": "iZotope",
+      "url": "https://www.izotope.com/en/products/rx.html",
+      "version": "10.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "12",
+      "name": "EchoBoy",
+      "path": "C:\\Program Files\\Soundtoys\\EchoBoy",
+      "manufacturer": "Soundtoys",
+      "url": "https://www.soundtoys.com/product/echoboy/",
+      "version": "5.3.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "13",
+      "name": "Decapitator",
+      "path": "C:\\Program Files\\Soundtoys\\Decapitator",
+      "manufacturer": "Soundtoys",
+      "url": "https://www.soundtoys.com/product/decapitator/",
+      "version": "5.3.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "14",
+      "name": "ValhallaRoom",
+      "path": "C:\\Program Files\\Valhalla DSP\\ValhallaRoom",
+      "manufacturer": "Valhalla DSP",
+      "url": "https://valhalladsp.com/shop/reverb/valhalla-room/",
+      "version": "1.7.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "15",
+      "name": "ValhallaVintageVerb",
+      "path": "C:\\Program Files\\Valhalla DSP\\ValhallaVintageVerb",
+      "manufacturer": "Valhalla DSP",
+      "url": "https://valhalladsp.com/shop/reverb/valhalla-vintage-verb/",
+      "version": "1.8.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "16",
+      "name": "Kontakt 7",
+      "path": "C:\\Program Files\\Native Instruments\\Kontakt 7",
+      "manufacturer": "Native Instruments",
+      "url": "https://www.native-instruments.com/en/products/komplete/samplers/kontakt-7/",
+      "version": "7.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "17",
+      "name": "Massive X",
+      "path": "C:\\Program Files\\Native Instruments\\Massive X",
+      "manufacturer": "Native Instruments",
+      "url": "https://www.native-instruments.com/en/products/komplete/synths/massive-x/",
+      "version": "1.5.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "18",
+      "name": "Pigments 5",
+      "path": "C:\\Program Files\\Arturia\\Pigments 5",
+      "manufacturer": "Arturia",
+      "url": "https://www.arturia.com/products/software-instruments/pigments-synthesizer/overview",
+      "version": "5.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "19",
+      "name": "V Collection 10",
+      "path": "C:\\Program Files\\Arturia\\V Collection 10",
+      "manufacturer": "Arturia",
+      "url": "https://www.arturia.com/products/software-instruments/v-collection/overview",
+      "version": "10.0.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    },
+    {
+      "id": "20",
+      "name": "Teletronix LA-2A",
+      "path": "C:\\Program Files\\Universal Audio\\UAD-2\\LA-2A",
+      "manufacturer": "Universal Audio",
+      "url": "https://www.uaudio.com/uad-plugins/compressors-limiters/teletronix-la-2a.html",
+      "version": "9.15.0",
+      "type": "VST3",
+      "date_scanned": "2025-01-01",
+      "last_updated": "2025-01-01"
+    }
+  ]
+}
