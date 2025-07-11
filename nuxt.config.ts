@@ -1,4 +1,11 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { readFileSync } from "fs";
+import { join } from "path";
+
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, "package.json"), "utf8"),
+);
+
 export default defineNuxtConfig({
   ssr: false,
   app: {
@@ -15,7 +22,7 @@ export default defineNuxtConfig({
   ],
   runtimeConfig: {
     public: {
-      version: process.env.npm_package_version || "0.0.1",
+      version: packageJson.version,
     },
   },
 });

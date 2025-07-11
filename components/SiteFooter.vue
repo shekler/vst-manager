@@ -1,8 +1,9 @@
 <template>
-  <footer
-    class="text-mint/30 flex items-center justify-start px-4 py-2 text-sm"
-  >
-    <span>version {{ version }}</span>
+  <footer class="flex">
+    <span
+      class="text-powder/50 from-powder/5 to-powder/10 rounded-lg bg-gradient-to-br px-2 py-1 text-xs opacity-60"
+      >version {{ version }}</span
+    >
   </footer>
 </template>
 
