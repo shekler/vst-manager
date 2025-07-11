@@ -33,6 +33,9 @@ logs
 build/
 dist_electron/
 
+# Electron Forge output directory
+out/
+
 # Database files
 *.db
 *.sqlite
