@@ -53,10 +53,22 @@
           Showing {{ filteredPlugins.length }} of {{ plugins.length }} plugins
         </div>
 
-        <!-- Clear Filters Button -->
-        <button @click="clearFilters" class="c-button c-button--red">
-          Clear Filters
-        </button>
+        <div class="flex gap-2">
+          <!-- Scan and Update Button -->
+          <button
+            @click="scanAndUpdate"
+            :disabled="isScanning"
+            class="c-button c-button--blue"
+            :class="{ 'cursor-not-allowed opacity-50': isScanning }"
+          >
+            {{ isScanning ? "🔄 Scanning..." : "🔍 Scan & Update" }}
+          </button>
+
+          <!-- Clear Filters Button -->
+          <button @click="clearFilters" class="c-button c-button--red">
+            Clear Filters
+          </button>
+        </div>
       </div>
     </div>
 
@@ -240,6 +252,16 @@ interface UpdatePluginResponse {
   plugin: any;
 }
 
+interface ScanAndUpdateResponse {
+  success: boolean;
+  message: string;
+  scannedCount?: number;
+  totalPluginsCount?: number;
+  scannedPaths?: string[];
+  skippedPaths?: Array<{ path: string; error: string }>;
+  error?: string;
+}
+
 // Reactive state
 const searchFilter = ref("");
 const selectedManufacturer = ref("");
@@ -248,6 +270,7 @@ const plugins = ref<any[]>([]);
 const pluginStates = ref<
   Record<string, { showKey: boolean; showTooltip: boolean; editedKey: string }>
 >({});
+const isScanning = ref(false);
 
 const copyToClipboard = (key: string) => {
   navigator.clipboard.writeText(key);
@@ -389,7 +412,42 @@ const clearFilters = () => {
   selectedType.value = "";
 };
 
-onMounted(async () => {
+// Scan and update plugins
+const scanAndUpdate = async () => {
+  isScanning.value = true;
+
+  try {
+    const { data } = await useFetch<ScanAndUpdateResponse>(
+      "/api/plugins/scan-and-update",
+      {
+        method: "POST",
+      },
+    );
+
+    if (data.value?.success) {
+      console.log("Scan and update successful:", data.value.message);
+      // Show success message
+      alert(
+        `✅ ${data.value.message}\n\nScanned: ${data.value.scannedCount} plugins\nTotal: ${data.value.totalPluginsCount} plugins`,
+      );
+      // Refresh the plugins list
+      await fetchPlugins();
+    } else {
+      console.error("Scan and update failed:", data.value?.message);
+      alert(`❌ Scan failed: ${data.value?.message || "Unknown error"}`);
+    }
+  } catch (error) {
+    console.error("Error during scan and update:", error);
+    alert(
+      `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  } finally {
+    isScanning.value = false;
+  }
+};
+
+// Fetch plugins function
+const fetchPlugins = async () => {
   try {
     const { data } = await useFetch<PluginResponse>("/api/plugins/list");
     if (data.value?.success && data.value.plugins) {
@@ -400,5 +458,9 @@ onMounted(async () => {
   } catch (error) {
     console.error("Error fetching plugins:", error);
   }
+};
+
+onMounted(async () => {
+  await fetchPlugins();
 });
 </script>
