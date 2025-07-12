@@ -166,11 +166,21 @@
           class="bg-jet/50 border-powder/20 absolute inset-6 flex flex-col justify-between gap-2 rounded-lg border p-4 backdrop-blur-md"
           v-if="getPluginState(plugin.name).showKey"
         >
-          <div class="text-powder/50">Licence key:</div>
+          <div class="text-powder/50">License key:</div>
           <fieldset
             class="c-input c-input--search flex items-center justify-between gap-2"
           >
-            <input class="" :value="plugin.key" />
+            <input
+              class="text-powder/90 flex-1 border-none bg-transparent outline-none"
+              :value="getPluginState(plugin.name).editedKey || plugin.key"
+              @input="
+                (event) =>
+                  (getPluginState(plugin.name).editedKey = (
+                    event.target as HTMLInputElement
+                  ).value)
+              "
+              placeholder="Enter license key..."
+            />
             <div class="text-powder/50 flex gap-2">
               <IconCopy
                 class="hover:text-powder size-6 cursor-pointer"
@@ -178,7 +188,7 @@
               />
               <IconDeviceFloppy
                 class="hover:text-powder size-6 cursor-pointer"
-                @click="saveToDatabase(plugin.key)"
+                @click="saveToDatabase(plugin.id, plugin.name)"
               />
             </div>
           </fieldset>
@@ -224,21 +234,61 @@ interface PluginResponse {
   message?: string;
 }
 
+interface UpdatePluginResponse {
+  success: boolean;
+  message: string;
+  plugin: any;
+}
+
 // Reactive state
 const searchFilter = ref("");
 const selectedManufacturer = ref("");
 const selectedType = ref("");
 const plugins = ref<any[]>([]);
 const pluginStates = ref<
-  Record<string, { showKey: boolean; showTooltip: boolean; key: string }>
+  Record<string, { showKey: boolean; showTooltip: boolean; editedKey: string }>
 >({});
 
 const copyToClipboard = (key: string) => {
   navigator.clipboard.writeText(key);
 };
 
-const saveToDatabase = (key: string) => {
-  console.log(key);
+const saveToDatabase = async (pluginId: string, pluginName: string) => {
+  const editedKey = getPluginState(pluginName).editedKey;
+  if (!editedKey) {
+    console.log("No changes to save");
+    return;
+  }
+
+  try {
+    const { data } = await useFetch<UpdatePluginResponse>(
+      "/api/plugins/update",
+      {
+        method: "POST",
+        body: {
+          pluginId,
+          key: editedKey,
+        },
+      },
+    );
+
+    if (data.value?.success) {
+      // Update the local plugin data
+      const pluginIndex = plugins.value.findIndex((p) => p.id === pluginId);
+      if (pluginIndex !== -1) {
+        plugins.value[pluginIndex].key = editedKey;
+        plugins.value[pluginIndex].last_updated =
+          data.value.plugin.last_updated;
+      }
+      // Clear the edited key after successful save
+      getPluginState(pluginName).editedKey = "";
+      console.log("License key saved successfully");
+    } else {
+      console.error("Failed to save plugin:", data.value?.message);
+    }
+  } catch (error) {
+    console.error("Error saving plugin:", error);
+  }
 };
 
 // Get device's time format
@@ -309,7 +359,7 @@ const getPluginState = (pluginName: string) => {
     pluginStates.value[pluginName] = {
       showKey: false,
       showTooltip: false,
-      key: "",
+      editedKey: "",
     };
   }
   return pluginStates.value[pluginName];
@@ -320,7 +370,16 @@ const setPluginTooltip = (pluginName: string, show: boolean) => {
 };
 
 const togglePluginKey = (pluginName: string) => {
-  getPluginState(pluginName).showKey = !getPluginState(pluginName).showKey;
+  const state = getPluginState(pluginName);
+  state.showKey = !state.showKey;
+
+  // Initialize edited key with current value when opening
+  if (state.showKey) {
+    const plugin = plugins.value.find((p) => p.name === pluginName);
+    if (plugin) {
+      state.editedKey = plugin.key || "";
+    }
+  }
 };
 
 // Clear all filters
