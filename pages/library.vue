@@ -101,7 +101,13 @@
               class="absolute inset-0 size-fit max-h-full max-w-full self-start justify-self-center"
             />
           </div>
-          <div class="col-span-2 flex flex-col">
+          <div
+            class="flex flex-col"
+            :class="{
+              'col-span-3': !plugin.image,
+              'col-span-2': plugin.image,
+            }"
+          >
             <div class="leading-none">
               <div class="text-powder/50">{{ plugin.manufacturer }}</div>
               <h2 class="text-powder/90 text-xl font-bold">
