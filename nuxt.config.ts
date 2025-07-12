@@ -14,12 +14,7 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   compatibilityDate: "2025-05-15",
   devtools: { enabled: true },
-  modules: [
-    "@nuxt/image",
-    "@nuxt/devtools",
-    "@nuxtjs/tailwindcss",
-    "@pinia/nuxt",
-  ],
+  modules: ["@nuxt/image", "@nuxt/devtools", "@nuxtjs/tailwindcss"],
   runtimeConfig: {
     public: {
       version: packageJson.version,

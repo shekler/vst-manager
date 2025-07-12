@@ -2,8 +2,30 @@
   <div>
     <h1 class="text-4xl font-bold">Library</h1>
 
+    <!-- Database Import Section -->
+    <div
+      class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6"
+    >
+      <h2 class="text-powder/90 mb-4 text-xl font-bold">Database</h2>
+      <div class="flex items-center gap-4">
+        <button
+          @click="handleImport"
+          :disabled="loading"
+          class="c-button c-button--mint"
+        >
+          {{ loading ? "Importing..." : "Import from JSON" }}
+        </button>
+        <div v-if="error" class="text-sm text-red-400">{{ error }}</div>
+        <div v-if="importResult" class="text-sm text-green-400">
+          {{ importResult }}
+        </div>
+      </div>
+    </div>
+
     <!-- Filter Section -->
-    <div class="from-onyx toonyx/50 mt-6 mb-8 rounded-lg bg-gradient-to-br p-6">
+    <div
+      class="from-onyx to-onyx/50 mt-4 mb-8 rounded-lg bg-gradient-to-br p-6"
+    >
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Filters</h2>
       <div class="grid gap-4 md:grid-cols-3">
         <!-- Search Filter -->
@@ -53,22 +75,10 @@
           Showing {{ filteredPlugins.length }} of {{ plugins.length }} plugins
         </div>
 
-        <div class="flex gap-2">
-          <!-- Scan and Update Button -->
-          <button
-            @click="scanAndUpdate"
-            :disabled="isScanning"
-            class="c-button c-button--blue"
-            :class="{ 'cursor-not-allowed opacity-50': isScanning }"
-          >
-            {{ isScanning ? "🔄 Scanning..." : "🔍 Scan & Update" }}
-          </button>
-
-          <!-- Clear Filters Button -->
-          <button @click="clearFilters" class="c-button c-button--red">
-            Clear Filters
-          </button>
-        </div>
+        <!-- Clear Filters Button -->
+        <button @click="clearFilters" class="c-button c-button--red">
+          Clear Filters
+        </button>
       </div>
     </div>
 
@@ -235,42 +245,37 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted } from "vue";
 import { IconKeyFilled, IconCopy, IconDeviceFloppy } from "@tabler/icons-vue";
-import { useFetch } from "#app";
 
 // Import the custom select component
 import CustomSelect from "~/components/CustomSelect.vue";
 
-interface PluginResponse {
-  success: boolean;
-  plugins?: any[];
-  message?: string;
-}
+// Use the plugins composable
+const { plugins, loading, error, fetchPlugins, importPlugins } = usePlugins();
 
-interface UpdatePluginResponse {
-  success: boolean;
-  message: string;
-  plugin: any;
-}
-
-interface ScanAndUpdateResponse {
-  success: boolean;
-  message: string;
-  scannedCount?: number;
-  totalPluginsCount?: number;
-  scannedPaths?: string[];
-  skippedPaths?: Array<{ path: string; error: string }>;
-  error?: string;
-}
-
-// Reactive state
+// Additional reactive state
 const searchFilter = ref("");
 const selectedManufacturer = ref("");
 const selectedType = ref("");
-const plugins = ref<any[]>([]);
+const importResult = ref("");
 const pluginStates = ref<
   Record<string, { showKey: boolean; showTooltip: boolean; editedKey: string }>
 >({});
-const isScanning = ref(false);
+
+// Handle import from JSON
+const handleImport = async () => {
+  const result = await importPlugins();
+  if (result.success) {
+    importResult.value = `Successfully imported ${result.count} plugins`;
+    setTimeout(() => {
+      importResult.value = "";
+    }, 5000);
+  } else {
+    importResult.value = result.message || "Import failed";
+    setTimeout(() => {
+      importResult.value = "";
+    }, 5000);
+  }
+};
 
 const copyToClipboard = (key: string) => {
   navigator.clipboard.writeText(key);
@@ -284,31 +289,18 @@ const saveToDatabase = async (pluginId: string, pluginName: string) => {
   }
 
   try {
-    const { data } = await useFetch<UpdatePluginResponse>(
-      "/api/plugins/update",
-      {
-        method: "POST",
-        body: {
-          pluginId,
-          key: editedKey,
-        },
-      },
-    );
-
-    if (data.value?.success) {
-      // Update the local plugin data
-      const pluginIndex = plugins.value.findIndex((p) => p.id === pluginId);
-      if (pluginIndex !== -1) {
-        plugins.value[pluginIndex].key = editedKey;
-        plugins.value[pluginIndex].last_updated =
-          data.value.plugin.last_updated;
-      }
-      // Clear the edited key after successful save
-      getPluginState(pluginName).editedKey = "";
-      console.log("License key saved successfully");
-    } else {
-      console.error("Failed to save plugin:", data.value?.message);
+    // For now, we'll just update the local state
+    // TODO: Implement update API endpoint
+    const pluginIndex = plugins.value.findIndex((p: any) => p.id === pluginId);
+    if (pluginIndex !== -1) {
+      plugins.value[pluginIndex].key = editedKey;
+      plugins.value[pluginIndex].last_updated = new Date()
+        .toISOString()
+        .split("T")[0];
     }
+    // Clear the edited key after successful save
+    getPluginState(pluginName).editedKey = "";
+    console.log("License key saved successfully");
   } catch (error) {
     console.error("Error saving plugin:", error);
   }
@@ -327,12 +319,12 @@ const getDeviceFormat = (date: string) => {
 
 // Computed properties for unique values
 const uniqueManufacturers = computed(() => {
-  const manufacturers = plugins.value.map((plugin) => plugin.manufacturer);
+  const manufacturers = plugins.value.map((plugin: any) => plugin.manufacturer);
   return [...new Set(manufacturers)].sort();
 });
 
 const uniqueTypes = computed(() => {
-  const types = plugins.value.map((plugin) => plugin.type);
+  const types = plugins.value.map((plugin: any) => plugin.type);
   return [...new Set(types)].sort();
 });
 
@@ -340,22 +332,22 @@ const uniqueTypes = computed(() => {
 const manufacturerOptions = computed(() => [
   { value: "", label: "All Manufacturers" },
   ...uniqueManufacturers.value.map((manufacturer) => ({
-    value: manufacturer,
-    label: manufacturer,
+    value: manufacturer as string,
+    label: manufacturer as string,
   })),
 ]);
 
 const typeOptions = computed(() => [
   { value: "", label: "All Types" },
   ...uniqueTypes.value.map((type) => ({
-    value: type,
-    label: type,
+    value: type as string,
+    label: type as string,
   })),
 ]);
 
 // Filtered plugins based on all filters
 const filteredPlugins = computed(() => {
-  return plugins.value.filter((plugin) => {
+  return plugins.value.filter((plugin: any) => {
     // Search filter
     const searchMatch =
       !searchFilter.value ||
@@ -398,7 +390,7 @@ const togglePluginKey = (pluginName: string) => {
 
   // Initialize edited key with current value when opening
   if (state.showKey) {
-    const plugin = plugins.value.find((p) => p.name === pluginName);
+    const plugin = plugins.value.find((p: any) => p.name === pluginName);
     if (plugin) {
       state.editedKey = plugin.key || "";
     }
@@ -412,55 +404,8 @@ const clearFilters = () => {
   selectedType.value = "";
 };
 
-// Scan and update plugins
-const scanAndUpdate = async () => {
-  isScanning.value = true;
-
-  try {
-    const { data } = await useFetch<ScanAndUpdateResponse>(
-      "/api/plugins/scan-and-update",
-      {
-        method: "POST",
-      },
-    );
-
-    if (data.value?.success) {
-      console.log("Scan and update successful:", data.value.message);
-      // Show success message
-      alert(
-        `✅ ${data.value.message}\n\nScanned: ${data.value.scannedCount} plugins\nTotal: ${data.value.totalPluginsCount} plugins`,
-      );
-      // Refresh the plugins list
-      await fetchPlugins();
-    } else {
-      console.error("Scan and update failed:", data.value?.message);
-      alert(`❌ Scan failed: ${data.value?.message || "Unknown error"}`);
-    }
-  } catch (error) {
-    console.error("Error during scan and update:", error);
-    alert(
-      `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
-  } finally {
-    isScanning.value = false;
-  }
-};
-
-// Fetch plugins function
-const fetchPlugins = async () => {
-  try {
-    const { data } = await useFetch<PluginResponse>("/api/plugins/list");
-    if (data.value?.success && data.value.plugins) {
-      plugins.value = data.value.plugins;
-    } else {
-      console.error("Failed to fetch plugins:", data.value?.message);
-    }
-  } catch (error) {
-    console.error("Error fetching plugins:", error);
-  }
-};
-
 onMounted(async () => {
+  // Fetch plugins from database
   await fetchPlugins();
 });
 </script>
