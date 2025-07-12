@@ -124,7 +124,7 @@
             </div>
           </div>
         </div>
-        <div class="grid grid-cols-2">
+        <div class="flex">
           <a
             :href="plugin.url"
             target="_blank"
@@ -136,10 +136,58 @@
           <a
             :href="`explorer.exe ${plugin.path}`"
             target="_blank"
-            class="bg-powder/90 text-jet hover:border-powder/50 hover:bg-gradient hover:from-powder/10 hover:to-powder/20 hover:text-powder flex grow justify-center rounded-br-lg border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"
+            class="bg-powder/90 text-jet hover:border-powder/50 hover:bg-gradient hover:from-powder/10 hover:to-powder/20 hover:text-powder flex grow justify-center border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"
           >
             Local Path
           </a>
+          <button
+            class="text-powder hover:bg-jet/50 hover:border-powder/20 relative flex h-full cursor-pointer items-center justify-center rounded-br-lg border px-3 duration-200"
+            :class="
+              getPluginState(plugin.name).showKey
+                ? 'bg-jet/50 border-powder/20'
+                : 'bg-powder/20 border-transparent'
+            "
+            @mouseover="setPluginTooltip(plugin.name, true)"
+            @mouseleave="setPluginTooltip(plugin.name, false)"
+            @click="togglePluginKey(plugin.name)"
+          >
+            <!-- Tooltip -->
+            <div
+              v-if="getPluginState(plugin.name).showTooltip"
+              class="bg-jet/50 border-powder/20 absolute right-1/2 bottom-1/2 w-max rounded-lg border px-3 py-2 text-sm backdrop-blur-md"
+            >
+              Open license key details
+            </div>
+            <IconKeyFilled class="size-5" />
+          </button>
+        </div>
+        <!-- Key details -->
+        <div
+          class="bg-jet/50 border-powder/20 absolute inset-6 flex flex-col justify-between gap-2 rounded-lg border p-4 backdrop-blur-md"
+          v-if="getPluginState(plugin.name).showKey"
+        >
+          <div class="text-powder/50">Licence key:</div>
+          <fieldset
+            class="c-input c-input--search flex items-center justify-between gap-2"
+          >
+            <input class="" :value="plugin.key" />
+            <div class="text-powder/50 flex gap-2">
+              <IconCopy
+                class="hover:text-powder size-6 cursor-pointer"
+                @click="copyToClipboard(plugin.key)"
+              />
+              <IconDeviceFloppy
+                class="hover:text-powder size-6 cursor-pointer"
+                @click="saveToDatabase(plugin.key)"
+              />
+            </div>
+          </fieldset>
+          <button
+            class="c-button c-button--clear"
+            @click="togglePluginKey(plugin.name)"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -164,6 +212,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from "vue";
+import { IconKeyFilled, IconCopy, IconDeviceFloppy } from "@tabler/icons-vue";
 import { useFetch } from "#app";
 
 // Import the custom select component
@@ -180,6 +229,17 @@ const searchFilter = ref("");
 const selectedManufacturer = ref("");
 const selectedType = ref("");
 const plugins = ref<any[]>([]);
+const pluginStates = ref<
+  Record<string, { showKey: boolean; showTooltip: boolean; key: string }>
+>({});
+
+const copyToClipboard = (key: string) => {
+  navigator.clipboard.writeText(key);
+};
+
+const saveToDatabase = (key: string) => {
+  console.log(key);
+};
 
 // Get device's time format
 const getDeviceFormat = (date: string) => {
@@ -242,6 +302,26 @@ const filteredPlugins = computed(() => {
     return searchMatch && manufacturerMatch && typeMatch;
   });
 });
+
+// Helper functions for plugin state management
+const getPluginState = (pluginName: string) => {
+  if (!pluginStates.value[pluginName]) {
+    pluginStates.value[pluginName] = {
+      showKey: false,
+      showTooltip: false,
+      key: "",
+    };
+  }
+  return pluginStates.value[pluginName];
+};
+
+const setPluginTooltip = (pluginName: string, show: boolean) => {
+  getPluginState(pluginName).showTooltip = show;
+};
+
+const togglePluginKey = (pluginName: string) => {
+  getPluginState(pluginName).showKey = !getPluginState(pluginName).showKey;
+};
 
 // Clear all filters
 const clearFilters = () => {

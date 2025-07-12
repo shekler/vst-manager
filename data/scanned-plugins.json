@@ -9,6 +9,7 @@
       "image": "https://images.squarespace-cdn.com/content/v1/561e2985e4b08862a3496b82/86dccfe4-4f62-4ec8-b506-69d7d5e478bc/BABY+Audio+Comeback+Kid+Plugin.png?format=2500w",
       "version": "1.0.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2024-03-05"
     },
@@ -21,6 +22,7 @@
       "image": "https://media.wavescdn.com/images/products/plugins/max/ssl-e-channel.png?fit=max&auto=format&ixlib=imgixjs-3.6.1&w=380",
       "version": "14.0.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -33,6 +35,7 @@
       "image": "https://media.wavescdn.com/images/products/plugins/max/cla-76-compressor-limiter-v2.png?fit=max&auto=format&ixlib=imgixjs-3.6.1&w=926",
       "version": "14.0.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -45,6 +48,7 @@
       "image": "https://slatedigital.com/wp-content/uploads/2023/01/vmr-hero.jpg",
       "version": "2.0.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -57,6 +61,7 @@
       "image": "https://slatedigital.com/wp-content/uploads/2023/03/fg-grey-hero.jpg",
       "version": "1.0.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -69,6 +74,7 @@
       "image": "https://www.stltones.com/wp-content/uploads/2023/05/amphub-hero.jpg",
       "version": "1.5.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -93,6 +99,7 @@
       "image": "https://www.fabfilter.com/images/products/pro-q-3-hero.jpg",
       "version": "3.7.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -105,6 +112,7 @@
       "image": "https://www.fabfilter.com/images/products/pro-c-2-hero.jpg",
       "version": "2.8.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -129,6 +137,7 @@
       "image": "https://www.izotope.com/media/images/products/rx-10-hero.jpg",
       "version": "10.0.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -141,6 +150,7 @@
       "image": "https://www.soundtoys.com/wp-content/uploads/2023/06/echoboy-hero.jpg",
       "version": "5.3.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -153,6 +163,7 @@
       "image": "https://www.soundtoys.com/wp-content/uploads/2023/06/decapitator-hero.jpg",
       "version": "5.3.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -165,6 +176,7 @@
       "image": "https://valhalladsp.com/wp-content/uploads/2023/04/valhalla-room-hero.jpg",
       "version": "1.7.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -177,6 +189,7 @@
       "image": "https://valhalladsp.com/wp-content/uploads/2023/04/valhalla-vintage-verb-hero.jpg",
       "version": "1.8.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -189,6 +202,7 @@
       "image": "https://www.native-instruments.com/media/images/products/komplete/kontakt-7-hero.jpg",
       "version": "7.0.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -201,6 +215,7 @@
       "image": "https://www.native-instruments.com/media/images/products/komplete/massive-x-hero.jpg",
       "version": "1.5.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -213,6 +228,7 @@
       "image": "https://www.arturia.com/media/images/products/pigments-5-hero.jpg",
       "version": "5.0.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -225,6 +241,7 @@
       "image": "https://www.arturia.com/media/images/products/v-collection-10-hero.jpg",
       "version": "10.0.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     },
@@ -237,6 +254,7 @@
       "image": "https://www.uaudio.com/media/images/uad-plugins/teletronix-la-2a-hero.jpg",
       "version": "9.15.0",
       "type": "VST3",
+      "key": "1234567890",
       "date_scanned": "2025-01-01",
       "last_updated": "2025-01-01"
     }
