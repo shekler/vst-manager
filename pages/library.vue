@@ -168,10 +168,10 @@
         >
           <div class="text-powder/50">License key:</div>
           <fieldset
-            class="c-input c-input--search flex items-center justify-between gap-2"
+            class="c-input c-input--search flex w-full items-center justify-between gap-2"
           >
             <input
-              class="text-powder/90 flex-1 border-none bg-transparent outline-none"
+              class="text-powder/90 w-full border-none bg-transparent outline-none"
               :value="getPluginState(plugin.name).editedKey || plugin.key"
               @input="
                 (event) =>
