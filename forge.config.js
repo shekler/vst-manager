@@ -6,6 +6,7 @@ module.exports = {
   packagerConfig: {
     asar: true,
     extraResource: [path.join(__dirname, ".output")],
+    icon: path.join(__dirname, "public/icon.ico"),
   },
   rebuildConfig: {},
   makers: [
@@ -19,7 +20,11 @@ module.exports = {
     },
     {
       name: "@electron-forge/maker-deb",
-      config: {},
+      config: {
+        options: {
+          icon: path.join(__dirname, "public/icon.png"),
+        },
+      },
     },
     {
       name: "@electron-forge/maker-rpm",

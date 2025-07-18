@@ -8,20 +8,14 @@
       {{ isScanning ? "Scanning" : "Scan Plugins" }}
     </button>
 
-    <div v-if="results" class="bg-powder/10 mt-4 rounded-lg p-4">
+    <div v-if="results" class="border-powder/20 mt-4 rounded-lg border p-6">
       <h3 class="text-powder/90 text-lg font-bold">Scan Results</h3>
       <p class="text-powder/70">Total plugins: {{ results.totalPlugins }}</p>
       <p class="text-powder/70">Valid plugins: {{ results.validPlugins }}</p>
 
       <div class="mt-4 space-y-2">
-        <div v-for="plugin in results.plugins" :key="plugin.path" class="border-powder/20 bg-powder/5 rounded border p-3" :class="{ 'border-red-400/20 bg-red-400/5': !plugin.isValid }">
-          <h4 class="text-powder/90 font-bold">{{ plugin.name || "Unknown Plugin" }}</h4>
-          <p v-if="plugin.isValid" class="text-powder/70 text-sm">
-            Vendor: {{ plugin.vendor }}<br />
-            Version: {{ plugin.version }}<br />
-            Category: {{ plugin.category }}
-          </p>
-          <p v-else class="text-sm text-red-400">Error: {{ plugin.error }}</p>
+        <div v-for="plugin in results.plugins" :key="plugin.path">
+          <p v-if="!plugin.isValid" class="rounded-md border border-red-400/20 bg-red-400/5 p-2 px-4">Error: {{ plugin.error }}</p>
         </div>
       </div>
     </div>
