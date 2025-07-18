@@ -1,11 +1,6 @@
 <!-- components/VstScanner.vue -->
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex flex-col gap-2">
-      <label for="directory" class="text-powder/70 text-sm font-bold">VST Plugin Directory:</label>
-      <input id="directory" v-model="directoryPath" type="text" placeholder="C:\Program Files\Common Files\VST3" class="c-input c-input--search" />
-    </div>
-
     <button @click="scanPlugins" :disabled="isScanning" class="c-button c-button--mint">
       {{ isScanning ? "Scanning..." : "Scan Plugins" }}
     </button>
@@ -44,28 +39,18 @@
 <script setup>
 const emit = defineEmits(["scan-complete"]);
 
-const directoryPath = ref("");
 const isScanning = ref(false);
 const results = ref(null);
 const showErrorModal = ref(false);
 const errorMessage = ref("");
 
 async function scanPlugins() {
-  if (!directoryPath.value) {
-    errorMessage.value = "Please enter a directory path";
-    showErrorModal.value = true;
-    return;
-  }
-
   isScanning.value = true;
   results.value = null;
 
   try {
-    const response = await $fetch("/api/scan-vst", {
+    const response = await $fetch("/api/scan-vst-settings", {
       method: "POST",
-      body: {
-        directoryPath: directoryPath.value,
-      },
     });
 
     results.value = response.data;

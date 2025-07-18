@@ -188,7 +188,7 @@ class DatabaseService {
           url: "", // Will be empty as it's not in scanned data
           image: "", // Will be empty as it's not in scanned data
           version: scannedPlugin.version || "",
-          type: scannedPlugin.category || scannedPlugin.subCategories?.[0] || "Unknown",
+          type: scannedPlugin.subCategories?.[0] || scannedPlugin.category || "Unknown",
           key: "", // Will be empty as it's not in scanned data
           date_scanned: currentDate,
           last_updated: currentDate,

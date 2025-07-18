@@ -34,7 +34,7 @@
 
         <!-- Save Button -->
         <div class="flex items-center gap-4">
-          <button @click="saveSettings" :disabled="loading || !hasChanges" class="c-button c-button--primary">
+          <button @click="saveSettings" :disabled="loading || !hasChanges" class="c-button c-button--mint">
             {{ loading ? "Saving..." : "Save Settings" }}
           </button>
           <button @click="resetToDefaults" :disabled="loading" class="c-button c-button--red">Reset to Defaults</button>

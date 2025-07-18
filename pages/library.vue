@@ -6,7 +6,10 @@
     <div class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6">
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Database</h2>
       <div class="flex flex-col gap-4">
-        <VstScanner @scan-complete="handleScanComplete" />
+        <div class="flex flex-col gap-2">
+          <p class="text-powder/70 text-sm">Scan for VST plugins using the paths configured in Settings.</p>
+          <VstScanner @scan-complete="handleScanComplete" />
+        </div>
 
         <!-- Delete All Section -->
         <div class="border-powder/20 border-t pt-4">
