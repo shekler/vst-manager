@@ -23,7 +23,7 @@
 
     <!-- Delete Confirmation Modal -->
     <ModalWindow v-model="showDeleteConfirm" title="Confirm Deletion">
-      <p class="text-powder/70 mt-2 text-sm">Are you sure you want to delete all plugins? This action cannot be undone.</p>
+      <p class="text-powder/70 mt-2 text-sm">Are you sure you want to delete all plugins? License keys will be lost. This action cannot be undone.</p>
 
       <template #footer>
         <button @click="showDeleteConfirm = false" class="c-button c-button--clear flex-1">Cancel</button>
