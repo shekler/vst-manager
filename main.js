@@ -25,9 +25,11 @@ function createWindow() {
     // In production, load from the packaged static files
     // The files are in the resources folder when packaged
     const indexPath = path.join(process.resourcesPath, ".output/public/index.html");
+    console.log("Loading production app from:", indexPath);
     mainWindow.loadFile(indexPath);
   } else {
     // In development, load from localhost
+    console.log("Loading development app from localhost:3000");
     mainWindow.loadURL("http://localhost:3000");
   }
 

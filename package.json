@@ -9,9 +9,9 @@
     "dev": "nuxi dev",
     "build": "nuxi generate",
     "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "publish": "electron-forge publish"
+    "package": "npm run build && electron-forge package",
+    "make": "npm run build && electron-forge make",
+    "publish": "npm run build && electron-forge publish"
   },
   "dependencies": {
     "@electron-forge/maker-dmg": "^7.8.1",
@@ -41,30 +41,6 @@
     "prettier-plugin-tailwindcss": "^0.6.14",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
-    "wait-on": "^8.0.3"
-  },
-  "build": {
-    "appId": "com.plugin-manager.app",
-    "productName": "Plugin Manager",
-    "directories": {
-      "output": "dist_electron"
-    },
-    "files": [
-      "dist/electron/**/*",
-      ".output/public/**/*"
-    ],
-    "icon": "electron/icons/icon.png",
-    "mac": {
-      "target": "dmg",
-      "icon": "electron/icons/icon.icns"
-    },
-    "win": {
-      "target": "nsis",
-      "icon": "electron/icons/icon.ico"
-    },
-    "linux": {
-      "target": "AppImage",
-      "icon": "electron/icons/icon.png"
-    }
+        "wait-on": "^8.0.3"
   }
 }
