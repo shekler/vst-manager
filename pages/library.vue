@@ -7,7 +7,30 @@
       class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6"
     >
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Database</h2>
-      <VstScanner />
+      <div class="flex flex-col gap-4">
+        <VstScanner />
+
+        <!-- Manual Import Section -->
+        <div class="border-powder/20 border-t pt-4">
+          <h3 class="text-powder/70 mb-2 text-lg font-bold">
+            Import Scanned Plugins
+          </h3>
+          <div class="flex items-center gap-4">
+            <button
+              @click="handleImport"
+              :disabled="loading"
+              class="c-button c-button--mint"
+            >
+              {{
+                loading ? "Importing..." : "Import from scanned-plugins.json"
+              }}
+            </button>
+            <div v-if="importResult" class="text-powder/70 text-sm">
+              {{ importResult }}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Filter Section -->
@@ -70,8 +93,16 @@
       </div>
     </div>
 
+    <!-- Loading State -->
+    <div v-if="loading" class="mt-8 text-center">
+      <div class="text-powder/50 text-lg">Loading plugins...</div>
+    </div>
+
     <!-- Plugin Grid -->
-    <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div
+      v-else
+      class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+    >
       <!-- Plugin library view -->
       <div
         v-for="plugin in filteredPlugins"
@@ -220,7 +251,7 @@
 
     <!-- No Results Message -->
     <div
-      v-if="filteredPlugins.length === 0 && plugins.length > 0"
+      v-if="!loading && filteredPlugins.length === 0 && plugins.length > 0"
       class="mt-8 text-center"
     >
       <div class="text-powder/50 text-lg">
@@ -232,6 +263,14 @@
       >
         Clear Filters
       </button>
+    </div>
+
+    <!-- No Plugins Message -->
+    <div v-if="!loading && plugins.length === 0" class="mt-8 text-center">
+      <div class="text-powder/50 text-lg">
+        No plugins found. Try importing from scanned-plugins.json or scanning
+        for VST plugins.
+      </div>
     </div>
   </div>
 </template>
@@ -400,7 +439,10 @@ const clearFilters = () => {
 };
 
 onMounted(async () => {
-  // Fetch plugins from database
+  // Import plugins from scanned-plugins.json first
+  await handleImport();
+
+  // Then fetch plugins from database
   await fetchPlugins();
 });
 </script>

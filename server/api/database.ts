@@ -103,15 +103,36 @@ class DatabaseService {
       }
 
       const jsonData = JSON.parse(readFileSync(jsonPath, "utf8"));
-      const plugins: Plugin[] = jsonData.plugins || [];
+      const scannedPlugins = jsonData.plugins || [];
 
-      if (plugins.length === 0) {
+      if (scannedPlugins.length === 0) {
         console.log("No plugins found in JSON file");
         return;
       }
 
       // Clear existing data
       await this.runQuery("DELETE FROM plugins");
+
+      // Transform scanned plugins to database format
+      const plugins: Plugin[] = scannedPlugins.map((scannedPlugin: any) => {
+        const currentDate = new Date().toISOString().split("T")[0];
+        return {
+          id: scannedPlugin.cid || Date.now().toString(),
+          name: scannedPlugin.name || "",
+          path: scannedPlugin.path || "",
+          manufacturer: scannedPlugin.vendor || "",
+          url: "", // Will be empty as it's not in scanned data
+          image: "", // Will be empty as it's not in scanned data
+          version: scannedPlugin.version || "",
+          type:
+            scannedPlugin.category ||
+            scannedPlugin.subCategories?.[0] ||
+            "Unknown",
+          key: "", // Will be empty as it's not in scanned data
+          date_scanned: currentDate,
+          last_updated: currentDate,
+        };
+      });
 
       // Insert plugins in batches
       const batchSize = 100;
