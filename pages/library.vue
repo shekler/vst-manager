@@ -5,23 +5,21 @@
     <!-- Database Import Section -->
     <div class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6">
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Database</h2>
-      <div class="flex flex-col gap-4">
+      <div class="flex justify-between gap-4">
         <div class="flex flex-col gap-2">
-          <p class="text-powder/70 text-sm">Scan for VST plugins using the paths configured in Settings.</p>
           <VstScanner @scan-complete="handleScanComplete" />
+          <p class="text-powder/70 text-sm">Scan for VST plugins using the paths configured in <NuxtLink to="/settings" class="text-mint hover:text-powder font-bold underline">Settings</NuxtLink>.</p>
         </div>
 
         <!-- Delete All Section -->
-        <div class="border-powder/20 border-t pt-4">
-          <h3 class="text-powder/70 mb-2 text-lg font-bold">Delete All Plugins</h3>
-          <div class="flex items-center gap-4">
-            <button @click="showDeleteConfirm = true" :disabled="loading" class="c-button c-button--red">
-              {{ loading ? "Deleting..." : "Delete All Plugins" }}
-            </button>
-            <div v-if="deleteResult" class="text-powder/70 text-sm">
-              {{ deleteResult }}
-            </div>
+        <div class="flex flex-col gap-4">
+          <button @click="showDeleteConfirm = true" :disabled="loading" class="c-button c-button--red">
+            {{ loading ? "Deleting..." : "Delete All Plugins" }}
+          </button>
+          <div v-if="deleteResult" class="text-powder/70 text-sm">
+            {{ deleteResult }}
           </div>
+          <p class="text-powder/70 text-sm">Delete all plugins from the database.</p>
         </div>
       </div>
     </div>
@@ -72,7 +70,7 @@
 
     <!-- Loading State -->
     <div v-if="loading" class="mt-8 text-center">
-      <div class="text-powder/50 text-lg">Loading plugins...</div>
+      <div class="text-powder/50 text-lg"><IconLoader2 class="animate-spin" /> Loading plugins...</div>
     </div>
 
     <!-- Plugin Grid -->
@@ -164,7 +162,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from "vue";
-import { IconKeyFilled, IconCopy, IconDeviceFloppy } from "@tabler/icons-vue";
+import { IconKeyFilled, IconCopy, IconDeviceFloppy, IconLoader2 } from "@tabler/icons-vue";
 
 // Import the custom select component
 import CustomSelect from "~/components/CustomSelect.vue";

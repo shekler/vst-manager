@@ -1,8 +1,11 @@
 <!-- components/VstScanner.vue -->
 <template>
   <div class="flex flex-col gap-4">
-    <button @click="scanPlugins" :disabled="isScanning" class="c-button c-button--mint">
-      {{ isScanning ? "Scanning..." : "Scan Plugins" }}
+    <button @click="scanPlugins" :disabled="isScanning" class="c-button c-button--mint w-fit">
+      <div v-if="isScanning" class="animate-spin">
+        <IconLoader2 class="size-4 animate-spin" />
+      </div>
+      {{ isScanning ? "Scanning" : "Scan Plugins" }}
     </button>
 
     <div v-if="results" class="bg-powder/10 mt-4 rounded-lg p-4">
@@ -37,6 +40,7 @@
 </template>
 
 <script setup>
+import { IconLoader2 } from "@tabler/icons-vue";
 const emit = defineEmits(["scan-complete"]);
 
 const isScanning = ref(false);

@@ -1,5 +1,5 @@
 .c-button {
-  @apply flex cursor-pointer items-center justify-center rounded-lg border border-transparent bg-transparent bg-gradient-to-br px-4 py-2 font-bold duration-200;
+  @apply flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-transparent bg-transparent bg-gradient-to-br px-4 py-2 font-bold duration-200;
   &.c-button--mint {
     @apply from-mint to-mint/80 text-jet border-mint;
     &:hover {
@@ -16,6 +16,12 @@
     @apply from-powder to-powder/70 text-jet border-powder;
     &:hover {
       @apply bg-powder/10 text-powder from-transparent to-transparent;
+    }
+  }
+  &[disabled] {
+    @apply cursor-not-allowed opacity-50;
+    &:hover {
+      @apply from-mint to-mint/80 text-jet border-mint;
     }
   }
 }
