@@ -30,6 +30,25 @@
             </div>
           </div>
         </div>
+
+        <!-- Delete All Section -->
+        <div class="border-powder/20 border-t pt-4">
+          <h3 class="text-powder/70 mb-2 text-lg font-bold">
+            Delete All Plugins
+          </h3>
+          <div class="flex items-center gap-4">
+            <button
+              @click="handleDeleteAll"
+              :disabled="loading"
+              class="c-button c-button--red"
+            >
+              {{ loading ? "Deleting..." : "Delete All Plugins" }}
+            </button>
+            <div v-if="deleteResult" class="text-powder/70 text-sm">
+              {{ deleteResult }}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -283,14 +302,22 @@ import { IconKeyFilled, IconCopy, IconDeviceFloppy } from "@tabler/icons-vue";
 import CustomSelect from "~/components/CustomSelect.vue";
 
 // Use the plugins composable
-const { plugins, loading, error, fetchPlugins, importPlugins, updatePlugin } =
-  usePlugins();
+const {
+  plugins,
+  loading,
+  error,
+  fetchPlugins,
+  importPlugins,
+  updatePlugin,
+  deleteAllPlugins,
+} = usePlugins();
 
 // Additional reactive state
 const searchFilter = ref("");
 const selectedManufacturer = ref("");
 const selectedType = ref("");
 const importResult = ref("");
+const deleteResult = ref("");
 const pluginStates = ref<
   Record<string, { showKey: boolean; showTooltip: boolean; editedKey: string }>
 >({});
@@ -307,6 +334,30 @@ const handleImport = async () => {
     importResult.value = result.message || "Import failed";
     setTimeout(() => {
       importResult.value = "";
+    }, 5000);
+  }
+};
+
+// Handle delete all plugins
+const handleDeleteAll = async () => {
+  if (
+    !confirm(
+      "Are you sure you want to delete all plugins? This action cannot be undone.",
+    )
+  ) {
+    return;
+  }
+
+  const result = await deleteAllPlugins();
+  if (result.success) {
+    deleteResult.value = "All plugins deleted successfully";
+    setTimeout(() => {
+      deleteResult.value = "";
+    }, 5000);
+  } else {
+    deleteResult.value = result.message || "Delete failed";
+    setTimeout(() => {
+      deleteResult.value = "";
     }, 5000);
   }
 };

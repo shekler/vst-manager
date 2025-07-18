@@ -152,6 +152,77 @@ export const usePlugins = () => {
     }
   };
 
+  // Delete plugin
+  const deletePlugin = async (
+    id: string,
+  ): Promise<{ success: boolean; message?: string }> => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await $fetch<ApiResponse<null>>(`/api/plugins/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.success) {
+        // Remove the plugin from the local array
+        const index = plugins.value.findIndex((p) => p.id === id);
+        if (index !== -1) {
+          plugins.value.splice(index, 1);
+        }
+
+        return {
+          success: true,
+          message: response.message,
+        };
+      } else {
+        throw new Error("Failed to delete plugin");
+      }
+    } catch (err: any) {
+      error.value = err.message || "Failed to delete plugin";
+      console.error("Error deleting plugin:", err);
+      return { success: false, message: error.value || undefined };
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // Delete all plugins
+  const deleteAllPlugins = async (): Promise<{
+    success: boolean;
+    message?: string;
+  }> => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await $fetch<ApiResponse<null>>(
+        "/api/plugins/delete-all",
+        {
+          method: "POST",
+        },
+      );
+
+      if (response.success) {
+        // Clear the local plugins array
+        plugins.value = [];
+
+        return {
+          success: true,
+          message: response.message,
+        };
+      } else {
+        throw new Error("Failed to delete all plugins");
+      }
+    } catch (err: any) {
+      error.value = err.message || "Failed to delete all plugins";
+      console.error("Error deleting all plugins:", err);
+      return { success: false, message: error.value || undefined };
+    } finally {
+      loading.value = false;
+    }
+  };
+
   // Get database statistics
   const getStats = async (): Promise<PluginStats | null> => {
     try {
@@ -176,6 +247,8 @@ export const usePlugins = () => {
     searchPlugins,
     importPlugins,
     updatePlugin,
+    deletePlugin,
+    deleteAllPlugins,
     getStats,
   };
 };

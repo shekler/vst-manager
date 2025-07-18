@@ -297,6 +297,19 @@ class DatabaseService {
     }
   }
 
+  async deleteAllPlugins(): Promise<void> {
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      await this.runQuery("DELETE FROM plugins");
+    } catch (error) {
+      console.error("Failed to delete all plugins:", error);
+      throw error;
+    }
+  }
+
   async getStats(): Promise<{
     total: number;
     byType: Record<string, number>;
