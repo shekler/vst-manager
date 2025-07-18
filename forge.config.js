@@ -44,10 +44,6 @@ module.exports = {
         },
       },
     },
-    {
-      name: "@electron-forge/maker-rpm",
-      config: {},
-    },
   ],
   plugins: [
     {
