@@ -3,45 +3,16 @@
     <h1 class="text-4xl font-bold">Library</h1>
 
     <!-- Database Import Section -->
-    <div
-      class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6"
-    >
+    <div class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6">
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Database</h2>
       <div class="flex flex-col gap-4">
         <VstScanner />
 
-        <!-- Manual Import Section -->
-        <div class="border-powder/20 border-t pt-4">
-          <h3 class="text-powder/70 mb-2 text-lg font-bold">
-            Import Scanned Plugins
-          </h3>
-          <div class="flex items-center gap-4">
-            <button
-              @click="handleImport"
-              :disabled="loading"
-              class="c-button c-button--mint"
-            >
-              {{
-                loading ? "Importing..." : "Import from scanned-plugins.json"
-              }}
-            </button>
-            <div v-if="importResult" class="text-powder/70 text-sm">
-              {{ importResult }}
-            </div>
-          </div>
-        </div>
-
         <!-- Delete All Section -->
         <div class="border-powder/20 border-t pt-4">
-          <h3 class="text-powder/70 mb-2 text-lg font-bold">
-            Delete All Plugins
-          </h3>
+          <h3 class="text-powder/70 mb-2 text-lg font-bold">Delete All Plugins</h3>
           <div class="flex items-center gap-4">
-            <button
-              @click="handleDeleteAll"
-              :disabled="loading"
-              class="c-button c-button--red"
-            >
+            <button @click="showDeleteConfirm = true" :disabled="loading" class="c-button c-button--red">
               {{ loading ? "Deleting..." : "Delete All Plugins" }}
             </button>
             <div v-if="deleteResult" class="text-powder/70 text-sm">
@@ -52,63 +23,47 @@
       </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <ModalWindow v-model="showDeleteConfirm" title="Confirm Deletion">
+      <p class="text-powder/70 mt-2 text-sm">Are you sure you want to delete all plugins? This action cannot be undone.</p>
+
+      <template #footer>
+        <button @click="showDeleteConfirm = false" class="c-button c-button--clear flex-1">Cancel</button>
+        <button @click="confirmDeleteAll" :disabled="loading" class="c-button c-button--red flex-1">
+          {{ loading ? "Deleting..." : "Delete All" }}
+        </button>
+      </template>
+    </ModalWindow>
+
     <!-- Filter Section -->
-    <div
-      class="from-onyx to-onyx/50 mt-4 mb-8 rounded-lg bg-gradient-to-br p-6"
-    >
+    <div class="from-onyx to-onyx/50 mt-4 mb-8 rounded-lg bg-gradient-to-br p-6">
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Filters</h2>
       <div class="grid gap-4 md:grid-cols-3">
         <!-- Search Filter -->
         <div class="flex flex-col gap-2">
-          <label for="search" class="text-powder/70 text-sm font-bold"
-            >Search</label
-          >
-          <input
-            type="text"
-            id="search"
-            v-model="searchFilter"
-            placeholder="Search plugins..."
-            class="c-input c-input--search"
-          />
+          <label for="search" class="text-powder/70 text-sm font-bold">Search</label>
+          <input type="text" id="search" v-model="searchFilter" placeholder="Search plugins..." class="c-input c-input--search" />
         </div>
 
         <!-- Manufacturer Filter -->
         <div class="flex flex-col gap-2">
-          <label for="manufacturer" class="text-powder/70 text-sm font-bold"
-            >Manufacturer</label
-          >
-          <CustomSelect
-            v-model="selectedManufacturer"
-            :options="manufacturerOptions"
-            placeholder="All Manufacturers"
-            :show-search="uniqueManufacturers.length > 10"
-          />
+          <label for="manufacturer" class="text-powder/70 text-sm font-bold">Manufacturer</label>
+          <CustomSelect v-model="selectedManufacturer" :options="manufacturerOptions" placeholder="All Manufacturers" :show-search="uniqueManufacturers.length > 10" />
         </div>
 
         <!-- Type Filter -->
         <div class="flex flex-col gap-2">
-          <label for="type" class="text-powder/70 text-sm font-bold"
-            >Type</label
-          >
-          <CustomSelect
-            v-model="selectedType"
-            :options="typeOptions"
-            placeholder="All Types"
-            :show-search="uniqueTypes.length > 10"
-          />
+          <label for="type" class="text-powder/70 text-sm font-bold">Type</label>
+          <CustomSelect v-model="selectedType" :options="typeOptions" placeholder="All Types" :show-search="uniqueTypes.length > 10" />
         </div>
       </div>
 
       <div class="mt-4 flex items-end justify-between">
         <!-- Results Count -->
-        <div class="text-powder/50 text-sm">
-          Showing {{ filteredPlugins.length }} of {{ plugins.length }} plugins
-        </div>
+        <div class="text-powder/50 text-sm">Showing {{ filteredPlugins.length }} of {{ plugins.length }} plugins</div>
 
         <!-- Clear Filters Button -->
-        <button @click="clearFilters" class="c-button c-button--red">
-          Clear Filters
-        </button>
+        <button @click="clearFilters" class="c-button c-button--red">Clear Filters</button>
       </div>
     </div>
 
@@ -118,26 +73,13 @@
     </div>
 
     <!-- Plugin Grid -->
-    <div
-      v-else
-      class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
-    >
+    <div v-else class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       <!-- Plugin library view -->
-      <div
-        v-for="plugin in filteredPlugins"
-        :key="plugin.name"
-        class="from-onyx to-onyx/50 relative flex flex-col overflow-hidden rounded-lg bg-gradient-to-br"
-      >
-        <div
-          class="pointer-events-none absolute top-0 left-0 size-32 -translate-y-1/2 rounded-full bg-white opacity-30 blur-[100px]"
-        ></div>
+      <div v-for="plugin in filteredPlugins" :key="plugin.name" class="from-onyx to-onyx/50 relative flex flex-col overflow-hidden rounded-lg bg-gradient-to-br">
+        <div class="pointer-events-none absolute top-0 left-0 size-32 -translate-y-1/2 rounded-full bg-white opacity-30 blur-[100px]"></div>
         <div class="grid grow grid-cols-3 gap-4 p-4">
           <div class="relative" v-if="plugin.image">
-            <NuxtImg
-              :src="plugin.image"
-              :alt="`${plugin.name} Screenshot`"
-              class="absolute inset-0 size-fit max-h-full max-w-full self-start justify-self-center"
-            />
+            <NuxtImg :src="plugin.image" :alt="`${plugin.name} Screenshot`" class="absolute inset-0 size-fit max-h-full max-w-full self-start justify-self-center" />
           </div>
           <div
             class="flex flex-col"
@@ -153,143 +95,65 @@
               </h2>
             </div>
 
-            <div
-              class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm"
-            >
+            <div class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm">
               <div class="flex flex-col">
                 <div class="font-bold">Version:</div>
                 <div class="text-powder/70">{{ plugin.version }}</div>
               </div>
-              <div
-                class="bg-powder/20 text-powder/70 flex h-8 translate-x-4 items-center justify-center rounded-l-lg px-3 text-xs leading-[0] font-bold"
-              >
+              <div class="bg-powder/20 text-powder/70 flex h-8 translate-x-4 items-center justify-center rounded-l-lg px-3 text-xs leading-[0] font-bold">
                 {{ plugin.type }}
               </div>
             </div>
-            <div
-              class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm"
-            >
+            <div class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm">
               <div class="flex flex-col">
                 <div class="font-bold">Updated:</div>
                 <div class="text-powder/70">
-                  <NuxtTime
-                    :datetime="plugin.last_updated"
-                    :format="getDeviceFormat"
-                  />
+                  <NuxtTime :datetime="plugin.last_updated" :format="getDeviceFormat" />
                 </div>
               </div>
               <div class="flex flex-col">
                 <div class="font-bold">Scanned:</div>
                 <div class="text-powder/70">
-                  <NuxtTime
-                    :datetime="plugin.date_scanned"
-                    :format="getDeviceFormat"
-                  />
+                  <NuxtTime :datetime="plugin.date_scanned" :format="getDeviceFormat" />
                 </div>
               </div>
             </div>
           </div>
         </div>
         <div class="flex">
-          <a
-            :href="plugin.url"
-            target="_blank"
-            class="bg-mint text-jet hover:border-mint/50 hover:bg-gradient hover:from-mint/10 hover:to-mint/20 hover:text-mint flex grow justify-center rounded-bl-lg border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"
-          >
-            Website
-          </a>
+          <a :href="plugin.url" target="_blank" class="bg-mint text-jet hover:border-mint/50 hover:bg-gradient hover:from-mint/10 hover:to-mint/20 hover:text-mint flex grow justify-center rounded-bl-lg border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"> Website </a>
           <!-- open file explorer to plugin path -->
-          <a
-            :href="`explorer.exe ${plugin.path}`"
-            target="_blank"
-            class="bg-powder/90 text-jet hover:border-powder/50 hover:bg-gradient hover:from-powder/10 hover:to-powder/20 hover:text-powder flex grow justify-center border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"
-          >
-            Local Path
-          </a>
-          <button
-            class="text-powder hover:bg-jet/50 hover:border-powder/20 relative flex h-full cursor-pointer items-center justify-center rounded-br-lg border px-3 duration-200"
-            :class="
-              getPluginState(plugin.name).showKey
-                ? 'bg-jet/50 border-powder/20'
-                : 'bg-powder/20 border-transparent'
-            "
-            @mouseover="setPluginTooltip(plugin.name, true)"
-            @mouseleave="setPluginTooltip(plugin.name, false)"
-            @click="togglePluginKey(plugin.name)"
-          >
+          <a :href="`explorer.exe ${plugin.path}`" target="_blank" class="bg-powder/90 text-jet hover:border-powder/50 hover:bg-gradient hover:from-powder/10 hover:to-powder/20 hover:text-powder flex grow justify-center border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"> Local Path </a>
+          <button class="text-powder hover:bg-jet/50 hover:border-powder/20 relative flex h-full cursor-pointer items-center justify-center rounded-br-lg border px-3 duration-200" :class="getPluginState(plugin.name).showKey ? 'bg-jet/50 border-powder/20' : 'bg-powder/20 border-transparent'" @mouseover="setPluginTooltip(plugin.name, true)" @mouseleave="setPluginTooltip(plugin.name, false)" @click="togglePluginKey(plugin.name)">
             <!-- Tooltip -->
-            <div
-              v-if="getPluginState(plugin.name).showTooltip"
-              class="bg-jet/50 border-powder/20 absolute right-1/2 bottom-1/2 w-max rounded-lg border px-3 py-2 text-sm backdrop-blur-md"
-            >
-              Open license key details
-            </div>
+            <div v-if="getPluginState(plugin.name).showTooltip" class="bg-jet/50 border-powder/20 absolute right-1/2 bottom-1/2 w-max rounded-lg border px-3 py-2 text-sm backdrop-blur-md">Open license key details</div>
             <IconKeyFilled class="size-5" />
           </button>
         </div>
         <!-- Key details -->
-        <div
-          class="bg-jet/50 border-powder/20 absolute inset-6 flex flex-col justify-between gap-2 rounded-lg border p-4 backdrop-blur-md"
-          v-if="getPluginState(plugin.name).showKey"
-        >
+        <div class="bg-jet/50 border-powder/20 absolute inset-6 flex flex-col justify-between gap-2 rounded-lg border p-4 backdrop-blur-md" v-if="getPluginState(plugin.name).showKey">
           <div class="text-powder/50">License key:</div>
-          <fieldset
-            class="c-input c-input--search flex w-full items-center justify-between gap-2"
-          >
-            <input
-              class="text-powder/90 w-full border-none bg-transparent outline-none"
-              :value="getPluginState(plugin.name).editedKey || plugin.key"
-              @input="
-                (event) =>
-                  (getPluginState(plugin.name).editedKey = (
-                    event.target as HTMLInputElement
-                  ).value)
-              "
-              placeholder="Enter license key..."
-            />
+          <fieldset class="c-input c-input--search flex w-full items-center justify-between gap-2">
+            <input class="text-powder/90 w-full border-none bg-transparent outline-none" :value="getPluginState(plugin.name).editedKey || plugin.key" @input="(event) => (getPluginState(plugin.name).editedKey = (event.target as HTMLInputElement).value)" placeholder="Enter license key..." />
             <div class="text-powder/50 flex gap-2">
-              <IconCopy
-                class="hover:text-powder size-6 cursor-pointer"
-                @click="copyToClipboard(plugin.key)"
-              />
-              <IconDeviceFloppy
-                class="hover:text-powder size-6 cursor-pointer"
-                @click="saveToDatabase(plugin.id, plugin.name)"
-              />
+              <IconCopy class="hover:text-powder size-6 cursor-pointer" @click="copyToClipboard(plugin.key)" />
+              <IconDeviceFloppy class="hover:text-powder size-6 cursor-pointer" @click="saveToDatabase(plugin.id, plugin.name)" />
             </div>
           </fieldset>
-          <button
-            class="c-button c-button--clear"
-            @click="togglePluginKey(plugin.name)"
-          >
-            Close
-          </button>
+          <button class="c-button c-button--clear" @click="togglePluginKey(plugin.name)">Close</button>
         </div>
       </div>
     </div>
 
     <!-- No Results Message -->
-    <div
-      v-if="!loading && filteredPlugins.length === 0 && plugins.length > 0"
-      class="mt-8 text-center"
-    >
-      <div class="text-powder/50 text-lg">
-        No plugins match your current filters.
-      </div>
-      <button
-        @click="clearFilters"
-        class="c-button c-button--clear mx-auto mt-4"
-      >
-        Clear Filters
-      </button>
+    <div v-if="!loading && filteredPlugins.length === 0 && plugins.length > 0" class="mt-8 text-center">
+      <div class="text-powder/50 text-lg">No plugins match your current filters.</div>
+      <button @click="clearFilters" class="c-button c-button--clear mx-auto mt-4">Clear Filters</button>
     </div>
 
     <!-- No Plugins Message -->
     <div v-if="!loading && plugins.length === 0" class="mt-8 text-center">
-      <div class="text-powder/50 text-lg">
-        No plugins found. Try importing from scanned-plugins.json or scanning
-        for VST plugins.
-      </div>
+      <div class="text-powder/50 text-lg">No plugins found. Please scan for VST plugins.</div>
     </div>
   </div>
 </template>
@@ -302,15 +166,7 @@ import { IconKeyFilled, IconCopy, IconDeviceFloppy } from "@tabler/icons-vue";
 import CustomSelect from "~/components/CustomSelect.vue";
 
 // Use the plugins composable
-const {
-  plugins,
-  loading,
-  error,
-  fetchPlugins,
-  importPlugins,
-  updatePlugin,
-  deleteAllPlugins,
-} = usePlugins();
+const { plugins, loading, error, fetchPlugins, importPlugins, updatePlugin, deleteAllPlugins } = usePlugins();
 
 // Additional reactive state
 const searchFilter = ref("");
@@ -318,9 +174,8 @@ const selectedManufacturer = ref("");
 const selectedType = ref("");
 const importResult = ref("");
 const deleteResult = ref("");
-const pluginStates = ref<
-  Record<string, { showKey: boolean; showTooltip: boolean; editedKey: string }>
->({});
+const showDeleteConfirm = ref(false);
+const pluginStates = ref<Record<string, { showKey: boolean; showTooltip: boolean; editedKey: string }>>({});
 
 // Handle import from JSON
 const handleImport = async () => {
@@ -339,15 +194,7 @@ const handleImport = async () => {
 };
 
 // Handle delete all plugins
-const handleDeleteAll = async () => {
-  if (
-    !confirm(
-      "Are you sure you want to delete all plugins? This action cannot be undone.",
-    )
-  ) {
-    return;
-  }
-
+const confirmDeleteAll = async () => {
   const result = await deleteAllPlugins();
   if (result.success) {
     deleteResult.value = "All plugins deleted successfully";
@@ -360,6 +207,7 @@ const handleDeleteAll = async () => {
       deleteResult.value = "";
     }, 5000);
   }
+  showDeleteConfirm.value = false;
 };
 
 const copyToClipboard = (key: string) => {
@@ -434,17 +282,10 @@ const typeOptions = computed(() => [
 const filteredPlugins = computed(() => {
   return plugins.value.filter((plugin: any) => {
     // Search filter
-    const searchMatch =
-      !searchFilter.value ||
-      plugin.name.toLowerCase().includes(searchFilter.value.toLowerCase()) ||
-      plugin.manufacturer
-        .toLowerCase()
-        .includes(searchFilter.value.toLowerCase());
+    const searchMatch = !searchFilter.value || plugin.name.toLowerCase().includes(searchFilter.value.toLowerCase()) || plugin.manufacturer.toLowerCase().includes(searchFilter.value.toLowerCase());
 
     // Manufacturer filter
-    const manufacturerMatch =
-      !selectedManufacturer.value ||
-      plugin.manufacturer === selectedManufacturer.value;
+    const manufacturerMatch = !selectedManufacturer.value || plugin.manufacturer === selectedManufacturer.value;
 
     // Type filter
     const typeMatch = !selectedType.value || plugin.type === selectedType.value;
