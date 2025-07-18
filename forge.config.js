@@ -26,24 +26,27 @@ module.exports = {
     {
       name: "@electron-forge/maker-squirrel",
       config: {
+        authors: "Sven Wolf",
+        description: "A plugin manager for the audio plugins",
         iconUrl: "https://raw.githubusercontent.com/shekler/vst-manager/refs/heads/main/public/icon.ico",
         setupIcon: path.join(__dirname, "public/icon.ico"),
+        name: "VstManager",
       },
     },
-    {
-      name: "@electron-forge/maker-dmg",
-      config: {
-        icon: path.join(__dirname, "public/icon.icns"),
-      },
-    },
-    {
-      name: "@electron-forge/maker-deb",
-      config: {
-        options: {
-          icon: path.join(__dirname, "public/icon.png"),
-        },
-      },
-    },
+    // {
+    //   name: "@electron-forge/maker-dmg",
+    //   config: {
+    //     icon: path.join(__dirname, "public/icon.icns"),
+    //   },
+    // },
+    // {
+    //   name: "@electron-forge/maker-deb",
+    //   config: {
+    //     options: {
+    //       icon: path.join(__dirname, "public/icon.png"),
+    //     },
+    //   },
+    // },
   ],
   plugins: [
     {
