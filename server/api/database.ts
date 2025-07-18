@@ -16,6 +16,15 @@ interface Plugin {
   last_updated: string;
 }
 
+interface Setting {
+  id: string;
+  key: string;
+  value: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
 class DatabaseService {
   private db: sqlite3.Database | null = null;
   private dbPath: string;
@@ -61,22 +70,52 @@ class DatabaseService {
                 return;
               }
 
-              // Create indexes for better performance
+              // Create settings table if it doesn't exist
               this.db!.exec(
                 `
-                CREATE INDEX IF NOT EXISTS idx_plugins_name ON plugins(name);
-                CREATE INDEX IF NOT EXISTS idx_plugins_manufacturer ON plugins(manufacturer);
-                CREATE INDEX IF NOT EXISTS idx_plugins_type ON plugins(type);
+                CREATE TABLE IF NOT EXISTS settings (
+                  id TEXT PRIMARY KEY,
+                  key TEXT UNIQUE NOT NULL,
+                  value TEXT,
+                  description TEXT,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
               `,
                 (err) => {
                   if (err) {
-                    console.error("Failed to create indexes:", err);
+                    console.error("Failed to create settings table:", err);
                     reject(err);
                     return;
                   }
 
-                  console.log("Database initialized successfully");
-                  resolve();
+                  // Create indexes for better performance
+                  this.db!.exec(
+                    `
+                    CREATE INDEX IF NOT EXISTS idx_plugins_name ON plugins(name);
+                    CREATE INDEX IF NOT EXISTS idx_plugins_manufacturer ON plugins(manufacturer);
+                    CREATE INDEX IF NOT EXISTS idx_plugins_type ON plugins(type);
+                    CREATE INDEX IF NOT EXISTS idx_settings_key ON settings(key);
+                  `,
+                    (err) => {
+                      if (err) {
+                        console.error("Failed to create indexes:", err);
+                        reject(err);
+                        return;
+                      }
+
+                      // Initialize default settings
+                      this.initializeDefaultSettings()
+                        .then(() => {
+                          console.log("Database initialized successfully");
+                          resolve();
+                        })
+                        .catch((error) => {
+                          console.error("Failed to initialize default settings:", error);
+                          reject(error);
+                        });
+                    },
+                  );
                 },
               );
             },
@@ -87,6 +126,31 @@ class DatabaseService {
         reject(error);
       }
     });
+  }
+
+  private async initializeDefaultSettings(): Promise<void> {
+    const defaultSettings = [
+      {
+        id: "vst_paths",
+        key: "vst_paths",
+        value: "C:\\Program Files\\VSTPlugins,C:\\Program Files (x86)\\VSTPlugins",
+        description: "Comma-separated list of VST plugin directories to scan",
+      },
+      {
+        id: "vst3_paths",
+        key: "vst3_paths",
+        value: "C:\\Program Files\\Common Files\\VST3,C:\\Program Files (x86)\\Common Files\\VST3",
+        description: "Comma-separated list of VST3 plugin directories to scan",
+      },
+    ];
+
+    for (const setting of defaultSettings) {
+      try {
+        await this.runQuery("INSERT OR IGNORE INTO settings (id, key, value, description) VALUES (?, ?, ?, ?)", [setting.id, setting.key, setting.value, setting.description]);
+      } catch (error) {
+        console.error(`Failed to initialize setting ${setting.key}:`, error);
+      }
+    }
   }
 
   async importFromJson(): Promise<void> {
@@ -124,10 +188,7 @@ class DatabaseService {
           url: "", // Will be empty as it's not in scanned data
           image: "", // Will be empty as it's not in scanned data
           version: scannedPlugin.version || "",
-          type:
-            scannedPlugin.category ||
-            scannedPlugin.subCategories?.[0] ||
-            "Unknown",
+          type: scannedPlugin.category || scannedPlugin.subCategories?.[0] || "Unknown",
           key: "", // Will be empty as it's not in scanned data
           date_scanned: currentDate,
           last_updated: currentDate,
@@ -139,22 +200,8 @@ class DatabaseService {
       for (let i = 0; i < plugins.length; i += batchSize) {
         const batch = plugins.slice(i, i + batchSize);
 
-        const placeholders = batch
-          .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-          .join(", ");
-        const values = batch.flatMap((plugin) => [
-          plugin.id,
-          plugin.name,
-          plugin.path,
-          plugin.manufacturer,
-          plugin.url,
-          plugin.image,
-          plugin.version,
-          plugin.type,
-          plugin.key,
-          plugin.date_scanned,
-          plugin.last_updated,
-        ]);
+        const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
+        const values = batch.flatMap((plugin) => [plugin.id, plugin.name, plugin.path, plugin.manufacturer, plugin.url, plugin.image, plugin.version, plugin.type, plugin.key, plugin.date_scanned, plugin.last_updated]);
 
         await this.runQuery(
           `
@@ -178,9 +225,7 @@ class DatabaseService {
     }
 
     try {
-      const plugins = await this.allQuery(
-        "SELECT * FROM plugins ORDER BY name",
-      );
+      const plugins = await this.allQuery("SELECT * FROM plugins ORDER BY name");
       return plugins as Plugin[];
     } catch (error) {
       console.error("Failed to get plugins:", error);
@@ -194,9 +239,7 @@ class DatabaseService {
     }
 
     try {
-      const plugin = await this.getQuery("SELECT * FROM plugins WHERE id = ?", [
-        id,
-      ]);
+      const plugin = await this.getQuery("SELECT * FROM plugins WHERE id = ?", [id]);
       return plugin as Plugin | null;
     } catch (error) {
       console.error("Failed to get plugin by ID:", error);
@@ -238,19 +281,7 @@ class DatabaseService {
         INSERT INTO plugins (id, name, path, manufacturer, url, image, version, type, key, date_scanned, last_updated)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-        [
-          id,
-          plugin.name,
-          plugin.path,
-          plugin.manufacturer,
-          plugin.url,
-          plugin.image,
-          plugin.version,
-          plugin.type,
-          plugin.key,
-          plugin.date_scanned,
-          plugin.last_updated,
-        ],
+        [id, plugin.name, plugin.path, plugin.manufacturer, plugin.url, plugin.image, plugin.version, plugin.type, plugin.key, plugin.date_scanned, plugin.last_updated],
       );
 
       return id;
@@ -320,30 +351,86 @@ class DatabaseService {
     }
 
     try {
-      const total = await this.getQuery(
-        "SELECT COUNT(*) as count FROM plugins",
-      );
-      const byType = await this.allQuery(
-        "SELECT type, COUNT(*) as count FROM plugins GROUP BY type",
-      );
-      const byManufacturer = await this.allQuery(
-        "SELECT manufacturer, COUNT(*) as count FROM plugins GROUP BY manufacturer",
-      );
+      const total = await this.getQuery("SELECT COUNT(*) as count FROM plugins");
+      const byType = await this.allQuery("SELECT type, COUNT(*) as count FROM plugins GROUP BY type");
+      const byManufacturer = await this.allQuery("SELECT manufacturer, COUNT(*) as count FROM plugins GROUP BY manufacturer");
 
       return {
         total: (total as any)?.count || 0,
-        byType: Object.fromEntries(
-          (byType as any[]).map((row: any) => [row.type, row.count]),
-        ),
-        byManufacturer: Object.fromEntries(
-          (byManufacturer as any[]).map((row: any) => [
-            row.manufacturer,
-            row.count,
-          ]),
-        ),
+        byType: Object.fromEntries((byType as any[]).map((row: any) => [row.type, row.count])),
+        byManufacturer: Object.fromEntries((byManufacturer as any[]).map((row: any) => [row.manufacturer, row.count])),
       };
     } catch (error) {
       console.error("Failed to get stats:", error);
+      throw error;
+    }
+  }
+
+  async getSetting(key: string): Promise<Setting | null> {
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      const setting = await this.getQuery("SELECT * FROM settings WHERE key = ?", [key]);
+      return setting as Setting | null;
+    } catch (error) {
+      console.error("Failed to get setting:", error);
+      throw error;
+    }
+  }
+
+  async getAllSettings(): Promise<Setting[]> {
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      const settings = await this.allQuery("SELECT * FROM settings ORDER BY key");
+      return settings as Setting[];
+    } catch (error) {
+      console.error("Failed to get all settings:", error);
+      throw error;
+    }
+  }
+
+  async updateSetting(key: string, value: string): Promise<void> {
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      await this.runQuery("UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?", [value, key]);
+    } catch (error) {
+      console.error("Failed to update setting:", error);
+      throw error;
+    }
+  }
+
+  async addSetting(setting: Omit<Setting, "id">): Promise<string> {
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      const id = Date.now().toString();
+      await this.runQuery("INSERT INTO settings (id, key, value, description) VALUES (?, ?, ?, ?)", [id, setting.key, setting.value, setting.description]);
+      return id;
+    } catch (error) {
+      console.error("Failed to add setting:", error);
+      throw error;
+    }
+  }
+
+  async deleteSetting(key: string): Promise<void> {
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      await this.runQuery("DELETE FROM settings WHERE key = ?", [key]);
+    } catch (error) {
+      console.error("Failed to delete setting:", error);
       throw error;
     }
   }

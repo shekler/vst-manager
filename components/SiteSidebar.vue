@@ -1,7 +1,5 @@
 <template>
-  <aside
-    class="text-powder flex flex-col justify-between gap-12 p-8 text-lg shadow-xl"
-  >
+  <aside class="text-powder flex flex-col justify-between gap-12 p-8 text-lg shadow-xl">
     <nav>
       <ul class="text-powder/80 flex flex-col items-start gap-3 font-bold">
         <li class="w-full">
@@ -16,10 +14,6 @@
             Updates
           </SidebarLink>
         </li>
-      </ul>
-    </nav>
-    <nav>
-      <ul class="flex flex-col gap-10">
         <li class="w-full">
           <SidebarLink to="/settings">
             <IconSettings class="size-8" />
@@ -32,11 +26,6 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  IconBooks,
-  IconSearch,
-  IconSettings,
-  IconRefresh,
-} from "@tabler/icons-vue";
+import { IconBooks, IconSettings, IconRefresh } from "@tabler/icons-vue";
 import SidebarLink from "./SidebarLink.vue";
 </script>

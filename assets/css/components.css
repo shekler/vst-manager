@@ -18,6 +18,12 @@
       @apply bg-powder/10 text-powder from-transparent to-transparent;
     }
   }
+  &.c-button--primary {
+    @apply from-mint to-mint/80 text-jet border-mint;
+    &:hover {
+      @apply bg-mint/10 text-mint from-transparent to-transparent;
+    }
+  }
 }
 
 .c-input {
