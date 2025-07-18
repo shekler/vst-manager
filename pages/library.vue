@@ -7,7 +7,7 @@
       class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6"
     >
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Database</h2>
-      <button class="c-button c-button--mint">Scan plugins</button>
+      <VstScanner />
     </div>
 
     <!-- Filter Section -->

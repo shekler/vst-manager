@@ -1,125 +1,137 @@
+<!-- components/VstScanner.vue -->
 <template>
-  <div class="mx-auto max-w-2xl p-4">
-    <!-- Header -->
-    <div class="mb-6 text-center">
-      <h2 class="mb-2 text-xl font-bold">VST3 Scanner</h2>
-      <p class="text-gray-600">Scan for VST3 plugins on your system</p>
-    </div>
-
-    <!-- Electron Warning -->
-    <div
-      v-if="!isElectron()"
-      class="mb-4 rounded border border-yellow-300 bg-yellow-100 p-3"
-    >
-      <p class="text-sm text-yellow-800">
-        VST scanning requires Electron. Run
-        <code class="rounded bg-white px-1">npm run dev</code>
-      </p>
-    </div>
-
-    <!-- Scan Controls -->
-    <div class="mb-6">
+  <div class="vst-scanner">
+    <div class="input-group">
+      <label for="directory">VST Plugin Directory:</label>
       <input
-        v-model="customPath"
+        id="directory"
+        v-model="directoryPath"
         type="text"
-        placeholder="Enter custom path to scan (optional)"
-        class="mb-3 w-full rounded border border-gray-300 p-2"
-        :disabled="!isElectron()"
+        placeholder="C:\Program Files\Common Files\VST3"
       />
-
-      <div class="flex gap-2">
-        <button
-          @click="scanDefaultPaths"
-          :disabled="isScanning || !isElectron()"
-          class="from-bright to-orange rounded bg-gradient-to-r px-4 py-2 font-bold text-black disabled:opacity-50"
-        >
-          {{ isScanning ? "Scanning..." : "Scan Default Paths" }}
-        </button>
-
-        <button
-          @click="scanCustomPath"
-          :disabled="isScanning || !customPath || !isElectron()"
-          class="rounded border border-gray-300 px-4 py-2 disabled:opacity-50"
-        >
-          Scan Custom Path
-        </button>
-      </div>
     </div>
 
-    <!-- Progress Bar -->
-    <div v-if="isScanning" class="mb-4">
-      <div class="mb-2 h-2 w-full rounded bg-gray-200 font-bold">
+    <button @click="scanPlugins" :disabled="isScanning">
+      {{ isScanning ? "Scanning..." : "Scan Plugins" }}
+    </button>
+
+    <div v-if="results" class="results">
+      <h3>Scan Results</h3>
+      <p>Total plugins: {{ results.totalPlugins }}</p>
+      <p>Valid plugins: {{ results.validPlugins }}</p>
+
+      <div class="plugins-list">
         <div
-          class="from-bright to-orange h-2 rounded bg-gradient-to-r text-black transition-all"
-          :style="{ width: `${scanProgress}%` }"
-        ></div>
-      </div>
-      <div class="text-center text-sm text-gray-600">
-        {{ Math.round(scanProgress) }}%
-      </div>
-    </div>
-
-    <!-- Error Display -->
-    <div
-      v-if="scanError"
-      class="mb-4 rounded border border-red-300 bg-red-100 p-3"
-    >
-      <p class="text-sm text-red-800">{{ scanError }}</p>
-    </div>
-
-    <!-- Results -->
-    <div v-if="vstScan.length > 0" class="space-y-4">
-      <h3 class="text-lg font-semibold">Found {{ vstScan.length }} plugins:</h3>
-
-      <div class="max-h-96 overflow-y-auto rounded border border-gray-200">
-        <div
-          v-for="plugin in vstScan"
-          :key="plugin.id"
-          class="border-b border-gray-100 p-3 hover:bg-gray-50"
+          v-for="plugin in results.plugins"
+          :key="plugin.path"
+          class="plugin-item"
+          :class="{ invalid: !plugin.isValid }"
         >
-          <div class="font-medium">{{ plugin.name }}</div>
-          <div class="truncate text-sm text-gray-600">{{ plugin.path }}</div>
+          <h4>{{ plugin.name || "Unknown Plugin" }}</h4>
+          <p v-if="plugin.isValid">
+            Vendor: {{ plugin.vendor }}<br />
+            Version: {{ plugin.version }}<br />
+            Category: {{ plugin.category }}
+          </p>
+          <p v-else class="error">Error: {{ plugin.error }}</p>
         </div>
       </div>
-    </div>
-
-    <!-- Empty State -->
-    <div
-      v-else-if="!isScanning && !scanError"
-      class="py-8 text-center text-gray-600"
-    >
-      <p v-if="isElectron()">
-        No plugins scanned yet. Click "Scan Default Paths" to start.
-      </p>
-      <p v-else>VST scanning is only available in the Electron app.</p>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref } from "vue";
-import { useVstScan } from "~/composables/vst-scan";
+<script setup>
+const directoryPath = ref("");
+const isScanning = ref(false);
+const results = ref(null);
 
-const {
-  vstScan,
-  isScanning,
-  scanProgress,
-  scanError,
-  scanForVst3Files,
-  scanSpecificPaths,
-  isElectron,
-} = useVstScan();
-
-const customPath = ref("");
-
-const scanDefaultPaths = async () => {
-  await scanForVst3Files();
-};
-
-const scanCustomPath = async () => {
-  if (customPath.value) {
-    await scanSpecificPaths([customPath.value]);
-    customPath.value = "";
+async function scanPlugins() {
+  if (!directoryPath.value) {
+    alert("Please enter a directory path");
+    return;
   }
-};
+
+  isScanning.value = true;
+  results.value = null;
+
+  try {
+    const response = await $fetch("/api/scan-vst", {
+      method: "POST",
+      body: {
+        directoryPath: directoryPath.value,
+      },
+    });
+
+    results.value = response.data;
+  } catch (error) {
+    console.error("Scan failed:", error);
+    alert(`Scan failed: ${error.message}`);
+  } finally {
+    isScanning.value = false;
+  }
+}
 </script>
+
+<style scoped>
+.vst-scanner {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.input-group {
+  margin-bottom: 20px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.results {
+  margin-top: 20px;
+}
+
+.plugins-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.plugin-item {
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+}
+
+.plugin-item.invalid {
+  border-color: #dc3545;
+  background: #f8d7da;
+}
+
+.error {
+  color: #dc3545;
+}
+</style>
