@@ -178,22 +178,24 @@ class DatabaseService {
       await this.runQuery("DELETE FROM plugins");
 
       // Transform scanned plugins to database format
-      const plugins: Plugin[] = scannedPlugins.map((scannedPlugin: any) => {
-        const currentDate = new Date().toISOString().split("T")[0];
-        return {
-          id: scannedPlugin.cid || Date.now().toString(),
-          name: scannedPlugin.name || "",
-          path: scannedPlugin.path || "",
-          manufacturer: scannedPlugin.vendor || "",
-          url: "", // Will be empty as it's not in scanned data
-          image: "", // Will be empty as it's not in scanned data
-          version: scannedPlugin.version || "",
-          type: scannedPlugin.subCategories?.[0] || scannedPlugin.category || "Unknown",
-          key: "", // Will be empty as it's not in scanned data
-          date_scanned: currentDate,
-          last_updated: currentDate,
-        };
-      });
+      const plugins: Plugin[] = scannedPlugins
+        .filter((scannedPlugin: any) => scannedPlugin.isValid === true) // Only include valid plugins
+        .map((scannedPlugin: any) => {
+          const currentDate = new Date().toISOString().split("T")[0];
+          return {
+            id: scannedPlugin.cid || Date.now().toString(),
+            name: scannedPlugin.name || "",
+            path: scannedPlugin.path || "",
+            manufacturer: scannedPlugin.vendor || "",
+            url: "", // Will be empty as it's not in scanned data
+            image: "", // Will be empty as it's not in scanned data
+            version: scannedPlugin.version || "",
+            type: scannedPlugin.subCategories?.[0] || scannedPlugin.category || "Unknown",
+            key: "", // Will be empty as it's not in scanned data
+            date_scanned: currentDate,
+            last_updated: currentDate,
+          };
+        });
 
       // Insert plugins in batches
       const batchSize = 100;

@@ -1,6 +1,6 @@
 {
   "name": "vst-manager",
-  "version": "0.0.1-alpha.1",
+  "version": "0.1.0",
   "description": "A plugin manager for the audio plugins",
   "main": "main.js",
   "author": "Sven Wolf",
