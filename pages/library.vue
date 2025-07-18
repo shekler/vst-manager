@@ -34,7 +34,7 @@
     </ModalWindow>
 
     <!-- Filter Section -->
-    <div class="from-onyx to-onyx/50 mt-4 mb-8 rounded-lg bg-gradient-to-br p-6">
+    <div class="from-onyx to-onyx/50 mt-4 mb-4 rounded-lg bg-gradient-to-br p-6">
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Filters</h2>
       <div class="grid gap-4 md:grid-cols-3">
         <!-- Search Filter -->
@@ -63,6 +63,10 @@
         <!-- Clear Filters Button -->
         <button @click="clearFilters" class="c-button c-button--red">Clear Filters</button>
       </div>
+    </div>
+
+    <div class="bg-red/10 text-red border-red mb-4 rounded-lg border p-4 text-center font-bold">
+      <p>This is a beta version. Bugs and errors might occur. If you want to submit a bug issue, you can do so in <a href="https://github.com/shekler/vst-manager/issues" target="_blank" class="text-powder hover:text-red font-bold underline duration-200">GitHub.</a></p>
     </div>
 
     <!-- Loading State -->

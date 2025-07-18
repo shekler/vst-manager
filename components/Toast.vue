@@ -1,7 +1,7 @@
 <template>
   <div class="fixed top-4 right-4 z-50 space-y-2">
     <TransitionGroup name="toast">
-      <div v-for="toast in toasts" :key="toast.id" :class="['flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg backdrop-blur-md', toast.type === 'success' && 'border-mint/20 bg-mint/10 text-mint', toast.type === 'error' && 'border-red-500/20 bg-red-500/10 text-red-400', toast.type === 'info' && 'border-powder/20 bg-powder/10 text-powder']">
+      <div v-for="toast in toasts" :key="toast.id" :class="['flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg backdrop-blur-md', toast.type === 'success' && 'border-mint/20 bg-mint/10 text-mint', toast.type === 'error' && 'border-red/20 bg-red/10 text-red', toast.type === 'info' && 'border-powder/20 bg-powder/10 text-powder']">
         <div class="flex-1">{{ toast.message }}</div>
         <button @click="removeToast(toast.id)" class="text-current/70 hover:text-current">
           <IconX class="size-4" />
