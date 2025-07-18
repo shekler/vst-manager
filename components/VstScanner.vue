@@ -8,7 +8,7 @@
       {{ isScanning ? "Scanning" : "Scan Plugins" }}
     </button>
 
-    <div v-if="results" class="border-powder/20 mt-4 rounded-lg border p-6">
+    <div v-if="results" class="bg-jet/50 mt-4 rounded-lg p-6">
       <h3 class="text-powder/90 text-lg font-bold">Scan Results</h3>
       <p class="text-powder/70">Total plugins: {{ results.totalPlugins }}</p>
       <p class="text-powder/70">Valid plugins: {{ results.validPlugins }}</p>
@@ -42,6 +42,8 @@ const results = ref(null);
 const showErrorModal = ref(false);
 const errorMessage = ref("");
 
+const { success, error: showError } = useToast();
+
 async function scanPlugins() {
   isScanning.value = true;
   results.value = null;
@@ -53,12 +55,19 @@ async function scanPlugins() {
 
     results.value = response.data;
 
+    // Show success toast with scan results
+    const { totalPlugins, validPlugins } = response.data;
+    const invalidPlugins = totalPlugins - validPlugins;
+    const message = `Scan complete! Found ${totalPlugins} plugins (${validPlugins} valid${invalidPlugins > 0 ? `, ${invalidPlugins} invalid` : ""})`;
+    success(message);
+
     // Emit event to notify parent that scanning is complete
     emit("scan-complete", response.data);
   } catch (error) {
     console.error("Scan failed:", error);
     errorMessage.value = `Scan failed: ${error.message}`;
     showErrorModal.value = true;
+    showError(`Scan failed: ${error.message}`);
   } finally {
     isScanning.value = false;
   }
