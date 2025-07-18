@@ -12,7 +12,7 @@
         </div>
 
         <!-- Delete All Section -->
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
           <button @click="showDeleteConfirm = true" :disabled="loading" class="c-button c-button--red">
             {{ loading ? "Deleting..." : "Delete All Plugins" }}
           </button>

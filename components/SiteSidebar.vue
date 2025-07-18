@@ -8,12 +8,12 @@
             Library
           </SidebarLink>
         </li>
-        <li class="w-full">
+        <!-- <li class="w-full">
           <SidebarLink to="/updates">
             <IconRefresh class="size-8" />
             Updates
           </SidebarLink>
-        </li>
+        </li> -->
         <li class="w-full">
           <SidebarLink to="/settings">
             <IconSettings class="size-8" />
