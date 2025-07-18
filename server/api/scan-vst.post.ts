@@ -1,4 +1,6 @@
 // server/api/scan-vst.post.ts
+import dbService from "./database";
+
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event);
@@ -73,12 +75,17 @@ export default defineEventHandler(async (event) => {
     const jsonContent = await readFile(outputPath, "utf-8");
     const scanResults = JSON.parse(jsonContent);
 
-    // No cleanup needed since we're saving to data directory
+    // Initialize database and import the scanned plugins
+    await dbService.initialize();
+    await dbService.importFromJson();
+
+    // Get the updated count from database
+    const plugins = await dbService.getAllPlugins();
 
     return {
       success: true,
       data: scanResults,
-      message: `Scanned ${scanResults.totalPlugins} plugins`,
+      message: `Scanned ${scanResults.totalPlugins} plugins and updated database with ${plugins.length} total plugins`,
     };
   } catch (error: any) {
     console.error("Scan error:", error);

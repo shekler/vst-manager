@@ -42,6 +42,8 @@
 </template>
 
 <script setup>
+const emit = defineEmits(["scan-complete"]);
+
 const directoryPath = ref("");
 const isScanning = ref(false);
 const results = ref(null);
@@ -67,6 +69,9 @@ async function scanPlugins() {
     });
 
     results.value = response.data;
+
+    // Emit event to notify parent that scanning is complete
+    emit("scan-complete", response.data);
   } catch (error) {
     console.error("Scan failed:", error);
     errorMessage.value = `Scan failed: ${error.message}`;

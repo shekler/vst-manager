@@ -1,19 +1,18 @@
 // server/api/vst/scan.post.ts
+import dbService from "../database";
+
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event);
     const { directoryPath, outputFile = null } = body;
 
     // Default directory path if not provided
-    const scanDirectory =
-      directoryPath || "C:\\Program Files\\Common Files\\VST3";
+    const scanDirectory = directoryPath || "C:\\Program Files\\Common Files\\VST3";
 
     // Import Node.js modules dynamically
     const { exec } = await import("node:child_process");
     const { promisify } = await import("node:util");
-    const { readFile, unlink, mkdir, writeFile } = await import(
-      "node:fs/promises"
-    );
+    const { readFile, unlink, mkdir, writeFile } = await import("node:fs/promises");
     const { join } = await import("node:path");
     const { existsSync } = await import("node:fs");
 
@@ -72,12 +71,17 @@ export default defineEventHandler(async (event) => {
     const jsonContent = await readFile(outputPath, "utf-8");
     const scanResults = JSON.parse(jsonContent);
 
-    // Results are already saved to data/scanned-plugins.json by the scanner
+    // Initialize database and import the scanned plugins
+    await dbService.initialize();
+    await dbService.importFromJson();
+
+    // Get the updated count from database
+    const plugins = await dbService.getAllPlugins();
 
     return {
       success: true,
       count: scanResults.totalPlugins || 0,
-      message: `Scanned ${scanResults.totalPlugins || 0} plugins`,
+      message: `Scanned ${scanResults.totalPlugins || 0} plugins and updated database with ${plugins.length} total plugins`,
       skippedPaths: scanResults.skippedPaths || [],
     };
   } catch (error: any) {

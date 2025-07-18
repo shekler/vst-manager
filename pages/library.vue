@@ -6,7 +6,7 @@
     <div class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6">
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Database</h2>
       <div class="flex flex-col gap-4">
-        <VstScanner />
+        <VstScanner @scan-complete="handleScanComplete" />
 
         <!-- Delete All Section -->
         <div class="border-powder/20 border-t pt-4">
@@ -166,31 +166,20 @@ import { IconKeyFilled, IconCopy, IconDeviceFloppy } from "@tabler/icons-vue";
 import CustomSelect from "~/components/CustomSelect.vue";
 
 // Use the plugins composable
-const { plugins, loading, error, fetchPlugins, importPlugins, updatePlugin, deleteAllPlugins } = usePlugins();
+const { plugins, loading, error, fetchPlugins, updatePlugin, deleteAllPlugins } = usePlugins();
 
 // Additional reactive state
 const searchFilter = ref("");
 const selectedManufacturer = ref("");
 const selectedType = ref("");
-const importResult = ref("");
 const deleteResult = ref("");
 const showDeleteConfirm = ref(false);
 const pluginStates = ref<Record<string, { showKey: boolean; showTooltip: boolean; editedKey: string }>>({});
 
-// Handle import from JSON
-const handleImport = async () => {
-  const result = await importPlugins();
-  if (result.success) {
-    importResult.value = `Successfully imported ${result.count} plugins`;
-    setTimeout(() => {
-      importResult.value = "";
-    }, 5000);
-  } else {
-    importResult.value = result.message || "Import failed";
-    setTimeout(() => {
-      importResult.value = "";
-    }, 5000);
-  }
+// Handle scan complete
+const handleScanComplete = async (scanData: any) => {
+  // Refresh the plugins list after scanning
+  await fetchPlugins();
 };
 
 // Handle delete all plugins
@@ -331,10 +320,7 @@ const clearFilters = () => {
 };
 
 onMounted(async () => {
-  // Import plugins from scanned-plugins.json first
-  await handleImport();
-
-  // Then fetch plugins from database
+  // Only fetch plugins from database - don't auto-import from JSON
   await fetchPlugins();
 });
 </script>

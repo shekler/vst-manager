@@ -2,58 +2,5 @@
   "scanTime": "17528391262688102",
   "totalPlugins": 4,
   "validPlugins": 4,
-  "plugins": [
-    {
-      "path": "E:\\Recording\\VSTPlugins\\Mastering The Mix\\FUSER.vst3",
-      "isValid": true,
-      "name": "FUSER",
-      "vendor": "Mastering the Mix",
-      "version": "1.0.1",
-      "category": "Audio Module Class",
-      "cid": "5653544D614675667573657200000000",
-      "sdkVersion": "VST 3.7.8",
-      "cardinality": 2147483647,
-      "flags": 0,
-      "subCategories": ["Fx", "EQ"]
-    },
-    {
-      "path": "E:\\Recording\\VSTPlugins\\Mastering The Mix\\LEVELS.vst3",
-      "isValid": true,
-      "name": "LEVELS",
-      "vendor": "Mastering the Mix",
-      "version": "2.0.4",
-      "category": "Audio Module Class",
-      "cid": "56535450614C656C6576656C73000000",
-      "sdkVersion": "VST 3.7.8",
-      "cardinality": 2147483647,
-      "flags": 0,
-      "subCategories": ["Fx"]
-    },
-    {
-      "path": "E:\\Recording\\VSTPlugins\\Mastering The Mix\\LIMITER.vst3",
-      "isValid": true,
-      "name": "LIMITER",
-      "vendor": "Mastering the Mix",
-      "version": "1.0.3",
-      "category": "Audio Module Class",
-      "cid": "ABCDEF019182FAEB4D61746D4C696D6F",
-      "sdkVersion": "VST 3.7.8",
-      "cardinality": 2147483647,
-      "flags": 0,
-      "subCategories": ["Fx", "Dynamics", "Mastering"]
-    },
-    {
-      "path": "E:\\Recording\\VSTPlugins\\Mastering The Mix\\RESO.vst3",
-      "isValid": true,
-      "name": "RESO",
-      "vendor": "Mastering the Mix",
-      "version": "1.0.6",
-      "category": "Audio Module Class",
-      "cid": "ABCDEF019182FAEB4D61746D4D61526F",
-      "sdkVersion": "VST 3.7.8",
-      "cardinality": 2147483647,
-      "flags": 0,
-      "subCategories": ["Fx", "EQ"]
-    }
-  ]
+  "plugins": []
 }
