@@ -12,14 +12,14 @@
         </div>
 
         <!-- Delete All Section -->
-        <div class="flex flex-col gap-2">
-          <button @click="showDeleteConfirm = true" :disabled="loading" class="c-button c-button--red">
+        <div class="flex flex-col items-end gap-2">
+          <button @click="showDeleteConfirm = true" :disabled="loading" class="c-button c-button--red w-fit">
             {{ loading ? "Deleting..." : "Delete All Plugins" }}
           </button>
           <div v-if="deleteResult" class="text-powder/70 text-sm">
             {{ deleteResult }}
           </div>
-          <p class="text-powder/70 text-sm">Delete all plugins from the database.</p>
+          <p class="text-powder/70 text-sm">Delete all scanned plugins from the database.</p>
         </div>
       </div>
     </div>
