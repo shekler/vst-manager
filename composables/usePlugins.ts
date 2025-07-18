@@ -6,10 +6,11 @@ interface Plugin {
   url: string;
   image: string;
   version: string;
-  type: string;
+  categories: string[];
   key: string;
   date_scanned: string;
   last_updated: string;
+  sdkVersion: string;
 }
 
 interface PluginStats {
@@ -68,9 +69,7 @@ export const usePlugins = () => {
   // Search plugins
   const searchPlugins = async (query: string): Promise<Plugin[]> => {
     try {
-      const response = await $fetch<ApiResponse<Plugin[]>>(
-        `/api/plugins/search?q=${encodeURIComponent(query)}`,
-      );
+      const response = await $fetch<ApiResponse<Plugin[]>>(`/api/plugins/search?q=${encodeURIComponent(query)}`);
       if (response.success && response.data) {
         return response.data;
       }
@@ -115,10 +114,7 @@ export const usePlugins = () => {
   };
 
   // Update plugin
-  const updatePlugin = async (
-    id: string,
-    updates: Partial<Plugin>,
-  ): Promise<{ success: boolean; data?: Plugin; message?: string }> => {
+  const updatePlugin = async (id: string, updates: Partial<Plugin>): Promise<{ success: boolean; data?: Plugin; message?: string }> => {
     loading.value = true;
     error.value = null;
 
@@ -153,9 +149,7 @@ export const usePlugins = () => {
   };
 
   // Delete plugin
-  const deletePlugin = async (
-    id: string,
-  ): Promise<{ success: boolean; message?: string }> => {
+  const deletePlugin = async (id: string): Promise<{ success: boolean; message?: string }> => {
     loading.value = true;
     error.value = null;
 
@@ -196,12 +190,9 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<null>>(
-        "/api/plugins/delete-all",
-        {
-          method: "POST",
-        },
-      );
+      const response = await $fetch<ApiResponse<null>>("/api/plugins/delete-all", {
+        method: "POST",
+      });
 
       if (response.success) {
         // Clear the local plugins array
@@ -226,8 +217,7 @@ export const usePlugins = () => {
   // Get database statistics
   const getStats = async (): Promise<PluginStats | null> => {
     try {
-      const response =
-        await $fetch<ApiResponse<PluginStats>>("/api/plugins/stats");
+      const response = await $fetch<ApiResponse<PluginStats>>("/api/plugins/stats");
       if (response.success && response.data) {
         return response.data;
       }

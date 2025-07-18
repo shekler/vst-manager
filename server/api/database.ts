@@ -10,10 +10,11 @@ interface Plugin {
   url: string;
   image: string;
   version: string;
-  type: string;
+  categories: string[];
   key: string;
   date_scanned: string;
   last_updated: string;
+  sdkVersion: string;
 }
 
 interface Setting {
@@ -47,28 +48,54 @@ class DatabaseService {
           // Create plugins table if it doesn't exist
           this.db!.exec(
             `
-            CREATE TABLE IF NOT EXISTS plugins (
-              id TEXT PRIMARY KEY,
-              name TEXT NOT NULL,
-              path TEXT NOT NULL,
-              manufacturer TEXT,
-              url TEXT,
-              image TEXT,
-              version TEXT,
-              type TEXT,
-              key TEXT,
-              date_scanned TEXT,
-              last_updated TEXT,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-          `,
+                CREATE TABLE IF NOT EXISTS plugins (
+                  id TEXT PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  path TEXT NOT NULL,
+                  manufacturer TEXT,
+                  url TEXT,
+                  image TEXT,
+                  version TEXT,
+                  categories TEXT,
+                  key TEXT,
+                  date_scanned TEXT,
+                  last_updated TEXT,
+                  sdk_version TEXT,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+              `,
             (err) => {
               if (err) {
                 console.error("Failed to create plugins table:", err);
                 reject(err);
                 return;
               }
+
+              // Add sdk_version column if it doesn't exist (migration)
+              this.db!.exec(`ALTER TABLE plugins ADD COLUMN sdk_version TEXT;`, (err) => {
+                // Ignore error if column already exists
+                if (err && !err.message.includes("duplicate column name")) {
+                  console.log("sdk_version column already exists or error:", err.message);
+                }
+              });
+
+              // Add categories column if it doesn't exist (migration)
+              this.db!.exec(`ALTER TABLE plugins ADD COLUMN categories TEXT;`, (err) => {
+                // Ignore error if column already exists
+                if (err && !err.message.includes("duplicate column name")) {
+                  console.log("categories column already exists or error:", err.message);
+                } else {
+                  // Migrate existing type data to categories
+                  this.db!.exec(`UPDATE plugins SET categories = '["' || type || '"]' WHERE categories IS NULL AND type IS NOT NULL;`, (err) => {
+                    if (err) {
+                      console.log("Error migrating type to categories:", err.message);
+                    } else {
+                      console.log("Successfully migrated type to categories");
+                    }
+                  });
+                }
+              });
 
               // Create settings table if it doesn't exist
               this.db!.exec(
@@ -190,7 +217,8 @@ class DatabaseService {
             url: "", // Will be empty as it's not in scanned data
             image: "", // Will be empty as it's not in scanned data
             version: scannedPlugin.version || "",
-            type: scannedPlugin.subCategories?.[0] || scannedPlugin.category || "Unknown",
+            sdkVersion: scannedPlugin.sdkVersion || "",
+            categories: JSON.stringify(scannedPlugin.subCategories || [scannedPlugin.category || "Unknown"]),
             key: "", // Will be empty as it's not in scanned data
             date_scanned: currentDate,
             last_updated: currentDate,
@@ -202,12 +230,12 @@ class DatabaseService {
       for (let i = 0; i < plugins.length; i += batchSize) {
         const batch = plugins.slice(i, i + batchSize);
 
-        const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
-        const values = batch.flatMap((plugin) => [plugin.id, plugin.name, plugin.path, plugin.manufacturer, plugin.url, plugin.image, plugin.version, plugin.type, plugin.key, plugin.date_scanned, plugin.last_updated]);
+        const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
+        const values = batch.flatMap((plugin) => [plugin.id, plugin.name, plugin.path, plugin.manufacturer, plugin.url, plugin.image, plugin.version, plugin.categories, plugin.key, plugin.date_scanned, plugin.last_updated, plugin.sdkVersion]);
 
         await this.runQuery(
           `
-          INSERT INTO plugins (id, name, path, manufacturer, url, image, version, type, key, date_scanned, last_updated)
+          INSERT INTO plugins (id, name, path, manufacturer, url, image, version, categories, key, date_scanned, last_updated, sdk_version)
           VALUES ${placeholders}
         `,
           values,
@@ -228,7 +256,12 @@ class DatabaseService {
 
     try {
       const plugins = await this.allQuery("SELECT * FROM plugins ORDER BY name");
-      return plugins as Plugin[];
+      // Map database column names to interface property names
+      return plugins.map((plugin: any) => ({
+        ...plugin,
+        sdkVersion: plugin.sdk_version,
+        categories: plugin.categories ? JSON.parse(plugin.categories) : [],
+      })) as Plugin[];
     } catch (error) {
       console.error("Failed to get plugins:", error);
       throw error;
@@ -242,7 +275,14 @@ class DatabaseService {
 
     try {
       const plugin = await this.getQuery("SELECT * FROM plugins WHERE id = ?", [id]);
-      return plugin as Plugin | null;
+      if (!plugin) return null;
+
+      // Map database column names to interface property names
+      return {
+        ...plugin,
+        sdkVersion: plugin.sdk_version,
+        categories: plugin.categories ? JSON.parse(plugin.categories) : [],
+      } as Plugin;
     } catch (error) {
       console.error("Failed to get plugin by ID:", error);
       throw error;
@@ -258,13 +298,18 @@ class DatabaseService {
       const plugins = await this.allQuery(
         `
         SELECT * FROM plugins 
-        WHERE name LIKE ? OR manufacturer LIKE ? OR type LIKE ?
+        WHERE name LIKE ? OR manufacturer LIKE ? OR categories LIKE ?
         ORDER BY name
       `,
         [`%${query}%`, `%${query}%`, `%${query}%`],
       );
 
-      return plugins as Plugin[];
+      // Map database column names to interface property names
+      return plugins.map((plugin: any) => ({
+        ...plugin,
+        sdkVersion: plugin.sdk_version,
+        categories: plugin.categories ? JSON.parse(plugin.categories) : [],
+      })) as Plugin[];
     } catch (error) {
       console.error("Failed to search plugins:", error);
       throw error;
@@ -280,10 +325,10 @@ class DatabaseService {
       const id = Date.now().toString();
       await this.runQuery(
         `
-        INSERT INTO plugins (id, name, path, manufacturer, url, image, version, type, key, date_scanned, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO plugins (id, name, path, manufacturer, url, image, version, categories, key, date_scanned, last_updated, sdk_version)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-        [id, plugin.name, plugin.path, plugin.manufacturer, plugin.url, plugin.image, plugin.version, plugin.type, plugin.key, plugin.date_scanned, plugin.last_updated],
+        [id, plugin.name, plugin.path, plugin.manufacturer, plugin.url, plugin.image, plugin.version, JSON.stringify(plugin.categories), plugin.key, plugin.date_scanned, plugin.last_updated, plugin.sdkVersion],
       );
 
       return id;
@@ -300,8 +345,25 @@ class DatabaseService {
 
     try {
       const fields = Object.keys(plugin).filter((key) => key !== "id");
-      const setClause = fields.map((field) => `${field} = ?`).join(", ");
-      const values = fields.map((field) => plugin[field as keyof Plugin]);
+      const setClause = fields
+        .map((field) => {
+          // Map camelCase field names to database column names
+          const columnMap: Record<string, string> = {
+            sdkVersion: "sdk_version",
+          };
+          const columnName = columnMap[field] || field;
+          return `${columnName} = ?`;
+        })
+        .join(", ");
+
+      const values = fields.map((field) => {
+        const value = plugin[field as keyof Plugin];
+        // Convert categories array to JSON string
+        if (field === "categories" && Array.isArray(value)) {
+          return JSON.stringify(value);
+        }
+        return value;
+      });
 
       await this.runQuery(
         `
@@ -354,12 +416,12 @@ class DatabaseService {
 
     try {
       const total = await this.getQuery("SELECT COUNT(*) as count FROM plugins");
-      const byType = await this.allQuery("SELECT type, COUNT(*) as count FROM plugins GROUP BY type");
+      const byType = await this.allQuery("SELECT categories, COUNT(*) as count FROM plugins GROUP BY categories");
       const byManufacturer = await this.allQuery("SELECT manufacturer, COUNT(*) as count FROM plugins GROUP BY manufacturer");
 
       return {
         total: (total as any)?.count || 0,
-        byType: Object.fromEntries((byType as any[]).map((row: any) => [row.type, row.count])),
+        byType: Object.fromEntries((byType as any[]).map((row: any) => [row.categories, row.count])),
         byManufacturer: Object.fromEntries((byManufacturer as any[]).map((row: any) => [row.manufacturer, row.count])),
       };
     } catch (error) {

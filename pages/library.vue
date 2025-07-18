@@ -98,26 +98,27 @@
               </h2>
             </div>
 
-            <div class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm">
-              <div class="flex flex-col">
-                <div class="font-bold">Version:</div>
-                <div class="text-powder/70">{{ plugin.version }}</div>
-              </div>
-              <div class="bg-powder/20 text-powder/70 flex h-8 translate-x-4 items-center justify-center rounded-l-lg px-3 text-xs leading-[0] font-bold">
-                {{ plugin.type }}
+            <div class="mt-2 flex flex-wrap gap-2">
+              <div v-for="category in plugin.categories" :key="category" class="text-powder/70 border-powder/20 rounded border px-1.5 py-1 text-xs leading-none">
+                {{ category }}
               </div>
             </div>
+
+            <div class="text-powder/50 mt-2 flex flex-col text-sm">
+              <div class="font-bold">Version:</div>
+              <div class="text-powder/70">{{ plugin.version }}</div>
+            </div>
             <div class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm">
-              <div class="flex flex-col">
-                <div class="font-bold">Updated:</div>
-                <div class="text-powder/70">
-                  <NuxtTime :datetime="plugin.last_updated" :format="getDeviceFormat" />
-                </div>
-              </div>
               <div class="flex flex-col">
                 <div class="font-bold">Scanned:</div>
                 <div class="text-powder/70">
                   <NuxtTime :datetime="plugin.date_scanned" :format="getDeviceFormat" />
+                </div>
+              </div>
+              <div class="flex flex-col">
+                <div class="font-bold">Plugin Type:</div>
+                <div class="text-powder/70">
+                  {{ plugin.sdkVersion }}
                 </div>
               </div>
             </div>
@@ -249,7 +250,7 @@ const uniqueManufacturers = computed(() => {
 });
 
 const uniqueTypes = computed(() => {
-  const types = plugins.value.map((plugin: any) => plugin.type);
+  const types = plugins.value.flatMap((plugin: any) => plugin.categories || []);
   return [...new Set(types)].sort();
 });
 
@@ -280,7 +281,7 @@ const filteredPlugins = computed(() => {
     const manufacturerMatch = !selectedManufacturer.value || plugin.manufacturer === selectedManufacturer.value;
 
     // Type filter
-    const typeMatch = !selectedType.value || plugin.type === selectedType.value;
+    const typeMatch = !selectedType.value || plugin.categories.includes(selectedType.value);
 
     return searchMatch && manufacturerMatch && typeMatch;
   });
