@@ -1,7 +1,10 @@
 .c-button {
   @apply flex cursor-pointer items-center justify-center rounded-lg border border-transparent bg-transparent bg-gradient-to-br px-4 py-2 font-bold duration-200;
   &.c-button--mint {
-    @apply from-mint to-mint/80 text-jet;
+    @apply from-mint to-mint/80 text-jet border-mint;
+    &:hover {
+      @apply bg-mint/10 text-mint from-transparent to-transparent;
+    }
   }
   &.c-button--red {
     @apply from-red to-red/70 text-jet border-red;

@@ -114,6 +114,44 @@ export const usePlugins = () => {
     }
   };
 
+  // Update plugin
+  const updatePlugin = async (
+    id: string,
+    updates: Partial<Plugin>,
+  ): Promise<{ success: boolean; data?: Plugin; message?: string }> => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await $fetch<ApiResponse<Plugin>>(`/api/plugins/${id}`, {
+        method: "PUT",
+        body: updates,
+      });
+
+      if (response.success && response.data) {
+        // Update the local plugins array
+        const index = plugins.value.findIndex((p) => p.id === id);
+        if (index !== -1) {
+          plugins.value[index] = { ...plugins.value[index], ...updates };
+        }
+
+        return {
+          success: true,
+          data: response.data,
+          message: response.message,
+        };
+      } else {
+        throw new Error("Failed to update plugin");
+      }
+    } catch (err: any) {
+      error.value = err.message || "Failed to update plugin";
+      console.error("Error updating plugin:", err);
+      return { success: false, message: error.value || undefined };
+    } finally {
+      loading.value = false;
+    }
+  };
+
   // Get database statistics
   const getStats = async (): Promise<PluginStats | null> => {
     try {
@@ -137,6 +175,7 @@ export const usePlugins = () => {
     getPlugin,
     searchPlugins,
     importPlugins,
+    updatePlugin,
     getStats,
   };
 };

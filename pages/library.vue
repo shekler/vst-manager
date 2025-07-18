@@ -7,19 +7,7 @@
       class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6"
     >
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Database</h2>
-      <div class="flex items-center gap-4">
-        <button
-          @click="handleImport"
-          :disabled="loading"
-          class="c-button c-button--mint"
-        >
-          {{ loading ? "Importing..." : "Import from JSON" }}
-        </button>
-        <div v-if="error" class="text-sm text-red-400">{{ error }}</div>
-        <div v-if="importResult" class="text-sm text-green-400">
-          {{ importResult }}
-        </div>
-      </div>
+      <button class="c-button c-button--mint">Scan plugins</button>
     </div>
 
     <!-- Filter Section -->
@@ -256,7 +244,8 @@ import { IconKeyFilled, IconCopy, IconDeviceFloppy } from "@tabler/icons-vue";
 import CustomSelect from "~/components/CustomSelect.vue";
 
 // Use the plugins composable
-const { plugins, loading, error, fetchPlugins, importPlugins } = usePlugins();
+const { plugins, loading, error, fetchPlugins, importPlugins, updatePlugin } =
+  usePlugins();
 
 // Additional reactive state
 const searchFilter = ref("");
@@ -295,18 +284,18 @@ const saveToDatabase = async (pluginId: string, pluginName: string) => {
   }
 
   try {
-    // For now, we'll just update the local state
-    // TODO: Implement update API endpoint
-    const pluginIndex = plugins.value.findIndex((p: any) => p.id === pluginId);
-    if (pluginIndex !== -1) {
-      plugins.value[pluginIndex].key = editedKey;
-      plugins.value[pluginIndex].last_updated = new Date()
-        .toISOString()
-        .split("T")[0];
+    const result = await updatePlugin(pluginId, {
+      key: editedKey,
+      last_updated: new Date().toISOString().split("T")[0],
+    });
+
+    if (result.success) {
+      // Clear the edited key after successful save
+      getPluginState(pluginName).editedKey = "";
+      console.log("License key saved successfully");
+    } else {
+      console.error("Failed to save license key:", result.message);
     }
-    // Clear the edited key after successful save
-    getPluginState(pluginName).editedKey = "";
-    console.log("License key saved successfully");
   } catch (error) {
     console.error("Error saving plugin:", error);
   }
