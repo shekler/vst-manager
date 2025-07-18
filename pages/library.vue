@@ -5,18 +5,18 @@
     <!-- Database Import Section -->
     <div class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6">
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Database</h2>
-      <div class="flex justify-between gap-4">
+      <div class="flex flex-col justify-between gap-8 lg:flex-row">
         <div class="flex flex-col gap-2">
           <VstScanner @scan-complete="handleScanComplete" />
           <p class="text-powder/70 text-sm">Scan for VST plugins using the paths configured in <NuxtLink to="/settings" class="text-mint hover:text-powder font-bold underline">Settings</NuxtLink>.</p>
         </div>
 
         <!-- Delete All Section -->
-        <div class="flex flex-col items-end gap-2">
+        <div class="flex flex-col gap-2 lg:items-end">
           <button @click="showDeleteConfirm = true" :disabled="loading" class="c-button c-button--red w-fit">
-            {{ loading ? "Deleting..." : "Delete All Plugins" }}
+            {{ loading ? "Deleting..." : "Delete Plugins" }}
           </button>
-          <p class="text-powder/70 text-sm">Delete all scanned plugins from the database.</p>
+          <p class="text-powder/70 text-sm">Clear database and all plugins (includes license keys).</p>
         </div>
       </div>
     </div>
@@ -66,7 +66,7 @@
     </div>
 
     <div class="bg-red/10 text-red border-red mb-4 rounded-lg border p-4 text-center font-bold">
-      <p>This is a beta version. Bugs and errors might occur. If you want to submit a bug issue, you can do so in <a href="https://github.com/shekler/vst-manager/issues" target="_blank" class="text-powder hover:text-red font-bold underline duration-200">GitHub.</a></p>
+      <p class="text-pretty">This is a beta version. Bugs and errors might occur. If you want to submit a bug issue, you can do so in <a href="https://github.com/shekler/vst-manager/issues" target="_blank" class="text-powder hover:text-red font-bold underline duration-200">GitHub</a>. Avoid saving sensitive data in the app.</p>
     </div>
 
     <!-- Loading State -->
