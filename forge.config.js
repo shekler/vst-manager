@@ -7,12 +7,27 @@ module.exports = {
     asar: true,
     extraResource: [path.join(__dirname, ".output")],
     icon: path.join(__dirname, "public/icon.ico"),
+    name: "VST Manager",
+    appVersion: "0.1.0-beta",
   },
+  publishers: [
+    {
+      name: "@electron-forge/publisher-github",
+      config: {
+        repository: {
+          owner: "shekler",
+          name: "vst-manager",
+        },
+      },
+    },
+  ],
   rebuildConfig: {},
   makers: [
     {
       name: "@electron-forge/maker-squirrel",
-      config: {},
+      config: {
+        iconUrl: "https://www.vstmanager.com/favicon/favicon.ico",
+      },
     },
     {
       name: "@electron-forge/maker-zip",
