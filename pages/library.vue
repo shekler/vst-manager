@@ -125,7 +125,14 @@
         <div class="flex">
           <a :href="plugin.url" target="_blank" class="bg-mint text-jet hover:border-mint/50 hover:bg-gradient hover:from-mint/10 hover:to-mint/20 hover:text-mint flex grow justify-center rounded-bl-lg border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"> Website </a>
           <!-- open file explorer to plugin path -->
-          <a :href="`explorer.exe ${plugin.path}`" target="_blank" class="bg-powder/90 text-jet hover:border-powder/50 hover:bg-gradient hover:from-powder/10 hover:to-powder/20 hover:text-powder flex grow justify-center border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"> Local Path </a>
+          <button class="bg-powder/90 text-jet hover:border-powder/50 hover:bg-gradient hover:from-powder/10 hover:to-powder/20 hover:text-powder flex grow cursor-pointer justify-center border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br" @click="showLocalPath[plugin.name] = !showLocalPath[plugin.name]">Local Path</button>
+          <div class="bg-jet/50 border-powder/20 absolute inset-6 flex flex-col justify-between gap-2 rounded-lg border p-4 backdrop-blur-md" v-if="showLocalPath[plugin.name]">
+            {{ plugin.path }}
+            <div class="flex gap-2">
+              <button class="c-button c-button--clear w-full" @click="copyToClipboard(getPathToCopy(plugin.path))">Copy</button>
+              <button class="c-button c-button--clear w-full" @click="showLocalPath[plugin.name] = false">Close</button>
+            </div>
+          </div>
           <button class="text-powder hover:bg-jet/50 hover:border-powder/20 relative flex h-full cursor-pointer items-center justify-center rounded-br-lg border px-3 duration-200" :class="getPluginState(plugin.name).showKey ? 'bg-jet/50 border-powder/20' : 'bg-powder/20 border-transparent'" @mouseover="setPluginTooltip(plugin.name, true)" @mouseleave="setPluginTooltip(plugin.name, false)" @click="togglePluginKey(plugin.name)">
             <!-- Tooltip -->
             <div v-if="getPluginState(plugin.name).showTooltip" class="bg-jet/50 border-powder/20 absolute right-1/2 bottom-1/2 w-max rounded-lg border px-3 py-2 text-sm backdrop-blur-md">Open license key details</div>
@@ -177,6 +184,11 @@ const selectedType = ref("");
 const deleteResult = ref("");
 const showDeleteConfirm = ref(false);
 const pluginStates = ref<Record<string, { showKey: boolean; showTooltip: boolean; editedKey: string }>>({});
+const showLocalPath = ref<Record<string, boolean>>({});
+// Remove file name and extension from path
+const getPathToCopy = (path: string) => {
+  return path.split("\\").slice(0, -1).join("\\");
+};
 
 // Handle scan complete
 const handleScanComplete = async (scanData: any) => {

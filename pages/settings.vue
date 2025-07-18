@@ -23,15 +23,6 @@
           </div>
         </div>
 
-        <!-- VST3 Paths -->
-        <div class="flex flex-col gap-2">
-          <label for="vst3_paths" class="text-powder/70 text-sm font-bold">VST3 Plugin Paths</label>
-          <textarea id="vst3_paths" v-model="vst3Paths" rows="3" placeholder="Enter VST3 plugin directories..." class="c-input c-input--search resize-none" />
-          <div class="text-powder/50 text-xs">
-            {{ getSettingDescription("vst3_paths") }}
-          </div>
-        </div>
-
         <!-- Save Button -->
         <div class="flex items-center gap-4">
           <button @click="saveSettings" :disabled="loading || !hasChanges" class="c-button c-button--mint">
@@ -132,10 +123,8 @@ const validatePathsLocally = async () => {
   try {
     // Split paths by comma and filter out empty strings
     const vstPathList = vstPaths.value.split(",").filter((p) => p.trim());
-    const vst3PathList = vst3Paths.value.split(",").filter((p) => p.trim());
-    const auPathList = auPaths.value.split(",").filter((p) => p.trim());
 
-    const allPaths = [...vstPathList, ...vst3PathList, ...auPathList];
+    const allPaths = [...vstPathList];
 
     if (allPaths.length === 0) {
       pathValidations.value = [];
@@ -144,10 +133,7 @@ const validatePathsLocally = async () => {
 
     const validations = await validatePaths(allPaths);
 
-    pathValidations.value = [
-      { name: "VST Paths", path: vstPaths.value, exists: vstPathList.length > 0 && vstPathList.every((p) => validations.find((v: any) => v.path === p)?.exists) },
-      { name: "VST3 Paths", path: vst3Paths.value, exists: vst3PathList.length > 0 && vst3PathList.every((p) => validations.find((v: any) => v.path === p)?.exists) },
-    ];
+    pathValidations.value = [{ name: "VST Paths", path: vstPaths.value, exists: vstPathList.length > 0 && vstPathList.every((p) => validations.find((v: any) => v.path === p)?.exists) }];
   } catch (error) {
     console.error("Error validating paths:", error);
     pathValidations.value = [
