@@ -15,6 +15,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
     },
+    icon: path.join(__dirname, "public/icon.png"),
   });
   // Start frontend
   const frontPath = getPath();

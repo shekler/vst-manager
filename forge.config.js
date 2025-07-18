@@ -26,12 +26,15 @@ module.exports = {
     {
       name: "@electron-forge/maker-squirrel",
       config: {
-        iconUrl: "https://www.vstmanager.com/favicon/favicon.ico",
+        iconUrl: "https://raw.githubusercontent.com/shekler/vst-manager/refs/heads/main/public/icon.ico",
+        setupIcon: path.join(__dirname, "public/icon.ico"),
       },
     },
     {
-      name: "@electron-forge/maker-zip",
-      platforms: ["darwin"],
+      name: "@electron-forge/maker-dmg",
+      config: {
+        icon: path.join(__dirname, "public/icon.icns"),
+      },
     },
     {
       name: "@electron-forge/maker-deb",
