@@ -1,40 +1,52 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
-const { spawn } = require("child_process");
 
 function isProduction() {
   return app.isPackaged;
 }
 
-let frontProcess;
+let mainWindow;
+
 function createWindow() {
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
     },
     icon: path.join(__dirname, "public/icon.png"),
   });
-  // Start frontend
-  const frontPath = getPath();
-  frontProcess = spawn("node", [frontPath], {
-    detached: true,
-    stdio: "inherit",
-  });
-  mainWindow.loadURL("http://localhost:3000"); // or any other port defined
+
+  // Load the app
+  if (isProduction()) {
+    // In production, load from the packaged static files
+    const indexPath = path.join(__dirname, "../../.output/public/index.html");
+    mainWindow.loadFile(indexPath);
+  } else {
+    // In development, load from localhost
+    mainWindow.loadURL("http://localhost:3000");
+  }
+
   // Handle window closed event properly
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
-function getPath() {
-  if (!isProduction()) {
-    return path.join(__dirname, "../", ".output", "server", "index.mjs");
-  } else {
-    return path.join(__dirname, "../../", ".output", "server", "index.mjs");
-  }
-}
 
 app.whenReady().then(createWindow);
+
+// Quit when all windows are closed
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
