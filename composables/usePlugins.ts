@@ -28,9 +28,11 @@ interface ApiResponse<T> {
 }
 
 export const usePlugins = () => {
-  const plugins = ref<Plugin[]>([]);
+  // Use Nuxt's useState for better state management
+  const plugins = useState<Plugin[]>("plugins", () => []);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const updateQueue = ref<Map<string, Promise<any>>>(new Map());
 
   // Fetch all plugins
   const fetchPlugins = async () => {
@@ -113,39 +115,101 @@ export const usePlugins = () => {
     }
   };
 
-  // Update plugin
+  // Update plugin with optimistic updates
   const updatePlugin = async (id: string, updates: Partial<Plugin>): Promise<{ success: boolean; data?: Plugin; message?: string }> => {
-    loading.value = true;
-    error.value = null;
+    // Optimistic update - immediately update the UI
+    const index = plugins.value.findIndex((p) => p.id === id);
+    if (index !== -1) {
+      const originalPlugin = { ...plugins.value[index] };
+      plugins.value[index] = { ...plugins.value[index], ...updates };
 
-    try {
-      const response = await $fetch<ApiResponse<Plugin>>(`/api/plugins/${id}`, {
+      // Background database write
+      $fetch<ApiResponse<Plugin>>(`/api/plugins/${id}`, {
         method: "PUT",
         body: updates,
+      })
+        .then((response) => {
+          if (response.success && response.data) {
+            // Update with server response to ensure consistency
+            plugins.value[index] = response.data;
+          } else {
+            // Revert on failure
+            plugins.value[index] = originalPlugin;
+            console.error("Failed to update plugin in database");
+          }
+        })
+        .catch((err) => {
+          // Revert on error
+          plugins.value[index] = originalPlugin;
+          console.error("Error updating plugin in database:", err);
+        });
+
+      return {
+        success: true,
+        data: plugins.value[index],
+        message: "Plugin updated successfully",
+      };
+    }
+
+    return {
+      success: false,
+      message: "Plugin not found",
+    };
+  };
+
+  // Optimistic update for plugin keys (immediate UI update, background DB write)
+  const updatePluginKey = async (id: string, key: string): Promise<{ success: boolean; message?: string }> => {
+    const plugin = plugins.value.find((p) => p.id === id);
+    if (!plugin) {
+      return { success: false, message: "Plugin not found" };
+    }
+
+    // Store original value for potential rollback
+    const originalKey = plugin.key;
+
+    // Optimistic update - immediately update UI
+    plugin.key = key;
+    plugin.last_updated = new Date().toISOString().split("T")[0];
+
+    // Background database write
+    const updatePromise = $fetch<ApiResponse<Plugin>>(`/api/plugins/${id}`, {
+      method: "PUT",
+      body: { key, last_updated: plugin.last_updated },
+    })
+      .then((response) => {
+        if (response.success && response.data) {
+          // Update with server response to ensure consistency
+          Object.assign(plugin, response.data);
+          console.log("Plugin key saved to database successfully");
+        } else {
+          // Revert on failure
+          plugin.key = originalKey;
+          plugin.last_updated = new Date(originalKey ? plugin.date_scanned : Date.now()).toISOString().split("T")[0];
+          console.error("Failed to save plugin key to database");
+          throw new Error("Database update failed");
+        }
+      })
+      .catch((err) => {
+        // Revert on error
+        plugin.key = originalKey;
+        plugin.last_updated = new Date(originalKey ? plugin.date_scanned : Date.now()).toISOString().split("T")[0];
+        console.error("Error saving plugin key to database:", err);
+        throw err;
+      })
+      .finally(() => {
+        // Remove from update queue
+        updateQueue.value.delete(id);
       });
 
-      if (response.success && response.data) {
-        // Update the local plugins array
-        const index = plugins.value.findIndex((p) => p.id === id);
-        if (index !== -1) {
-          plugins.value[index] = { ...plugins.value[index], ...updates };
-        }
+    // Track the update promise
+    updateQueue.value.set(id, updatePromise);
 
-        return {
-          success: true,
-          data: response.data,
-          message: response.message,
-        };
-      } else {
-        throw new Error("Failed to update plugin");
-      }
-    } catch (err: any) {
-      error.value = err.message || "Failed to update plugin";
-      console.error("Error updating plugin:", err);
-      return { success: false, message: error.value || undefined };
-    } finally {
-      loading.value = false;
-    }
+    return { success: true, message: "Plugin key updated" };
+  };
+
+  // Check if a plugin is currently being updated
+  const isPluginUpdating = (id: string): boolean => {
+    return updateQueue.value.has(id);
   };
 
   // Delete plugin
@@ -237,6 +301,8 @@ export const usePlugins = () => {
     searchPlugins,
     importPlugins,
     updatePlugin,
+    updatePluginKey,
+    isPluginUpdating,
     deletePlugin,
     deleteAllPlugins,
     getStats,

@@ -16,9 +16,6 @@
           <button @click="showDeleteConfirm = true" :disabled="loading" class="c-button c-button--red w-fit">
             {{ loading ? "Deleting..." : "Delete All Plugins" }}
           </button>
-          <div v-if="deleteResult" class="text-powder/70 text-sm">
-            {{ deleteResult }}
-          </div>
           <p class="text-powder/70 text-sm">Delete all scanned plugins from the database.</p>
         </div>
       </div>
@@ -141,12 +138,15 @@
         </div>
         <!-- Key details -->
         <div class="bg-jet/50 border-powder/20 absolute inset-6 flex flex-col justify-between gap-2 rounded-lg border p-4 backdrop-blur-md" v-if="getPluginState(plugin.name).showKey">
-          <div class="text-powder/50">License key:</div>
+          <div class="text-powder/50 flex items-center gap-2">
+            License key:
+            <div v-if="isPluginUpdating(plugin.id)" class="text-mint animate-pulse text-xs">Saving...</div>
+          </div>
           <fieldset class="c-input c-input--search flex w-full items-center justify-between gap-2">
             <input class="text-powder/90 w-full border-none bg-transparent outline-none" :value="getPluginState(plugin.name).editedKey || plugin.key" @input="(event) => (getPluginState(plugin.name).editedKey = (event.target as HTMLInputElement).value)" placeholder="Enter license key..." />
             <div class="text-powder/50 flex gap-2">
               <IconCopy class="hover:text-powder size-6 cursor-pointer" @click="copyToClipboard(plugin.key)" />
-              <IconDeviceFloppy class="hover:text-powder size-6 cursor-pointer" @click="saveToDatabase(plugin.id, plugin.name)" />
+              <IconDeviceFloppy :class="['size-6 cursor-pointer', isPluginUpdating(plugin.id) ? 'text-mint animate-pulse' : 'hover:text-powder']" @click="saveToDatabase(plugin.id, plugin.name)" />
             </div>
           </fieldset>
           <button class="c-button c-button--clear" @click="togglePluginKey(plugin.name)">Close</button>
@@ -175,13 +175,15 @@ import { IconKeyFilled, IconCopy, IconDeviceFloppy, IconLoader2 } from "@tabler/
 import CustomSelect from "~/components/CustomSelect.vue";
 
 // Use the plugins composable
-const { plugins, loading, error, fetchPlugins, updatePlugin, deleteAllPlugins } = usePlugins();
+const { plugins, loading, error, fetchPlugins, updatePlugin, updatePluginKey, isPluginUpdating, deleteAllPlugins } = usePlugins();
+
+// Use toast notifications
+const { success, error: showError } = useToast();
 
 // Additional reactive state
 const searchFilter = ref("");
 const selectedManufacturer = ref("");
 const selectedType = ref("");
-const deleteResult = ref("");
 const showDeleteConfirm = ref(false);
 const pluginStates = ref<Record<string, { showKey: boolean; showTooltip: boolean; editedKey: string }>>({});
 const showLocalPath = ref<Record<string, boolean>>({});
@@ -200,21 +202,16 @@ const handleScanComplete = async (scanData: any) => {
 const confirmDeleteAll = async () => {
   const result = await deleteAllPlugins();
   if (result.success) {
-    deleteResult.value = "All plugins deleted successfully";
-    setTimeout(() => {
-      deleteResult.value = "";
-    }, 5000);
+    success("All plugins deleted successfully");
   } else {
-    deleteResult.value = result.message || "Delete failed";
-    setTimeout(() => {
-      deleteResult.value = "";
-    }, 5000);
+    showError(result.message || "Delete failed");
   }
   showDeleteConfirm.value = false;
 };
 
 const copyToClipboard = (key: string) => {
   navigator.clipboard.writeText(key);
+  success("Copied to clipboard");
 };
 
 const saveToDatabase = async (pluginId: string, pluginName: string) => {
@@ -225,19 +222,19 @@ const saveToDatabase = async (pluginId: string, pluginName: string) => {
   }
 
   try {
-    const result = await updatePlugin(pluginId, {
-      key: editedKey,
-      last_updated: new Date().toISOString().split("T")[0],
-    });
+    const result = await updatePluginKey(pluginId, editedKey);
 
     if (result.success) {
       // Clear the edited key after successful save
       getPluginState(pluginName).editedKey = "";
-      console.log("License key saved successfully");
+      // Close the key editing panel
+      getPluginState(pluginName).showKey = false;
+      success("License key saved successfully");
     } else {
-      console.error("Failed to save license key:", result.message);
+      showError("Failed to save license key: " + result.message);
     }
   } catch (error) {
+    showError("Error saving plugin key");
     console.error("Error saving plugin:", error);
   }
 };
