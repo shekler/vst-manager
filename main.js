@@ -24,11 +24,66 @@ function createWindow() {
 
   // Load the app
   if (isProduction()) {
-    // In production, load from the packaged static files
-    // The files are in the resources folder when packaged
-    const indexPath = path.join(process.resourcesPath, "index.html");
-    console.log("Loading production app from:", indexPath);
-    mainWindow.loadFile(indexPath);
+    // In production, start the Nuxt server and load from it
+    const serverPath = path.join(process.resourcesPath, "server");
+    const indexPath = path.join(serverPath, "index.mjs");
+
+    console.log("Starting production server from:", indexPath);
+
+    // Start the Nuxt server
+    frontProcess = spawn("node", [indexPath], {
+      cwd: serverPath,
+      detached: true,
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        NODE_ENV: "production",
+        PORT: "3000",
+      },
+    });
+
+    // Handle server output
+    frontProcess.stdout.on("data", (data) => {
+      console.log("Server stdout:", data.toString());
+    });
+
+    frontProcess.stderr.on("data", (data) => {
+      console.log("Server stderr:", data.toString());
+    });
+
+    // Wait for the server to start, then load the app
+    const waitForServer = () => {
+      const http = require("http");
+      const req = http.request(
+        {
+          hostname: "localhost",
+          port: 3000,
+          path: "/",
+          method: "GET",
+          timeout: 1000,
+        },
+        (res) => {
+          console.log("Server is ready, loading app...");
+          mainWindow.loadURL("http://localhost:3000");
+        },
+      );
+
+      req.on("error", () => {
+        console.log("Server not ready yet, retrying in 1 second...");
+        setTimeout(waitForServer, 1000);
+      });
+
+      req.on("timeout", () => {
+        console.log("Server timeout, retrying in 1 second...");
+        req.destroy();
+        setTimeout(waitForServer, 1000);
+      });
+
+      req.end();
+    };
+
+    // Start checking for server readiness after 2 seconds
+    setTimeout(waitForServer, 2000);
   } else {
     // In development, spawn the Nuxt dev server if not already running
     const nuxtPath = path.join(__dirname, "../node_modules/.bin/nuxt");

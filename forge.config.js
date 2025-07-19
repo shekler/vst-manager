@@ -5,7 +5,7 @@ const path = require("path");
 module.exports = {
   packagerConfig: {
     asar: true,
-    extraResource: [path.join(__dirname, ".output/public")],
+    extraResource: [path.join(__dirname, ".output/public"), path.join(__dirname, ".output/server")],
     icon: path.join(__dirname, "public/icon.ico"),
     name: "VST Manager",
     appVersion: "0.1.0-beta",
