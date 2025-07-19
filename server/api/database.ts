@@ -1,6 +1,6 @@
 import sqlite3 from "sqlite3";
 import { join } from "path";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, statSync } from "fs";
 
 interface Plugin {
   id: string;
@@ -29,6 +29,7 @@ interface Setting {
 class DatabaseService {
   private db: sqlite3.Database | null = null;
   private dbPath: string;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
     // Store database in the data directory
@@ -36,11 +37,71 @@ class DatabaseService {
   }
 
   async initialize(): Promise<void> {
+    // If already initialized, return immediately
+    if (this.db) {
+      return;
+    }
+
+    // If initialization is in progress, wait for it
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    // Start initialization with retry
+    this.initializationPromise = this._initializeWithRetry();
+    return this.initializationPromise;
+  }
+
+  private async _initializeWithRetry(maxRetries: number = 3): Promise<void> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Database initialization attempt ${attempt}/${maxRetries}`);
+        await this._initialize();
+        return;
+      } catch (error) {
+        console.error(`Database initialization attempt ${attempt} failed:`, error);
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        // Wait a bit before retrying
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+
+  private async _initialize(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.db = new sqlite3.Database(this.dbPath, (err) => {
+        // Ensure data directory exists
+        const dataDir = join(process.cwd(), "data");
+        if (!existsSync(dataDir)) {
+          mkdirSync(dataDir, { recursive: true });
+        }
+
+        console.log("Initializing database at:", this.dbPath);
+
+        // Check if database file exists and is accessible
+        if (existsSync(this.dbPath)) {
+          console.log("Database file exists");
+          try {
+            const stats = statSync(this.dbPath);
+            console.log("Database file size:", stats.size, "bytes");
+          } catch (statError) {
+            console.error("Error getting database file stats:", statError);
+          }
+        } else {
+          console.log("Database file does not exist, will be created");
+        }
+
+        // Try to open database with different flags
+        const openFlags = sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE;
+        console.log("Opening database with flags:", openFlags);
+
+        this.db = new sqlite3.Database(this.dbPath, openFlags, (err) => {
           if (err) {
             console.error("Failed to open database:", err);
+            console.error("Database error details:", err.message);
+            this.initializationPromise = null;
             reject(err);
             return;
           }
@@ -135,10 +196,12 @@ class DatabaseService {
                       this.initializeDefaultSettings()
                         .then(() => {
                           console.log("Database initialized successfully");
+                          this.initializationPromise = null;
                           resolve();
                         })
                         .catch((error) => {
                           console.error("Failed to initialize default settings:", error);
+                          this.initializationPromise = null;
                           reject(error);
                         });
                     },
@@ -150,6 +213,7 @@ class DatabaseService {
         });
       } catch (error) {
         console.error("Failed to initialize database:", error);
+        this.initializationPromise = null;
         reject(error);
       }
     });
@@ -255,13 +319,31 @@ class DatabaseService {
     }
 
     try {
+      console.log("Getting all plugins from database...");
       const plugins = await this.allQuery("SELECT * FROM plugins ORDER BY name");
+      console.log(`Retrieved ${plugins.length} plugins from database`);
+
       // Map database column names to interface property names
-      return plugins.map((plugin: any) => ({
-        ...plugin,
-        sdkVersion: plugin.sdk_version,
-        categories: plugin.categories ? JSON.parse(plugin.categories) : [],
-      })) as Plugin[];
+      const mappedPlugins = plugins.map((plugin: any) => {
+        try {
+          return {
+            ...plugin,
+            sdkVersion: plugin.sdk_version,
+            categories: plugin.categories ? JSON.parse(plugin.categories) : [],
+          } as Plugin;
+        } catch (parseError) {
+          console.error(`Error parsing plugin ${plugin.id}:`, parseError);
+          // Return plugin with empty categories if parsing fails
+          return {
+            ...plugin,
+            sdkVersion: plugin.sdk_version,
+            categories: [],
+          } as Plugin;
+        }
+      });
+
+      console.log("Successfully mapped plugins");
+      return mappedPlugins;
     } catch (error) {
       console.error("Failed to get plugins:", error);
       throw error;
@@ -559,6 +641,7 @@ class DatabaseService {
             reject(err);
           } else {
             this.db = null;
+            this.initializationPromise = null;
             resolve();
           }
         });

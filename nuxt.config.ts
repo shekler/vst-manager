@@ -15,6 +15,12 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: "en",
       },
+      meta: [
+        {
+          "http-equiv": "Content-Security-Policy",
+          content: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://localhost:* ws://localhost:*; font-src 'self' data:;",
+        },
+      ],
       link: [
         { rel: "icon", type: "image/png", href: "/favicon/favicon-96x96.png", sizes: "96x96" },
         { rel: "icon", type: "image/svg+xml", href: "/favicon/favicon.svg" },

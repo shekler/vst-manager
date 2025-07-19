@@ -34,13 +34,20 @@ export const usePlugins = () => {
   const error = ref<string | null>(null);
   const updateQueue = ref<Map<string, Promise<any>>>(new Map());
 
+  // Determine the correct API endpoint based on environment
+  const getApiEndpoint = () => {
+    // API endpoints are always under /api/plugins regardless of environment
+    return "/api/plugins";
+  };
+
   // Fetch all plugins
   const fetchPlugins = async () => {
     loading.value = true;
     error.value = null;
 
     try {
-      const response = (await $fetch("/api")) as ApiResponse<Plugin[]>;
+      const apiEndpoint = getApiEndpoint();
+      const response = (await $fetch(apiEndpoint)) as ApiResponse<Plugin[]>;
       if (response.success && response.data) {
         plugins.value = response.data;
       } else {
@@ -57,7 +64,8 @@ export const usePlugins = () => {
   // Get plugin by ID
   const getPlugin = async (id: string): Promise<Plugin | null> => {
     try {
-      const response = (await $fetch(`/api/plugins/${id}`)) as ApiResponse<Plugin>;
+      const baseEndpoint = getApiEndpoint();
+      const response = (await $fetch(`${baseEndpoint}/${id}`)) as ApiResponse<Plugin>;
       if (response.success && response.data) {
         return response.data;
       }
@@ -71,7 +79,8 @@ export const usePlugins = () => {
   // Search plugins
   const searchPlugins = async (query: string): Promise<Plugin[]> => {
     try {
-      const response = (await $fetch(`/api/plugins/search?q=${encodeURIComponent(query)}`)) as ApiResponse<Plugin[]>;
+      const baseEndpoint = getApiEndpoint();
+      const response = (await $fetch(`${baseEndpoint}/search?q=${encodeURIComponent(query)}`)) as ApiResponse<Plugin[]>;
       if (response.success && response.data) {
         return response.data;
       }
@@ -92,7 +101,8 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      const response = (await $fetch("/api/plugins/import", {
+      const baseEndpoint = getApiEndpoint();
+      const response = (await $fetch(`${baseEndpoint}/import`, {
         method: "POST",
       })) as ApiResponse<null>;
       if (response.success) {
@@ -127,7 +137,7 @@ export const usePlugins = () => {
 
       // Background database write
       (
-        $fetch(`/api/plugins/${id}`, {
+        $fetch(`${getApiEndpoint()}/${id}`, {
           method: "PUT",
           body: safeUpdates,
         }) as Promise<ApiResponse<Plugin>>
@@ -174,11 +184,11 @@ export const usePlugins = () => {
 
     // Optimistic update - immediately update UI
     plugin.key = key;
-    plugin.last_updated = new Date().toISOString().split("T")[0];
+    plugin.last_updated = new Date().toISOString().split("T")[0] || new Date().toISOString();
 
     // Background database write
     const updatePromise = (
-      $fetch(`/api/plugins/${id}`, {
+      $fetch(`${getApiEndpoint()}/${id}`, {
         method: "PUT",
         body: { key, last_updated: plugin.last_updated },
       }) as Promise<ApiResponse<Plugin>>
@@ -225,7 +235,7 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      const response = (await $fetch(`/api/plugins/${id}`, {
+      const response = (await $fetch(`${getApiEndpoint()}/${id}`, {
         method: "DELETE",
       })) as ApiResponse<null>;
 
@@ -261,7 +271,7 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      const response = (await $fetch("/api/plugins/delete-all", {
+      const response = (await $fetch(`${getApiEndpoint()}/delete-all`, {
         method: "POST",
       })) as ApiResponse<null>;
 
@@ -288,7 +298,8 @@ export const usePlugins = () => {
   // Get database statistics
   const getStats = async (): Promise<PluginStats | null> => {
     try {
-      const response = (await $fetch("/api/plugins/stats")) as ApiResponse<PluginStats>;
+      const baseEndpoint = getApiEndpoint();
+      const response = (await $fetch(`${baseEndpoint}/stats`)) as ApiResponse<PluginStats>;
       if (response.success && response.data) {
         return response.data;
       }
