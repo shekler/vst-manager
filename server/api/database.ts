@@ -55,7 +55,6 @@ class DatabaseService {
   private async _initializeWithRetry(maxRetries: number = 3): Promise<void> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`Database initialization attempt ${attempt}/${maxRetries}`);
         await this._initialize();
         return;
       } catch (error) {
@@ -78,24 +77,17 @@ class DatabaseService {
           mkdirSync(dataDir, { recursive: true });
         }
 
-        console.log("Initializing database at:", this.dbPath);
-
         // Check if database file exists and is accessible
         if (existsSync(this.dbPath)) {
-          console.log("Database file exists");
           try {
             const stats = statSync(this.dbPath);
-            console.log("Database file size:", stats.size, "bytes");
           } catch (statError) {
             console.error("Error getting database file stats:", statError);
           }
-        } else {
-          console.log("Database file does not exist, will be created");
         }
 
         // Try to open database with different flags
         const openFlags = sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE;
-        console.log("Opening database with flags:", openFlags);
 
         this.db = new sqlite3.Database(this.dbPath, openFlags, (err) => {
           if (err) {
@@ -195,7 +187,6 @@ class DatabaseService {
                       // Initialize default settings
                       this.initializeDefaultSettings()
                         .then(() => {
-                          console.log("Database initialized successfully");
                           this.initializationPromise = null;
                           resolve();
                         })
@@ -319,9 +310,7 @@ class DatabaseService {
     }
 
     try {
-      console.log("Getting all plugins from database...");
       const plugins = await this.allQuery("SELECT * FROM plugins ORDER BY name");
-      console.log(`Retrieved ${plugins.length} plugins from database`);
 
       // Map database column names to interface property names
       const mappedPlugins = plugins.map((plugin: any) => {
@@ -342,7 +331,6 @@ class DatabaseService {
         }
       });
 
-      console.log("Successfully mapped plugins");
       return mappedPlugins;
     } catch (error) {
       console.error("Failed to get plugins:", error);

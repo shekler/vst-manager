@@ -3,7 +3,7 @@
     <nav>
       <ul class="text-powder/80 flex flex-col items-start gap-3 font-bold">
         <li class="w-full">
-          <SidebarLink to="/library">
+          <SidebarLink to="/">
             <IconBooks class="size-8" />
             Library
           </SidebarLink>

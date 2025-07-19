@@ -28,10 +28,10 @@ interface ApiResponse<T> {
 }
 
 export const usePlugins = () => {
-  // Use Nuxt's useState for better state management
-  const plugins = useState<Plugin[]>("plugins", () => []);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
+  // Use Nuxt's useState for better state management with a stable key
+  const plugins = useState<Plugin[]>("vst-manager-plugins", () => []);
+  const loading = useState<boolean>("vst-manager-loading", () => false);
+  const error = useState<string | null>("vst-manager-error", () => null);
   const updateQueue = ref<Map<string, Promise<any>>>(new Map());
 
   // Determine the correct API endpoint based on environment
@@ -42,6 +42,11 @@ export const usePlugins = () => {
 
   // Fetch all plugins
   const fetchPlugins = async () => {
+    // Prevent multiple simultaneous fetches
+    if (loading.value) {
+      return;
+    }
+
     loading.value = true;
     error.value = null;
 

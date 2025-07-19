@@ -1,13 +1,11 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import { readFileSync } from "fs";
-import { join } from "path";
-
-const packageJson = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
-
 export default defineNuxtConfig({
   ssr: false,
+  nitro: {
+    preset: "static",
+  },
   app: {
-    baseURL: "/",
+    baseURL: "./",
     head: {
       charset: "utf-8",
       viewport: "width=device-width, initial-scale=1",
@@ -32,11 +30,11 @@ export default defineNuxtConfig({
   },
   css: ["~/assets/css/main.css"],
   compatibilityDate: "2025-05-15",
-  devtools: { enabled: true },
+  devtools: { enabled: process.env.NODE_ENV === "development" },
   modules: ["@nuxt/image", "@nuxt/devtools", "@nuxtjs/tailwindcss"],
   runtimeConfig: {
     public: {
-      version: packageJson.version,
+      version: process.env.npm_package_version || "1.0.0",
     },
   },
 });

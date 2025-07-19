@@ -1,13 +1,11 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
-const { spawn } = require("child_process");
 
 function isProduction() {
   return app.isPackaged;
 }
 
 let mainWindow;
-let frontProcess;
 
 function createWindow() {
   // Create the browser window
@@ -35,113 +33,63 @@ function createWindow() {
 
   // Load the app
   if (isProduction()) {
-    // In production, start the Nuxt server and load from it
-    const serverPath = path.join(process.resourcesPath, "server");
-    const indexPath = path.join(serverPath, "index.mjs");
+    // Load static files directly - no server needed!
+    const distPath = path.join(process.resourcesPath, "dist", "index.html");
+    console.log("Loading static app from:", distPath);
 
-    console.log("Starting production server from:", indexPath);
-
-    // Start the Nuxt server
-    frontProcess = spawn("node", [indexPath], {
-      cwd: serverPath,
-      detached: true,
-      stdio: "pipe",
-      env: {
-        ...process.env,
-        NODE_ENV: "production",
-        PORT: "3000",
-      },
-    });
-
-    // Handle server output
-    frontProcess.stdout.on("data", (data) => {
-      console.log("Server stdout:", data.toString());
-    });
-
-    frontProcess.stderr.on("data", (data) => {
-      console.log("Server stderr:", data.toString());
-    });
-
-    // Wait for the server to start, then load the app
-    const waitForServer = () => {
-      const http = require("http");
-      const req = http.request(
-        {
-          hostname: "localhost",
-          port: 3000,
-          path: "/",
-          method: "GET",
-          timeout: 1000,
-        },
-        (res) => {
-          console.log("Server is ready, loading app...");
-          mainWindow.loadURL("http://localhost:3000");
-        },
-      );
-
-      req.on("error", () => {
-        console.log("Server not ready yet, retrying in 1 second...");
-        setTimeout(waitForServer, 1000);
-      });
-
-      req.on("timeout", () => {
-        console.log("Server timeout, retrying in 1 second...");
-        req.destroy();
-        setTimeout(waitForServer, 1000);
-      });
-
-      req.end();
-    };
-
-    // Start checking for server readiness after 2 seconds
-    setTimeout(waitForServer, 2000);
+    // Check if the file exists for debugging
+    const fs = require("fs");
+    if (fs.existsSync(distPath)) {
+      mainWindow.loadFile(distPath);
+    } else {
+      console.error("Dist file not found:", distPath);
+      // Fallback - try alternative paths
+      const altPath = path.join(__dirname, "../dist/index.html");
+      console.log("Trying alternative path:", altPath);
+      if (fs.existsSync(altPath)) {
+        mainWindow.loadFile(altPath);
+      } else {
+        console.error("No dist files found!");
+      }
+    }
   } else {
-    // In development, spawn the Nuxt dev server if not already running
-    const nuxtPath = path.join(__dirname, "../node_modules/.bin/nuxt");
-    const projectPath = path.join(__dirname, "../");
-
-    frontProcess = spawn(nuxtPath, ["dev"], {
-      cwd: projectPath,
-      detached: true,
-      stdio: "inherit",
-    });
-
-    // Wait a bit for the server to start, then load the app
-    setTimeout(() => {
-      console.log("Loading development app from localhost:3000");
-      mainWindow.loadURL("http://localhost:3000");
-    }, 2000);
+    // In development, load from dev server
+    console.log("Loading development app from localhost:3000");
+    mainWindow.loadURL("http://localhost:3000");
   }
 
-  // Handle window closed event properly
+  // Handle window closed event
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  // Optional: Open DevTools in development
+  if (!isProduction()) {
+    mainWindow.webContents.openDevTools();
+  }
 }
 
+// This method will be called when Electron has finished initialization
 app.whenReady().then(createWindow);
 
 // Quit when all windows are closed
 app.on("window-all-closed", () => {
-  // Kill the spawned process if it exists
-  if (frontProcess) {
-    frontProcess.kill();
-  }
-
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
 app.on("activate", () => {
+  // On macOS, re-create a window when the dock icon is clicked
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
 
-// Handle app quit to clean up spawned processes
-app.on("before-quit", () => {
-  if (frontProcess) {
-    frontProcess.kill();
-  }
+// Security: Prevent new window creation
+app.on("web-contents-created", (event, contents) => {
+  contents.on("new-window", (event, navigationUrl) => {
+    event.preventDefault();
+    console.log("Blocked new window creation to:", navigationUrl);
+  });
 });
