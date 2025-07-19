@@ -40,7 +40,7 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<Plugin[]>>("/api/plugins");
+      const response = (await $fetch("/api")) as ApiResponse<Plugin[]>;
       if (response.success && response.data) {
         plugins.value = response.data;
       } else {
@@ -57,7 +57,7 @@ export const usePlugins = () => {
   // Get plugin by ID
   const getPlugin = async (id: string): Promise<Plugin | null> => {
     try {
-      const response = await $fetch<ApiResponse<Plugin>>(`/api/plugins/${id}`);
+      const response = (await $fetch(`/api/plugins/${id}`)) as ApiResponse<Plugin>;
       if (response.success && response.data) {
         return response.data;
       }
@@ -71,7 +71,7 @@ export const usePlugins = () => {
   // Search plugins
   const searchPlugins = async (query: string): Promise<Plugin[]> => {
     try {
-      const response = await $fetch<ApiResponse<Plugin[]>>(`/api/plugins/search?q=${encodeURIComponent(query)}`);
+      const response = (await $fetch(`/api/plugins/search?q=${encodeURIComponent(query)}`)) as ApiResponse<Plugin[]>;
       if (response.success && response.data) {
         return response.data;
       }
@@ -92,9 +92,9 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<null>>("/api/plugins/import", {
+      const response = (await $fetch("/api/plugins/import", {
         method: "POST",
-      });
+      })) as ApiResponse<null>;
       if (response.success) {
         // Refresh the plugins list after import
         await fetchPlugins();
@@ -124,10 +124,12 @@ export const usePlugins = () => {
       plugins.value[index] = { ...plugins.value[index], ...updates };
 
       // Background database write
-      $fetch<ApiResponse<Plugin>>(`/api/plugins/${id}`, {
-        method: "PUT",
-        body: updates,
-      })
+      (
+        $fetch(`/api/plugins/${id}`, {
+          method: "PUT",
+          body: updates,
+        }) as Promise<ApiResponse<Plugin>>
+      )
         .then((response) => {
           if (response.success && response.data) {
             // Update with server response to ensure consistency
