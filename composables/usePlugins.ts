@@ -121,13 +121,15 @@ export const usePlugins = () => {
     const index = plugins.value.findIndex((p) => p.id === id);
     if (index !== -1) {
       const originalPlugin = { ...plugins.value[index] };
-      plugins.value[index] = { ...plugins.value[index], ...updates };
+      // Ensure we don't override required fields with undefined values
+      const safeUpdates = Object.fromEntries(Object.entries(updates).filter(([_, value]) => value !== undefined)) as Partial<Plugin>;
+      plugins.value[index] = { ...plugins.value[index], ...safeUpdates } as Plugin;
 
       // Background database write
       (
         $fetch(`/api/plugins/${id}`, {
           method: "PUT",
-          body: updates,
+          body: safeUpdates,
         }) as Promise<ApiResponse<Plugin>>
       )
         .then((response) => {
@@ -136,13 +138,13 @@ export const usePlugins = () => {
             plugins.value[index] = response.data;
           } else {
             // Revert on failure
-            plugins.value[index] = originalPlugin;
+            plugins.value[index] = originalPlugin as Plugin;
             console.error("Failed to update plugin in database");
           }
         })
         .catch((err) => {
           // Revert on error
-          plugins.value[index] = originalPlugin;
+          plugins.value[index] = originalPlugin as Plugin;
           console.error("Error updating plugin in database:", err);
         });
 
@@ -168,16 +170,19 @@ export const usePlugins = () => {
 
     // Store original value for potential rollback
     const originalKey = plugin.key;
+    const originalLastUpdated = plugin.last_updated;
 
     // Optimistic update - immediately update UI
     plugin.key = key;
     plugin.last_updated = new Date().toISOString().split("T")[0];
 
     // Background database write
-    const updatePromise = $fetch<ApiResponse<Plugin>>(`/api/plugins/${id}`, {
-      method: "PUT",
-      body: { key, last_updated: plugin.last_updated },
-    })
+    const updatePromise = (
+      $fetch(`/api/plugins/${id}`, {
+        method: "PUT",
+        body: { key, last_updated: plugin.last_updated },
+      }) as Promise<ApiResponse<Plugin>>
+    )
       .then((response) => {
         if (response.success && response.data) {
           // Update with server response to ensure consistency
@@ -186,7 +191,7 @@ export const usePlugins = () => {
         } else {
           // Revert on failure
           plugin.key = originalKey;
-          plugin.last_updated = new Date(originalKey ? plugin.date_scanned : Date.now()).toISOString().split("T")[0];
+          plugin.last_updated = originalLastUpdated;
           console.error("Failed to save plugin key to database");
           throw new Error("Database update failed");
         }
@@ -194,7 +199,7 @@ export const usePlugins = () => {
       .catch((err) => {
         // Revert on error
         plugin.key = originalKey;
-        plugin.last_updated = new Date(originalKey ? plugin.date_scanned : Date.now()).toISOString().split("T")[0];
+        plugin.last_updated = originalLastUpdated;
         console.error("Error saving plugin key to database:", err);
         throw err;
       })
@@ -220,9 +225,9 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<null>>(`/api/plugins/${id}`, {
+      const response = (await $fetch(`/api/plugins/${id}`, {
         method: "DELETE",
-      });
+      })) as ApiResponse<null>;
 
       if (response.success) {
         // Remove the plugin from the local array
@@ -256,9 +261,9 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<null>>("/api/plugins/delete-all", {
+      const response = (await $fetch("/api/plugins/delete-all", {
         method: "POST",
-      });
+      })) as ApiResponse<null>;
 
       if (response.success) {
         // Clear the local plugins array
@@ -283,7 +288,7 @@ export const usePlugins = () => {
   // Get database statistics
   const getStats = async (): Promise<PluginStats | null> => {
     try {
-      const response = await $fetch<ApiResponse<PluginStats>>("/api/plugins/stats");
+      const response = (await $fetch("/api/plugins/stats")) as ApiResponse<PluginStats>;
       if (response.success && response.data) {
         return response.data;
       }
