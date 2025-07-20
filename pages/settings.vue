@@ -64,11 +64,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { useSettings } from "~/composables/useSettings";
 
 // Use the settings composable
 const { settings, loading, error, fetchSettings, updateSetting, getSettingValue, getSettingDescription, validatePaths } = useSettings();
+
+// Fetch settings on server-side to prevent hydration mismatches
+await fetchSettings();
 
 // Reactive state for form inputs
 const vstPaths = ref("");
@@ -150,10 +153,8 @@ const initializeForm = () => {
   auPaths.value = getSettingValue("au_paths");
 };
 
-onMounted(async () => {
-  await fetchSettings();
-  initializeForm();
-});
+// Initialize form after settings are fetched
+initializeForm();
 </script>
 
 <style></style>

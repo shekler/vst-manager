@@ -75,12 +75,12 @@
     </div>
 
     <!-- Plugin Grid -->
-    <div v-else class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div v-else-if="filteredPlugins.length > 0" class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       <!-- Plugin library view -->
       <div v-for="plugin in filteredPlugins" :key="plugin.name" class="from-onyx to-onyx/50 relative flex flex-col overflow-hidden rounded-lg bg-gradient-to-br">
         <div class="pointer-events-none absolute top-0 left-0 size-32 -translate-y-1/2 rounded-full bg-white opacity-30 blur-[100px]"></div>
         <div class="grid grow grid-cols-3 gap-4 p-4">
-          <div class="relative" v-if="plugin.image">
+          <div class="relative" v-if="plugin.image && plugin.image.trim()">
             <NuxtImg :src="plugin.image" :alt="`${plugin.name} Screenshot`" class="absolute inset-0 size-fit max-h-full max-w-full self-start justify-self-center" />
           </div>
           <div
@@ -91,46 +91,50 @@
             }"
           >
             <div class="leading-none">
-              <div class="text-powder/50">{{ plugin.manufacturer }}</div>
+              <div class="text-powder/50">{{ plugin.manufacturer || "Unknown" }}</div>
               <h2 class="text-powder/90 text-xl font-bold">
-                {{ plugin.name }}
+                {{ plugin.name || "Unknown Plugin" }}
               </h2>
             </div>
 
             <div class="mt-2 flex flex-wrap gap-2">
-              <div v-for="category in plugin.categories" :key="category" class="text-powder/70 border-powder/20 rounded border px-1.5 py-1 text-xs leading-none">
+              <div v-for="category in plugin.categories || []" :key="category" class="text-powder/70 border-powder/20 rounded border px-1.5 py-1 text-xs leading-none">
                 {{ category }}
               </div>
             </div>
 
             <div class="text-powder/50 mt-2 flex flex-col text-sm">
               <div class="font-bold">Version:</div>
-              <div class="text-powder/70">{{ plugin.version }}</div>
+              <div class="text-powder/70">{{ plugin.version || "Unknown" }}</div>
             </div>
             <div class="text-powder/50 mt-2 flex flex-wrap justify-between gap-2 text-sm">
               <div class="flex flex-col">
                 <div class="font-bold">Scanned:</div>
                 <div class="text-powder/70">
-                  <NuxtTime :datetime="plugin.date_scanned" :format="getDeviceFormat" />
+                  <NuxtTime v-if="plugin.date_scanned" :datetime="plugin.date_scanned" :format="getDeviceFormat" />
+                  <span v-else>Unknown</span>
                 </div>
               </div>
               <div class="flex flex-col">
                 <div class="font-bold">Plugin Type:</div>
                 <div class="text-powder/70">
-                  {{ plugin.sdkVersion }}
+                  {{ plugin.sdkVersion || "Unknown" }}
                 </div>
               </div>
             </div>
           </div>
         </div>
         <div class="flex">
-          <a :href="plugin.url" target="_blank" class="bg-mint text-jet hover:border-mint/50 hover:bg-gradient hover:from-mint/10 hover:to-mint/20 hover:text-mint flex grow justify-center rounded-bl-lg border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"> Website </a>
+          <a v-if="plugin.url" :href="plugin.url" target="_blank" class="bg-mint text-jet hover:border-mint/50 hover:bg-gradient hover:from-mint/10 hover:to-mint/20 hover:text-mint flex grow justify-center rounded-bl-lg border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br"> Website </a>
+          <button v-else disabled class="bg-powder/20 text-powder/50 flex grow cursor-not-allowed justify-center rounded-bl-lg border border-transparent px-4 py-2 font-bold">No Website</button>
           <!-- open file explorer to plugin path -->
-          <button class="bg-powder/90 text-jet hover:border-powder/50 hover:bg-gradient hover:from-powder/10 hover:to-powder/20 hover:text-powder flex grow cursor-pointer justify-center border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br" @click="showLocalPath[plugin.name] = !showLocalPath[plugin.name]">Local Path</button>
-          <div class="bg-jet/50 border-powder/20 absolute inset-6 flex flex-col justify-between gap-2 rounded-lg border p-4 backdrop-blur-md" v-if="showLocalPath[plugin.name]">
+          <button v-if="plugin.path" class="bg-powder/90 text-jet hover:border-powder/50 hover:bg-gradient hover:from-powder/10 hover:to-powder/20 hover:text-powder flex grow cursor-pointer justify-center border border-transparent px-4 py-2 font-bold duration-200 hover:bg-transparent hover:bg-gradient-to-br" @click="showLocalPath[plugin.name] = !showLocalPath[plugin.name]">Local Path</button>
+          <button v-else disabled class="bg-powder/20 text-powder/50 flex grow cursor-not-allowed justify-center border border-transparent px-4 py-2 font-bold">No Path</button>
+          <div class="bg-jet/50 border-powder/20 absolute inset-6 flex flex-col justify-between gap-2 rounded-lg border p-4 backdrop-blur-md" v-if="showLocalPath[plugin.name] && plugin.path">
             {{ plugin.path }}
             <div class="flex gap-2">
               <button class="c-button c-button--clear w-full" @click="copyToClipboard(getPathToCopy(plugin.path))">Copy</button>
+              <button class="c-button c-button--clear w-full" @click="openFileExplorer(getPathToCopy(plugin.path))">Open Folder</button>
               <button class="c-button c-button--clear w-full" @click="showLocalPath[plugin.name] = false">Close</button>
             </div>
           </div>
@@ -147,9 +151,9 @@
             <div v-if="isPluginUpdating(plugin.id)" class="text-mint animate-pulse text-xs">Saving...</div>
           </div>
           <fieldset class="c-input c-input--search flex w-full items-center justify-between gap-2">
-            <input class="text-powder/90 w-full border-none bg-transparent outline-none" :value="getPluginState(plugin.name).editedKey || plugin.key" @input="(event) => (getPluginState(plugin.name).editedKey = (event.target as HTMLInputElement).value)" placeholder="Enter license key..." />
+            <input class="text-powder/90 w-full border-none bg-transparent outline-none" :value="getPluginState(plugin.name).editedKey || plugin.key || ''" @input="(event) => (getPluginState(plugin.name).editedKey = (event.target as HTMLInputElement).value)" placeholder="Enter license key..." />
             <div class="text-powder/50 flex gap-2">
-              <IconCopy class="hover:text-powder size-6 cursor-pointer" @click="copyToClipboard(plugin.key)" />
+              <IconCopy class="hover:text-powder size-6 cursor-pointer" @click="copyToClipboard(plugin.key || '')" />
               <IconDeviceFloppy :class="['size-6 cursor-pointer', isPluginUpdating(plugin.id) ? 'text-mint animate-pulse' : 'hover:text-powder']" @click="saveToDatabase(plugin.id, plugin.name)" />
             </div>
           </fieldset>
@@ -172,7 +176,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { IconKeyFilled, IconCopy, IconDeviceFloppy, IconLoader2 } from "@tabler/icons-vue";
 
 // Import the custom select component
@@ -183,6 +187,12 @@ const { plugins, loading, error, fetchPlugins, updatePlugin, updatePluginKey, is
 
 // Use toast notifications
 const { success, error: showError } = useToast();
+
+// Use Electron composable
+const { openFileExplorer } = useElectron();
+
+// Fetch plugins on server-side to prevent hydration mismatches
+await fetchPlugins();
 
 // Additional reactive state
 const searchFilter = ref("");
@@ -245,6 +255,7 @@ const saveToDatabase = async (pluginId: string, pluginName: string) => {
 
 // Get device's time format
 const getDeviceFormat = (date: string) => {
+  if (!date) return "";
   const dateFormat = new Date(date);
   const options: Intl.DateTimeFormatOptions = {
     year: "numeric",
@@ -256,12 +267,18 @@ const getDeviceFormat = (date: string) => {
 
 // Computed properties for unique values
 const uniqueManufacturers = computed(() => {
-  const manufacturers = plugins.value.map((plugin: any) => plugin.manufacturer);
+  if (!plugins.value || !Array.isArray(plugins.value)) {
+    return [];
+  }
+  const manufacturers = plugins.value.filter((plugin: any) => plugin && plugin.manufacturer).map((plugin: any) => plugin.manufacturer);
   return [...new Set(manufacturers)].sort();
 });
 
 const uniqueTypes = computed(() => {
-  const types = plugins.value.flatMap((plugin: any) => plugin.categories || []);
+  if (!plugins.value || !Array.isArray(plugins.value)) {
+    return [];
+  }
+  const types = plugins.value.filter((plugin: any) => plugin && plugin.categories && Array.isArray(plugin.categories)).flatMap((plugin: any) => plugin.categories);
   return [...new Set(types)].sort();
 });
 
@@ -284,15 +301,23 @@ const typeOptions = computed(() => [
 
 // Filtered plugins based on all filters
 const filteredPlugins = computed(() => {
+  if (!plugins.value || !Array.isArray(plugins.value)) {
+    return [];
+  }
+
   return plugins.value.filter((plugin: any) => {
+    if (!plugin || typeof plugin !== "object") {
+      return false;
+    }
+
     // Search filter
-    const searchMatch = !searchFilter.value || plugin.name.toLowerCase().includes(searchFilter.value.toLowerCase()) || plugin.manufacturer.toLowerCase().includes(searchFilter.value.toLowerCase());
+    const searchMatch = !searchFilter.value || (plugin.name && plugin.name.toLowerCase().includes(searchFilter.value.toLowerCase())) || (plugin.manufacturer && plugin.manufacturer.toLowerCase().includes(searchFilter.value.toLowerCase()));
 
     // Manufacturer filter
     const manufacturerMatch = !selectedManufacturer.value || plugin.manufacturer === selectedManufacturer.value;
 
     // Type filter
-    const typeMatch = !selectedType.value || plugin.categories.includes(selectedType.value);
+    const typeMatch = !selectedType.value || (plugin.categories && Array.isArray(plugin.categories) && plugin.categories.includes(selectedType.value));
 
     return searchMatch && manufacturerMatch && typeMatch;
   });
@@ -300,6 +325,14 @@ const filteredPlugins = computed(() => {
 
 // Helper functions for plugin state management
 const getPluginState = (pluginName: string) => {
+  if (!pluginName || typeof pluginName !== "string") {
+    return {
+      showKey: false,
+      showTooltip: false,
+      editedKey: "",
+    };
+  }
+
   if (!pluginStates.value[pluginName]) {
     pluginStates.value[pluginName] = {
       showKey: false,
@@ -333,15 +366,4 @@ const clearFilters = () => {
   selectedManufacturer.value = "";
   selectedType.value = "";
 };
-
-// Use a ref to track if we've already fetched plugins
-const hasFetched = ref(false);
-
-onMounted(async () => {
-  // Only fetch plugins once on mount
-  if (!hasFetched.value) {
-    hasFetched.value = true;
-    await fetchPlugins();
-  }
-});
 </script>
