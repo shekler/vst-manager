@@ -66,7 +66,7 @@
     </div>
 
     <div class="bg-red/10 text-red border-red mb-4 rounded-lg border p-4 text-center font-bold">
-      <p class="text-pretty">This is a beta version. Bugs and errors might occur. If you want to submit a bug issue, you can do so in <a href="https://github.com/shekler/vst-manager/issues" target="_blank" class="text-powder hover:text-red font-bold underline duration-200">GitHub</a>. Avoid saving sensitive data in the app.</p>
+      <p class="text-pretty">This is a beta version. Bugs and errors might occur. If you want to submit a bug, you can do so in <a href="https://github.com/shekler/vst-manager/issues" target="_blank" class="text-powder hover:text-red font-bold underline duration-200">GitHub</a>. Avoid saving sensitive data in the app.</p>
     </div>
 
     <!-- Loading State -->
