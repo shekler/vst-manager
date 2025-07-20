@@ -1,26 +1,20 @@
 {
   "name": "vst-manager",
   "productName": "VST Manager",
-  "version": "0.1.0-beta",
+  "version": "0.1.0-alpha",
   "description": "A plugin manager for the audio plugins",
   "main": "main.js",
   "author": "Sven Wolf",
   "scripts": {
     "dev": "nuxi dev",
-    "build": "nuxi generate",
-    "start": "electron-forge start",
-    "package": "npm run build && electron-forge package",
-    "make": "npm run build && electron-forge make",
-    "publish": "npm run build && electron-forge publish"
+    "build": "nuxi generate"
   },
   "dependencies": {
-    "@electron-forge/maker-dmg": "^7.8.1",
     "@nuxt/devtools": "^2.6.2",
     "@nuxt/image": "^1.10.0",
     "@nuxtjs/tailwindcss": "^7.0.0-beta.0",
     "@tabler/icons-vue": "^3.34.0",
-    "electron-squirrel-startup": "^1.0.1",
-    "express": "^5.1.0",
+    "eslint": "^9.31.0",
     "nuxt": "^4.0.0",
     "sqlite3": "^5.1.7",
     "vite": "^6.3.5",
@@ -28,20 +22,8 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.8.1",
-    "@electron-forge/maker-deb": "^7.8.1",
-    "@electron-forge/maker-squirrel": "^7.8.1",
-    "@electron-forge/maker-zip": "^7.8.1",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
-    "@electron-forge/plugin-fuses": "^7.8.1",
-    "@electron/fuses": "^1.8.0",
-    "@types/node": "^24.0.15",
-    "concurrently": "^9.2.0",
-    "electron": "^37.2.3",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
-    "wait-on": "^8.0.3"
+    "typescript": "^5.8.3"
   }
 }
