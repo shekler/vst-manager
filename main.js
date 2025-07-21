@@ -18,6 +18,7 @@ function createWindow() {
       nodeIntegration: true,
     },
   });
+
   const frontPath = getPath();
   frontProcess = spawn("node", [frontPath], {
     detached: true,
