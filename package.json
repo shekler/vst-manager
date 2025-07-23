@@ -8,16 +8,13 @@
   "scripts": {
     "dev": "nuxi dev",
     "build": "nuxi generate",
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make"
+    "start": "electron ."
   },
   "dependencies": {
     "@nuxt/devtools": "^2.6.2",
     "@nuxt/image": "^1.10.0",
     "@nuxtjs/tailwindcss": "^7.0.0-beta.0",
     "@tabler/icons-vue": "^3.34.0",
-    "electron-squirrel-startup": "^1.0.1",
     "eslint": "^9.31.0",
     "nuxt": "^4.0.0",
     "sqlite3": "^5.1.7",
@@ -26,15 +23,7 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.8.1",
-    "@electron-forge/maker-deb": "^7.8.1",
-    "@electron-forge/maker-rpm": "^7.8.1",
-    "@electron-forge/maker-squirrel": "^7.8.1",
-    "@electron-forge/maker-zip": "^7.8.1",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
-    "@electron-forge/plugin-fuses": "^7.8.1",
-    "@electron/fuses": "^1.8.0",
-    "electron": "37.2.3",
+    "electron": "^37.2.4",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "ts-node": "^10.9.2",
