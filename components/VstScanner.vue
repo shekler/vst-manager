@@ -1,8 +1,8 @@
 <!-- components/VstScanner.vue -->
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex w-full items-center justify-between gap-2">
-      <div class="flex items-center gap-2">
+    <div class="flex w-full flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <button @click="scanPlugins" :disabled="isScanning" class="c-button c-button--mint w-fit">
           <div v-if="isScanning" class="animate-spin">
             <IconLoader2 class="size-4 animate-spin" />

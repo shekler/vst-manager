@@ -14,7 +14,7 @@
     <!-- Filter Section -->
     <div class="from-onyx to-onyx/50 mt-4 mb-4 rounded-lg bg-gradient-to-br p-6">
       <h2 class="text-powder/90 mb-4 text-xl font-bold">Filters</h2>
-      <div class="grid gap-4 md:grid-cols-3">
+      <div class="grid gap-4 lg:grid-cols-3">
         <!-- Search Filter -->
         <div class="flex flex-col gap-2">
           <label for="search" class="text-powder/70 text-sm font-bold">Search</label>
@@ -34,7 +34,7 @@
         </div>
       </div>
 
-      <div class="mt-4 flex items-end justify-between">
+      <div class="mt-4 flex flex-wrap items-end justify-between gap-2">
         <!-- Results Count -->
         <div class="text-powder/50 text-sm">Showing {{ filteredPlugins.length }} of {{ plugins.length }} plugins</div>
 
