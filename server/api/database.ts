@@ -42,11 +42,58 @@ export async function initializeDatabase() {
             db.close();
             reject(err);
           } else {
-            db.close();
-            resolve();
+            // Run migration to rename manufacturer to vendor if needed
+            migrateManufacturerToVendor(db)
+              .then(() => {
+                db.close();
+                resolve();
+              })
+              .catch((migrationErr) => {
+                db.close();
+                reject(migrationErr);
+              });
           }
         },
       );
+    });
+  });
+}
+
+// Migration function to rename manufacturer column to vendor
+async function migrateManufacturerToVendor(db: sqlite3.Database): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Check if manufacturer column exists
+    db.get("PRAGMA table_info(plugins)", (err, rows) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      // Get all column info
+      db.all("PRAGMA table_info(plugins)", (err, columns) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        const hasManufacturer = columns.some((col: any) => col.name === "manufacturer");
+        const hasVendor = columns.some((col: any) => col.name === "vendor");
+
+        if (hasManufacturer && !hasVendor) {
+          // Rename manufacturer to vendor
+          db.run("ALTER TABLE plugins RENAME COLUMN manufacturer TO vendor", (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              console.log("Successfully migrated manufacturer column to vendor");
+              resolve();
+            }
+          });
+        } else {
+          // No migration needed
+          resolve();
+        }
+      });
     });
   });
 }

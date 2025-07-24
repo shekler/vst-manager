@@ -1,12 +1,15 @@
 <!-- components/VstScanner.vue -->
 <template>
   <div class="flex flex-col gap-4">
-    <button @click="scanPlugins" :disabled="isScanning" class="c-button c-button--mint w-fit">
-      <div v-if="isScanning" class="animate-spin">
-        <IconLoader2 class="size-4 animate-spin" />
-      </div>
-      {{ isScanning ? "Scanning" : "Scan Plugins" }}
-    </button>
+    <div class="flex items-center gap-2">
+      <button @click="scanPlugins" :disabled="isScanning" class="c-button c-button--mint w-fit">
+        <div v-if="isScanning" class="animate-spin">
+          <IconLoader2 class="size-4 animate-spin" />
+        </div>
+        {{ isScanning ? "Scanning" : "Scan Plugins" }}
+      </button>
+      <button @click="deletePlugins" class="c-button c-button--red w-fit">Delete Plugins</button>
+    </div>
 
     <Transition name="fade" mode="out-in">
       <div v-if="results" class="bg-jet/50 relative mt-4 rounded-lg p-6">
@@ -76,9 +79,15 @@ async function scanPlugins() {
   }
 }
 
-async function getPluginData() {
-  const response = usePlugins();
-  return response.plugins;
+async function deletePlugins() {
+  const response = await $fetch("/api/vst/delete");
+  if (response.success) {
+    success("Plugins deleted successfully!");
+    emit("scan-complete", []);
+  } else {
+    errorMessage.value = response.error || "Failed to delete plugins";
+    showErrorModal.value = true;
+  }
 }
 </script>
 

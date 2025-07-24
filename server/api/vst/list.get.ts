@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
         id,
         name,
         path,
-        manufacturer as vendor,
+        vendor,
         version,
         categories,
         sdk_version as sdkVersion,

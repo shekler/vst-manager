@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
         id,
         name,
         path,
-        manufacturer as vendor,
+        vendor,
         version,
         categories,
         sdk_version as sdkVersion,
@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
         created_at as createdAt,
         updated_at as updatedAt
       FROM plugins 
-      WHERE name LIKE ? OR manufacturer LIKE ? OR path LIKE ?
+      WHERE name LIKE ? OR vendor LIKE ? OR path LIKE ?
       ORDER BY name
     `,
       [`%${query}%`, `%${query}%`, `%${query}%`],
