@@ -86,9 +86,9 @@
             <div class="mt-4 flex flex-col items-start gap-1 text-sm">
               <div class="font-bold">Key:</div>
               <div class="border-powder/20 relative w-full rounded-md border">
-                <input class="text-powder/70 w-full truncate px-2 py-1" :value="plugin.key" placeholder="Enter key" />
+                <input v-model="plugin.key" class="text-powder/70 w-full truncate px-2 py-1" placeholder="Enter key" />
                 <div class="text-powder/70 absolute top-1.5 right-2 flex shrink-0 items-center gap-2">
-                  <IconDeviceFloppy class="hover:text-powder size-4 cursor-pointer duration-200" @click="saveKey(plugin.key)" />
+                  <IconDeviceFloppy class="hover:text-powder size-4 cursor-pointer duration-200" @click="saveKey(plugin.id, plugin.key)" />
                   <IconCopy v-if="plugin.key" class="hover:text-powder size-4 cursor-pointer duration-200" @click="copyKey(plugin.key)" />
                   <IconCopy v-else class="text-powder/30 size-4 cursor-not-allowed duration-200" />
                 </div>
@@ -127,7 +127,7 @@ import { IconKeyFilled, IconCopy, IconDeviceFloppy, IconLoader2 } from "@tabler/
 import CustomSelect from "~/components/CustomSelect.vue";
 
 // Use the plugins composable
-const { plugins, loading, error, fetchPlugins } = usePlugins();
+const { plugins, loading, error, fetchPlugins, savePluginKey } = usePlugins();
 
 // Use toast notifications
 const { success, error: showError } = useToast();
@@ -228,8 +228,12 @@ const copyKey = (key: string) => {
   success("Key copied to clipboard");
 };
 
-const saveKey = (key: string) => {
-  // TODO: Implement key saving functionality
-  success("Key saved");
+const saveKey = async (pluginId: string, key: string) => {
+  const result = await savePluginKey(pluginId, key);
+  if (result) {
+    success("Key saved");
+  } else {
+    showError("Failed to save key");
+  }
 };
 </script>

@@ -1,13 +1,36 @@
-import { readFile } from "node:fs/promises";
+import { runQuery } from "../database";
 
 export default defineEventHandler(async (event) => {
   try {
-    const data = await readFile("./data/scanned-plugins.json", "utf8");
+    const plugins = await runQuery(`
+      SELECT 
+        id,
+        name,
+        path,
+        manufacturer as vendor,
+        version,
+        categories,
+        sdk_version as sdkVersion,
+        is_valid as isValid,
+        error,
+        created_at as createdAt,
+        updated_at as updatedAt
+      FROM plugins 
+      ORDER BY name
+    `);
+
+    // Parse categories JSON string back to array
+    const processedPlugins = plugins.map((plugin) => ({
+      ...plugin,
+      subCategories: JSON.parse(plugin.categories || "[]"),
+      // Remove categories field as it's now subCategories
+      categories: undefined,
+    }));
 
     return {
       success: true,
-      data: JSON.parse(data).plugins,
-      count: JSON.parse(data).plugins.length,
+      data: processedPlugins,
+      count: processedPlugins.length,
     };
   } catch (error: any) {
     console.error("API: Error fetching plugins:", error);

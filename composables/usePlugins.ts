@@ -12,6 +12,7 @@ interface Plugin {
   cardinality: number;
   flags: number;
   cid: string;
+  key?: string; // Add key field
 }
 
 interface ApiResponse<T> {
@@ -67,11 +68,39 @@ export const usePlugins = () => {
     }
   };
 
+  // Save plugin key
+  const savePluginKey = async (pluginId: string, key: string): Promise<boolean> => {
+    try {
+      const response = await $fetch<ApiResponse<any>>(`/api/plugins/${pluginId}/key`, {
+        method: "POST",
+        body: { key },
+      });
+
+      if (response.success) {
+        // Update the plugin in the local state
+        const pluginIndex = plugins.value.findIndex((p) => p.id === pluginId);
+        if (pluginIndex !== -1) {
+          const currentPlugin = plugins.value[pluginIndex];
+          plugins.value[pluginIndex] = {
+            ...currentPlugin,
+            key,
+          } as Plugin;
+        }
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      console.error("Error saving plugin key:", err);
+      return false;
+    }
+  };
+
   return {
     plugins: readonly(plugins),
     loading: readonly(loading),
     error: readonly(error),
     fetchPlugins,
     searchPlugins,
+    savePluginKey,
   };
 };
