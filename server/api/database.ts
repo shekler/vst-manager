@@ -128,45 +128,101 @@ export async function syncPluginsFromJson() {
 
     return new Promise<void>((resolve, reject) => {
       db.serialize(() => {
-        // Clear existing plugins
-        db.run("DELETE FROM plugins", (err) => {
-          if (err) {
-            reject(err);
+        // Prepare statements for upsert operations
+        const insertStmt = db.prepare(`
+          INSERT INTO plugins (
+            id, name, vendor, version, path, category, subCategories, 
+            isValid, error, sdkVersion, cardinality, flags, cid, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `);
+
+        const updateStmt = db.prepare(`
+          UPDATE plugins SET 
+            name = ?, vendor = ?, version = ?, path = ?, category = ?, 
+            subCategories = ?, isValid = ?, error = ?, sdkVersion = ?, 
+            cardinality = ?, flags = ?, cid = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `);
+
+        const checkStmt = db.prepare("SELECT id FROM plugins WHERE id = ?");
+
+        let processedCount = 0;
+        let insertedCount = 0;
+        let updatedCount = 0;
+
+        const processNextPlugin = (index: number) => {
+          if (index >= data.plugins.length) {
+            // All plugins processed, finalize statements
+            insertStmt.finalize((err1) => {
+              if (err1) {
+                reject(err1);
+                return;
+              }
+              updateStmt.finalize((err2) => {
+                if (err2) {
+                  reject(err2);
+                  return;
+                }
+                checkStmt.finalize((err3) => {
+                  if (err3) {
+                    reject(err3);
+                    return;
+                  }
+                  console.log(`Sync completed: ${insertedCount} inserted, ${updatedCount} updated, ${processedCount} total`);
+                  resolve();
+                });
+              });
+            });
             return;
           }
 
-          // Insert plugins from JSON
-          const stmt = db.prepare(`
-            INSERT INTO plugins (
-              id, name, vendor, version, path, category, subCategories, 
-              isValid, error, sdkVersion, cardinality, flags, cid
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `);
+          const plugin = data.plugins[index];
+          const id = plugin.cid || plugin.path; // Use cid as primary key, fallback to path
+          const subCategories = JSON.stringify(plugin.subCategories || []);
 
-          data.plugins.forEach((plugin: any) => {
-            // Include all plugins, including invalid ones
-            const id = plugin.cid || plugin.path; // Use cid as primary key, fallback to path
-            const subCategories = JSON.stringify(plugin.subCategories || []);
+          // For invalid plugins without a name, extract name from path
+          let pluginName = plugin.name;
+          if (!pluginName && plugin.path) {
+            const pathParts = plugin.path.split(/[\\\/]/);
+            const fileName = pathParts[pathParts.length - 1];
+            pluginName = fileName.replace(/\.vst3?$/i, "") || "Unknown Plugin";
+          }
 
-            // For invalid plugins without a name, extract name from path
-            let pluginName = plugin.name;
-            if (!pluginName && plugin.path) {
-              const pathParts = plugin.path.split(/[\\\/]/);
-              const fileName = pathParts[pathParts.length - 1];
-              pluginName = fileName.replace(/\.vst3?$/i, "") || "Unknown Plugin";
-            }
-
-            stmt.run([id, pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid]);
-          });
-
-          stmt.finalize((err) => {
+          // Check if plugin already exists
+          checkStmt.get([id], (err, row) => {
             if (err) {
               reject(err);
+              return;
+            }
+
+            if (row) {
+              // Plugin exists - update it
+              updateStmt.run([pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, id], (updateErr) => {
+                if (updateErr) {
+                  reject(updateErr);
+                  return;
+                }
+                updatedCount++;
+                processedCount++;
+                processNextPlugin(index + 1);
+              });
             } else {
-              resolve();
+              // Plugin doesn't exist - insert it
+              insertStmt.run([id, pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid], (insertErr) => {
+                if (insertErr) {
+                  reject(insertErr);
+                  return;
+                }
+                insertedCount++;
+                processedCount++;
+                processNextPlugin(index + 1);
+              });
             }
           });
-        });
+        };
+
+        // Start processing plugins
+        processNextPlugin(0);
       });
     });
   } catch (error) {
