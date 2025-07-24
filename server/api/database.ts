@@ -1,99 +1,88 @@
 import sqlite3 from "sqlite3";
 import path from "path";
 import { readFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 
 // Database connection
 const dbPath = path.join(process.cwd(), "data", "plugins.db");
 
 export function getDatabase() {
-  return new sqlite3.Database(dbPath);
+  const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      console.error("Error opening database:", err.message);
+      console.error("Database path:", dbPath);
+    } else {
+      console.log("Connected to SQLite database at:", dbPath);
+    }
+  });
+  return db;
 }
 
 // Initialize database with schema
 export async function initializeDatabase() {
-  return new Promise<void>((resolve, reject) => {
-    const db = getDatabase();
+  try {
+    // Ensure data directory exists
+    const dataDir = path.dirname(dbPath);
+    await mkdir(dataDir, { recursive: true });
 
-    db.serialize(() => {
-      // Create plugins table if it doesn't exist
-      db.run(
-        `
-        CREATE TABLE IF NOT EXISTS plugins (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          vendor TEXT,
-          version TEXT,
-          path TEXT NOT NULL,
-          category TEXT,
-          subCategories TEXT,
-          isValid BOOLEAN DEFAULT 1,
-          error TEXT,
-          sdkVersion TEXT,
-          cardinality INTEGER,
-          flags INTEGER,
-          cid TEXT,
-          key TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `,
-        (err) => {
-          if (err) {
-            db.close();
-            reject(err);
-          } else {
-            // Run migration to rename manufacturer to vendor if needed
-            migrateManufacturerToVendor(db)
-              .then(() => {
-                db.close();
-                resolve();
-              })
-              .catch((migrationErr) => {
-                db.close();
-                reject(migrationErr);
-              });
-          }
-        },
-      );
-    });
-  });
-}
+    return new Promise<void>((resolve, reject) => {
+      const db = getDatabase();
 
-// Migration function to rename manufacturer column to vendor
-async function migrateManufacturerToVendor(db: sqlite3.Database): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Check if manufacturer column exists
-    db.get("PRAGMA table_info(plugins)", (err, rows) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      // Get all column info
-      db.all("PRAGMA table_info(plugins)", (err, columns) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        const hasManufacturer = columns.some((col: any) => col.name === "manufacturer");
-        const hasVendor = columns.some((col: any) => col.name === "vendor");
-
-        if (hasManufacturer && !hasVendor) {
-          // Rename manufacturer to vendor
-          db.run("ALTER TABLE plugins RENAME COLUMN manufacturer TO vendor", (err) => {
+      db.serialize(() => {
+        // Create plugins table if it doesn't exist
+        db.run(
+          `
+          CREATE TABLE IF NOT EXISTS plugins (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            vendor TEXT,
+            version TEXT,
+            path TEXT NOT NULL,
+            category TEXT,
+            subCategories TEXT,
+            isValid BOOLEAN DEFAULT 1,
+            error TEXT,
+            sdkVersion TEXT,
+            cardinality INTEGER,
+            flags INTEGER,
+            cid TEXT,
+            key TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `,
+          (err) => {
             if (err) {
+              console.error("Error creating table:", err);
+              db.close();
               reject(err);
             } else {
-              console.log("Successfully migrated manufacturer column to vendor");
+              console.log("Table created successfully");
+              db.close();
               resolve();
             }
-          });
-        } else {
-          // No migration needed
-          resolve();
-        }
+          },
+        );
       });
+    });
+  } catch (error) {
+    console.error("Error initializing database:", error);
+    throw error;
+  }
+}
+
+export async function testDatabaseConnection(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const db = getDatabase();
+    db.get("SELECT 1 as test", (err, row) => {
+      db.close();
+      if (err) {
+        console.error("Database connection test failed:", err);
+        resolve(false);
+      } else {
+        console.log("Database connection test passed");
+        resolve(true);
+      }
     });
   });
 }
@@ -101,7 +90,7 @@ async function migrateManufacturerToVendor(db: sqlite3.Database): Promise<void> 
 // Sync plugins from JSON to database
 export async function syncPluginsFromJson() {
   try {
-    const jsonPath = path.join(process.cwd(), "data", "scanned-plugins.json");
+    const jsonPath = path.join(process.cwd(), "public", "scanned-plugins.json");
     const jsonData = await readFile(jsonPath, "utf8");
     const data = JSON.parse(jsonData);
 
@@ -130,6 +119,12 @@ export async function syncPluginsFromJson() {
           `);
 
           data.plugins.forEach((plugin: any) => {
+            // Skip invalid plugins that don't have required fields
+            if (!plugin.isValid || !plugin.name) {
+              console.log(`Skipping invalid plugin: ${plugin.path}`);
+              return;
+            }
+
             const id = plugin.cid || plugin.path; // Use cid as primary key, fallback to path
             const subCategories = JSON.stringify(plugin.subCategories || []);
 

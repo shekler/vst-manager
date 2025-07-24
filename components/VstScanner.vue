@@ -19,10 +19,24 @@
         <h3 class="text-powder/90 text-lg font-bold">Scan Results</h3>
         <p class="text-powder/70">Total plugins: {{ results.totalPlugins }}</p>
         <p class="text-powder/70">Valid plugins: {{ results.validPlugins }}</p>
+        <p class="text-powder/70">Invalid plugins: {{ results.totalPlugins - results.validPlugins }}</p>
 
-        <div class="mt-4 space-y-2">
-          <div v-for="plugin in results.plugins" :key="plugin.path">
-            <p v-if="!plugin.isValid" class="rounded-md border border-red-400/20 bg-red-400/5 p-2 px-4">Error: {{ plugin.error }}</p>
+        <!-- Invalid Plugins Section -->
+        <div v-if="invalidPlugins.length > 0" class="mt-6">
+          <h4 class="text-powder/80 text-md mb-3 font-semibold">Invalid Plugins ({{ invalidPlugins.length }})</h4>
+          <div class="space-y-3">
+            <div v-for="plugin in invalidPlugins" :key="plugin.path" class="rounded-md border border-red-400/20 bg-red-400/5 p-4">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="text-powder/90 font-medium">{{ getPluginName(plugin) }}</div>
+                  <div class="text-powder/60 mt-1 text-sm">{{ plugin.path }}</div>
+                  <div class="mt-2 text-sm font-medium text-red-400">Error: {{ plugin.error }}</div>
+                </div>
+                <div class="ml-4 flex-shrink-0">
+                  <span class="bg-red/20 text-red border-red rounded-md border px-2 py-1 text-xs">Invalid</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -52,6 +66,22 @@ const showErrorModal = ref(false);
 const errorMessage = ref("");
 
 const { success, error: showError } = useToast();
+
+// Computed property to get invalid plugins
+const invalidPlugins = computed(() => {
+  if (!results.value || !results.value.plugins) return [];
+  return results.value.plugins.filter((plugin) => !plugin.isValid);
+});
+
+// Helper function to get plugin name from path or name field
+const getPluginName = (plugin) => {
+  if (plugin.name) return plugin.name;
+
+  // Extract name from path if no name field
+  const pathParts = plugin.path.split(/[\\\/]/);
+  const fileName = pathParts[pathParts.length - 1];
+  return fileName.replace(/\.vst3?$/i, "") || "Unknown Plugin";
+};
 
 async function scanPlugins() {
   isScanning.value = true;
@@ -88,6 +118,10 @@ async function deletePlugins() {
     errorMessage.value = response.error || "Failed to delete plugins";
     showErrorModal.value = true;
   }
+}
+
+function closeResults() {
+  results.value = null;
 }
 </script>
 
