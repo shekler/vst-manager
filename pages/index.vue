@@ -88,8 +88,9 @@
               <div class="border-powder/20 relative w-full rounded-md border">
                 <input v-model="plugin.key" class="text-powder/70 w-full truncate px-2 py-1" placeholder="Enter key" />
                 <div class="text-powder/70 absolute top-1.5 right-2 flex shrink-0 items-center gap-2">
-                  <IconDeviceFloppy class="hover:text-powder size-4 cursor-pointer duration-200" @click="saveKey(plugin.id, plugin.key)" />
-                  <IconCopy v-if="plugin.key" class="hover:text-powder size-4 cursor-pointer duration-200" @click="copyKey(plugin.key)" />
+                  <IconDeviceFloppy v-if="plugin.key && plugin.key.length > 0" class="hover:text-powder size-4 cursor-pointer duration-200" @click="saveKey(plugin.id, plugin.key)" />
+                  <IconDeviceFloppy v-else class="text-powder/30 size-4 cursor-not-allowed duration-200" />
+                  <IconCopy v-if="plugin.key && plugin.key.length > 0" class="hover:text-powder size-4 cursor-pointer duration-200" @click="copyKey(plugin.key)" />
                   <IconCopy v-else class="text-powder/30 size-4 cursor-not-allowed duration-200" />
                 </div>
               </div>
