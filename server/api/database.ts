@@ -138,15 +138,6 @@ class DatabaseService {
                 // Ignore error if column already exists
                 if (err && !err.message.includes("duplicate column name")) {
                   console.log("categories column already exists or error:", err.message);
-                } else {
-                  // Migrate existing type data to categories
-                  this.db!.exec(`UPDATE plugins SET categories = '["' || type || '"]' WHERE categories IS NULL AND type IS NOT NULL;`, (err) => {
-                    if (err) {
-                      console.log("Error migrating type to categories:", err.message);
-                    } else {
-                      console.log("Successfully migrated type to categories");
-                    }
-                  });
                 }
               });
 
@@ -174,7 +165,7 @@ class DatabaseService {
                     `
                     CREATE INDEX IF NOT EXISTS idx_plugins_name ON plugins(name);
                     CREATE INDEX IF NOT EXISTS idx_plugins_manufacturer ON plugins(manufacturer);
-                    CREATE INDEX IF NOT EXISTS idx_plugins_type ON plugins(type);
+                    CREATE INDEX IF NOT EXISTS idx_plugins_categories ON plugins(categories);
                     CREATE INDEX IF NOT EXISTS idx_settings_key ON settings(key);
                   `,
                     (err) => {
@@ -477,7 +468,7 @@ class DatabaseService {
 
   async getStats(): Promise<{
     total: number;
-    byType: Record<string, number>;
+    byCategories: Record<string, number>;
     byManufacturer: Record<string, number>;
   }> {
     if (!this.db) {
@@ -486,12 +477,12 @@ class DatabaseService {
 
     try {
       const total = await this.getQuery("SELECT COUNT(*) as count FROM plugins");
-      const byType = await this.allQuery("SELECT categories, COUNT(*) as count FROM plugins GROUP BY categories");
+      const byCategories = await this.allQuery("SELECT categories, COUNT(*) as count FROM plugins GROUP BY categories");
       const byManufacturer = await this.allQuery("SELECT manufacturer, COUNT(*) as count FROM plugins GROUP BY manufacturer");
 
       return {
         total: (total as any)?.count || 0,
-        byType: Object.fromEntries((byType as any[]).map((row: any) => [row.categories, row.count])),
+        byCategories: Object.fromEntries((byCategories as any[]).map((row: any) => [row.categories, row.count])),
         byManufacturer: Object.fromEntries((byManufacturer as any[]).map((row: any) => [row.manufacturer, row.count])),
       };
     } catch (error) {

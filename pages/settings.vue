@@ -76,31 +76,39 @@ await fetchSettings();
 // Reactive state for form inputs
 const vstPaths = ref("");
 const vst3Paths = ref("");
-const auPaths = ref("");
 const message = ref("");
 const messageType = ref<"success" | "error">("success");
 const pathValidations = ref<Array<{ name: string; path: string; exists: boolean }>>([]);
 
 // Check if any settings have changed
 const hasChanges = computed(() => {
-  return vstPaths.value !== getSettingValue("vst_paths") || vst3Paths.value !== getSettingValue("vst3_paths") || auPaths.value !== getSettingValue("au_paths");
+  return vstPaths.value !== getSettingValue("vst_paths") || vst3Paths.value !== getSettingValue("vst3_paths");
 });
 
 // Save all settings
 const saveSettings = async () => {
   if (!hasChanges.value) return;
 
+  console.log("Saving settings...", { vstPaths: vstPaths.value, vst3Paths: vst3Paths.value });
+
   try {
-    const results = await Promise.all([updateSetting("vst_paths", vstPaths.value), updateSetting("vst3_paths", vst3Paths.value), updateSetting("au_paths", auPaths.value)]);
+    const results = await Promise.all([updateSetting("vst_paths", vstPaths.value), updateSetting("vst3_paths", vst3Paths.value)]);
+
+    console.log("Save results:", results);
 
     const hasErrors = results.some((result: any) => !result.success);
 
     if (hasErrors) {
       message.value = "Some settings failed to save";
       messageType.value = "error";
+      console.error(
+        "Settings save errors:",
+        results.filter((r: any) => !r.success),
+      );
     } else {
       message.value = "Settings saved successfully";
       messageType.value = "success";
+      console.log("Settings saved successfully");
     }
 
     // Clear message after 3 seconds
@@ -118,7 +126,6 @@ const saveSettings = async () => {
 const resetToDefaults = () => {
   vstPaths.value = "C:\\Program Files\\VSTPlugins,C:\\Program Files (x86)\\VSTPlugins";
   vst3Paths.value = "C:\\Program Files\\Common Files\\VST3,C:\\Program Files (x86)\\Common Files\\VST3";
-  auPaths.value = "/Library/Audio/Plug-Ins/Components,/Library/Audio/Plug-Ins/VST";
 };
 
 // Validate paths using the API
@@ -150,7 +157,6 @@ const validatePathsLocally = async () => {
 const initializeForm = () => {
   vstPaths.value = getSettingValue("vst_paths");
   vst3Paths.value = getSettingValue("vst3_paths");
-  auPaths.value = getSettingValue("au_paths");
 };
 
 // Initialize form after settings are fetched

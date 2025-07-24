@@ -15,7 +15,7 @@ interface Plugin {
 
 interface PluginStats {
   total: number;
-  byType: Record<string, number>;
+  byCategories: Record<string, number>;
   byManufacturer: Record<string, number>;
 }
 

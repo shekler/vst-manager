@@ -24,7 +24,9 @@ export const useSettings = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<Setting[]>>("/api/settings");
+      // Use full localhost URL in electron, relative path in web
+      const baseUrl = process.client && window?.electronAPI ? "http://localhost:3000" : "";
+      const response = await $fetch<ApiResponse<Setting[]>>(`${baseUrl}/api/settings`);
       if (response.success && response.data) {
         settings.value = response.data;
       } else {
@@ -41,7 +43,8 @@ export const useSettings = () => {
   // Get setting by key
   const getSetting = async (key: string): Promise<Setting | null> => {
     try {
-      const response = await $fetch<ApiResponse<Setting>>(`/api/settings/${key}`);
+      const baseUrl = process.client && window?.electronAPI ? "http://localhost:3000" : "";
+      const response = await $fetch<ApiResponse<Setting>>(`${baseUrl}/api/settings/${key}`);
       if (response.success && response.data) {
         return response.data;
       }
@@ -58,7 +61,8 @@ export const useSettings = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<Setting>>(`/api/settings/${key}`, {
+      const baseUrl = process.client && window?.electronAPI ? "http://localhost:3000" : "";
+      const response = await $fetch<ApiResponse<Setting>>(`${baseUrl}/api/settings/${key}`, {
         method: "PUT",
         body: { value },
       });
@@ -102,7 +106,8 @@ export const useSettings = () => {
   // Validate paths
   const validatePaths = async (paths: string[]): Promise<Array<{ path: string; exists: boolean; error?: string }>> => {
     try {
-      const response = await $fetch<ApiResponse<Array<{ path: string; exists: boolean; error?: string }>>>("/api/settings/validate-paths", {
+      const baseUrl = process.client && window?.electronAPI ? "http://localhost:3000" : "";
+      const response = await $fetch<ApiResponse<Array<{ path: string; exists: boolean; error?: string }>>>(`${baseUrl}/api/settings/validate-paths`, {
         method: "POST",
         body: { paths },
       });
