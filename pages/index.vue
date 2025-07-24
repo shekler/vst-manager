@@ -78,8 +78,8 @@
             <div class="mt-4 flex flex-col items-start gap-1 text-sm">
               <div class="font-bold">Install Location:</div>
               <div class="border-powder/20 flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1">
-                <span class="text-powder/30 truncate">{{ plugin.path }}</span>
-                <IconCopy class="ml-2 size-4 shrink-0 cursor-pointer" @click="copyPath(plugin.path)" />
+                <span class="text-powder/30 pointer-events-none truncate">{{ plugin.path }}</span>
+                <IconCopy class="text-powder/70 hover:text-powder ml-2 size-4 shrink-0 cursor-pointer duration-200" @click="copyPath(plugin.path)" />
               </div>
             </div>
 
@@ -87,9 +87,10 @@
               <div class="font-bold">Key:</div>
               <div class="border-powder/20 relative w-full rounded-md border">
                 <input class="text-powder/70 w-full truncate px-2 py-1" :value="plugin.key" placeholder="Enter key" />
-                <div class="absolute top-1.5 right-2 flex shrink-0 items-center gap-2">
-                  <IconDeviceFloppy class="size-4 cursor-pointer" @click="saveKey(plugin.key)" />
-                  <IconCopy class="size-4 cursor-pointer" @click="copyKey(plugin.key)" />
+                <div class="text-powder/70 absolute top-1.5 right-2 flex shrink-0 items-center gap-2">
+                  <IconDeviceFloppy class="hover:text-powder size-4 cursor-pointer duration-200" @click="saveKey(plugin.key)" />
+                  <IconCopy v-if="plugin.key" class="hover:text-powder size-4 cursor-pointer duration-200" @click="copyKey(plugin.key)" />
+                  <IconCopy v-else class="text-powder/30 size-4 cursor-not-allowed duration-200" />
                 </div>
               </div>
             </div>
