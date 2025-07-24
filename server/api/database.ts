@@ -116,7 +116,7 @@ export async function testDatabaseConnection(): Promise<boolean> {
 // Sync plugins from JSON to database
 export async function syncPluginsFromJson() {
   try {
-    const jsonPath = path.join(process.cwd(), "public", "scanned-plugins.json");
+    const jsonPath = path.join(process.cwd(), "data", "scanned-plugins.json");
     const jsonData = await readFile(jsonPath, "utf8");
     const data = JSON.parse(jsonData);
 
