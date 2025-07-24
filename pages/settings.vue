@@ -38,7 +38,7 @@
         <div v-if="message" class="text-sm" :class="messageType === 'success' ? 'text-mint' : 'text-red-400'">
           {{ message }}
         </div>
-        <div v-if="pathValidations.length > 0">
+        <div v-if="pathValidations.length > 0" class="flex flex-col gap-2">
           <div v-for="validation in pathValidations" :key="validation.path">
             <div v-if="validation.exists" class="text-mint flex items-center gap-2 text-xs">
               <IconCheck class="size-4" />
@@ -70,7 +70,7 @@ await fetchSettings();
 const vstPaths = ref("");
 const message = ref("");
 const messageType = ref<"success" | "error">("success");
-const pathValidations = ref<Array<{ name: string; path: string; exists: boolean }>>([]);
+const pathValidations = ref<Array<{ path: string; exists: boolean }>>([]);
 
 // Check if any settings have changed
 const hasChanges = computed(() => {
@@ -114,21 +114,34 @@ const resetToDefaults = () => {
 const validatePathsLocally = async () => {
   try {
     // Split paths by comma and filter out empty strings
-    const vstPathList = vstPaths.value.split(",").filter((p) => p.trim());
+    const vstPathList = vstPaths.value
+      .split(",")
+      .map((p) => p.trim())
+      .filter((p) => p);
 
-    const allPaths = [...vstPathList];
-
-    if (allPaths.length === 0) {
+    if (vstPathList.length === 0) {
       pathValidations.value = [];
       return;
     }
 
-    const validations = await validatePaths(allPaths);
+    const validations = await validatePaths(vstPathList);
 
-    pathValidations.value = [{ name: "VST Paths", path: vstPaths.value, exists: vstPathList.length > 0 && vstPathList.every((p) => validations.find((v: any) => v.path === p)?.exists) }];
+    // Map the validation results to the expected format
+    pathValidations.value = validations.map((validation: any) => ({
+      path: validation.path,
+      exists: validation.exists,
+    }));
   } catch (error) {
     console.error("Error validating paths:", error);
-    pathValidations.value = [{ name: "VST Paths", path: vstPaths.value, exists: false }];
+    // Create individual error entries for each path
+    const vstPathList = vstPaths.value
+      .split(",")
+      .map((p) => p.trim())
+      .filter((p) => p);
+    pathValidations.value = vstPathList.map((path) => ({
+      path,
+      exists: false,
+    }));
   }
 };
 
