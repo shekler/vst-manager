@@ -56,21 +56,27 @@
           <div class="col-span-3 flex flex-col">
             <div class="leading-none">
               <div class="text-powder/50">{{ plugin.vendor || "Unknown" }}</div>
-              <h2 class="text-powder/90 text-xl font-bold">
-                {{ plugin.name || "Unknown Plugin" }}
-              </h2>
+              <div class="flex items-start justify-between gap-4">
+                <h2 class="text-powder/90 shrink truncate text-lg font-bold">
+                  {{ plugin.name || "Unknown Plugin" }}
+                </h2>
+                <span v-if="plugin.version" class="from-mint/20 to-mint/10 border-mint/50 text-mint rounded-md border bg-gradient-to-br px-2 py-1 text-xs">{{ plugin.version }}</span>
+              </div>
             </div>
 
             <div class="mt-2 flex flex-wrap gap-2">
-              <span class="bg-powder/20 text-powder/70 rounded-full px-2 py-1 text-xs">{{ plugin.category || "Unknown" }}</span>
-              <span v-if="plugin.version" class="bg-powder/20 text-powder/70 rounded-full px-2 py-1 text-xs">{{ plugin.version }}</span>
-              <span v-if="!plugin.isValid" class="bg-red/20 text-red rounded-full px-2 py-1 text-xs">Invalid</span>
+              <span v-if="plugin.subCategories.length > 0" v-for="subCategory in plugin.subCategories" :key="subCategory" class="from-powder/10 border-powder/50 text-powder/70 rounded-md border bg-gradient-to-br px-2 py-1 text-xs">{{ subCategory }}</span>
+
+              <span v-if="!plugin.isValid" class="bg-red/20 text-red border-red rounded-md border px-2 py-1 text-xs">Invalid</span>
             </div>
 
             <div class="text-powder/70 mt-4 text-sm">
-              <div class="flex items-center gap-2">
-                <span class="font-bold">Path:</span>
-                <span class="truncate">{{ plugin.path }}</span>
+              <div class="flex flex-col items-start gap-1">
+                <div class="font-bold">Path:</div>
+                <div class="border-powder/20 flex w-full items-center gap-2 rounded-md border px-2 py-1">
+                  <span class="text-powder/30 truncate">{{ plugin.path }}</span>
+                  <IconCopy class="ml-2 size-4 shrink-0 cursor-pointer" @click="copyPath(plugin.path)" />
+                </div>
               </div>
             </div>
 
@@ -175,5 +181,10 @@ const clearFilters = () => {
   searchFilter.value = "";
   selectedManufacturer.value = "";
   selectedType.value = "";
+};
+
+const copyPath = (path: string) => {
+  navigator.clipboard.writeText(path);
+  success("Path copied to clipboard");
 };
 </script>
