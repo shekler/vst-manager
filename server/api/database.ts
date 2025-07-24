@@ -25,6 +25,9 @@ export async function initializeDatabase() {
     const dataDir = path.dirname(dbPath);
     await mkdir(dataDir, { recursive: true });
 
+    // Create settings table if it doesn't exist
+    await addSettingsTable();
+
     return new Promise<void>((resolve, reject) => {
       const db = getDatabase();
 
@@ -184,7 +187,6 @@ export async function addSettingsTable() {
     const db = getDatabase();
 
     db.serialize(() => {
-      // Add your new tables here
       const tables = [
         {
           name: "settings",

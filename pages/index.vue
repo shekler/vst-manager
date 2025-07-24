@@ -4,7 +4,7 @@
 
     <!-- Scan Section -->
     <div class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6">
-      <h2 class="text-powder/90 mb-4 text-xl font-bold">Scan Plugins</h2>
+      <h2 class="text-powder/90 mb-4 text-xl font-bold">Options</h2>
       <div class="flex flex-col gap-2">
         <VstScanner @scan-complete="handleScanComplete" />
         <p class="text-powder/70 text-sm">Scan for VST plugins using the paths configured in <NuxtLink to="/settings" class="text-mint hover:text-powder font-bold underline">Settings</NuxtLink>.</p>
@@ -44,7 +44,7 @@
     </div>
 
     <div class="bg-red/10 text-red border-red mb-4 rounded-lg border p-4 text-center font-bold">
-      <p class="text-pretty">This is an alpha version. Bugs and errors might occur. If you want to submit a bug, you can do so in <a href="https://github.com/shekler/vst-manager/issues" target="_blank" class="text-powder hover:text-red font-bold underline duration-200">GitHub</a>. Plugins are read-only from scan results.</p>
+      <p class="text-pretty">This is an alpha version. Bugs and errors might occur. If you want to submit a bug, you can do so in <a href="https://github.com/shekler/vst-manager/issues" target="_blank" class="text-powder hover:text-red font-bold underline duration-200">GitHub</a>.</p>
     </div>
 
     <!-- Loading State -->

@@ -1,4 +1,4 @@
-import { runQuery, runCommand } from "../database";
+import { runQuery, runCommand, initializeDatabase } from "../database";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -13,8 +13,20 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Check if setting exists
-    const existingSettings = await runQuery("SELECT * FROM settings WHERE key = ?", [key]);
+    // Try to check if setting exists, initialize database if needed
+    let existingSettings;
+    try {
+      existingSettings = await runQuery("SELECT * FROM settings WHERE key = ?", [key]);
+    } catch (tableError: any) {
+      // If table doesn't exist, initialize the database
+      if (tableError.message.includes("no such table")) {
+        console.log("Settings table not found, initializing database...");
+        await initializeDatabase();
+        existingSettings = [];
+      } else {
+        throw tableError;
+      }
+    }
 
     if (existingSettings.length > 0) {
       // Update existing setting

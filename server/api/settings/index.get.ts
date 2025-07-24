@@ -1,8 +1,23 @@
-import { runQuery } from "../database";
+import { runQuery, initializeDatabase } from "../database";
 
 export default defineEventHandler(async (event) => {
   try {
-    const settings = await runQuery("SELECT * FROM settings");
+    // Try to fetch settings first
+    let settings;
+    try {
+      settings = await runQuery("SELECT * FROM settings");
+    } catch (tableError: any) {
+      // If table doesn't exist, initialize the database
+      if (tableError.message.includes("no such table")) {
+        console.log("Settings table not found, initializing database...");
+        await initializeDatabase();
+
+        // Try fetching again after initialization
+        settings = await runQuery("SELECT * FROM settings");
+      } else {
+        throw tableError;
+      }
+    }
 
     // If no settings exist, create default settings
     if (settings.length === 0) {
