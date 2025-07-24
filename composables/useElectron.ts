@@ -1,8 +1,6 @@
 interface ElectronAPI {
   openFileExplorer: (path: string) => Promise<void>;
   getAppVersion: () => Promise<string>;
-  getApiBaseUrl: () => Promise<string>;
-  getDatabasePath: () => Promise<string>;
 }
 
 declare global {
@@ -42,35 +40,9 @@ export const useElectron = () => {
     return "Web Version";
   };
 
-  const getApiBaseUrl = async (): Promise<string> => {
-    if (isElectron && window.electronAPI?.getApiBaseUrl) {
-      try {
-        return await window.electronAPI.getApiBaseUrl();
-      } catch (error) {
-        console.error("Failed to get API base URL:", error);
-        return "";
-      }
-    }
-    return "";
-  };
-
-  const getDatabasePath = async (): Promise<string> => {
-    if (isElectron && window.electronAPI?.getDatabasePath) {
-      try {
-        return await window.electronAPI.getDatabasePath();
-      } catch (error) {
-        console.error("Failed to get database path:", error);
-        return "";
-      }
-    }
-    return "";
-  };
-
   return {
     isElectron,
     openFileExplorer,
     getAppVersion,
-    getApiBaseUrl,
-    getDatabasePath,
   };
 };
