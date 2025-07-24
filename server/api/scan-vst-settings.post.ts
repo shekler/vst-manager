@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
     // Import Node.js modules dynamically
     const { exec } = await import("node:child_process");
     const { promisify } = await import("node:util");
-    const { readFile, unlink, mkdir } = await import("node:fs/promises");
+    const { readFile, writeFile, unlink, mkdir } = await import("node:fs/promises");
     const { join } = await import("node:path");
     const { existsSync } = await import("node:fs");
 
@@ -89,11 +89,20 @@ export default defineEventHandler(async (event) => {
       plugins: [],
     };
 
+    // Create a temporary cumulative file for all results
+    const cumulativeOutputPath = join(dataDir, "cumulative-scan.json");
+
+    // Remove any existing cumulative file
+    if (existsSync(cumulativeOutputPath)) {
+      await unlink(cumulativeOutputPath);
+    }
+
     for (const directoryPath of existingPaths) {
       try {
         console.log(`Scanning directory: ${directoryPath}`);
 
-        const command = `"${scannerPath}" "${directoryPath}" -o "${outputPath}"`;
+        // Use cumulative mode to append results instead of overwriting
+        const command = `"${scannerPath}" "${directoryPath}" -c "${cumulativeOutputPath}"`;
         console.log(`Executing command: ${command}`);
 
         const { stdout, stderr } = await execAsync(command);
@@ -105,24 +114,27 @@ export default defineEventHandler(async (event) => {
         if (stderr) {
           console.log("Scanner stderr:", stderr);
         }
-
-        // Check if output file was created
-        if (existsSync(outputPath)) {
-          // Read results
-          const jsonContent = await readFile(outputPath, "utf-8");
-          const scanResults = JSON.parse(jsonContent);
-
-          // Accumulate results
-          totalResults.totalPlugins += scanResults.totalPlugins || 0;
-          totalResults.validPlugins += scanResults.validPlugins || 0;
-          if (scanResults.plugins) {
-            totalResults.plugins.push(...scanResults.plugins);
-          }
-        }
       } catch (error: any) {
         console.error(`Error scanning directory ${directoryPath}:`, error);
         // Continue with other directories even if one fails
       }
+    }
+
+    // Read the cumulative results
+    if (existsSync(cumulativeOutputPath)) {
+      const jsonContent = await readFile(cumulativeOutputPath, "utf-8");
+      const scanResults = JSON.parse(jsonContent);
+
+      // Update total results
+      totalResults.totalPlugins = scanResults.totalPlugins || 0;
+      totalResults.validPlugins = scanResults.validPlugins || 0;
+      totalResults.plugins = scanResults.plugins || [];
+
+      // Copy to the main output file for database import
+      await writeFile(outputPath, jsonContent, "utf-8");
+
+      // Clean up temporary file
+      await unlink(cumulativeOutputPath);
     }
 
     // Import the scanned plugins into database
