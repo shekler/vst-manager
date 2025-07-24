@@ -4,6 +4,7 @@ import { promisify } from "util";
 import { readFileSync } from "fs";
 import { readdir } from "fs/promises";
 import { join } from "path";
+import { initializeDatabase, syncPluginsFromJson } from "../database";
 
 const execAsync = promisify(exec);
 
@@ -25,6 +26,13 @@ export default defineEventHandler(async (event) => {
 
     // Read the results from the output file
     const results = JSON.parse(readFileSync(outputPath, "utf8"));
+
+    // Initialize database and sync plugins
+    console.log("Initializing database...");
+    await initializeDatabase();
+
+    console.log("Syncing plugins from JSON to database...");
+    await syncPluginsFromJson();
 
     return {
       success: true,

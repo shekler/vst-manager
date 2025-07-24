@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
         sdk_version as sdkVersion,
         is_valid as isValid,
         error,
+        key,
         created_at as createdAt,
         updated_at as updatedAt
       FROM plugins 

@@ -1,11 +1,109 @@
 import sqlite3 from "sqlite3";
 import path from "path";
+import { readFile } from "node:fs/promises";
 
 // Database connection
 const dbPath = path.join(process.cwd(), "data", "plugins.db");
 
 export function getDatabase() {
   return new sqlite3.Database(dbPath);
+}
+
+// Initialize database with schema
+export async function initializeDatabase() {
+  return new Promise<void>((resolve, reject) => {
+    const db = getDatabase();
+
+    db.serialize(() => {
+      // Create plugins table if it doesn't exist
+      db.run(
+        `
+        CREATE TABLE IF NOT EXISTS plugins (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          vendor TEXT,
+          version TEXT,
+          path TEXT NOT NULL,
+          category TEXT,
+          subCategories TEXT,
+          isValid BOOLEAN DEFAULT 1,
+          error TEXT,
+          sdkVersion TEXT,
+          cardinality INTEGER,
+          flags INTEGER,
+          cid TEXT,
+          key TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `,
+        (err) => {
+          if (err) {
+            db.close();
+            reject(err);
+          } else {
+            db.close();
+            resolve();
+          }
+        },
+      );
+    });
+  });
+}
+
+// Sync plugins from JSON to database
+export async function syncPluginsFromJson() {
+  try {
+    const jsonPath = path.join(process.cwd(), "data", "scanned-plugins.json");
+    const jsonData = await readFile(jsonPath, "utf8");
+    const data = JSON.parse(jsonData);
+
+    if (!data.plugins || !Array.isArray(data.plugins)) {
+      throw new Error("Invalid plugins data in JSON file");
+    }
+
+    const db = getDatabase();
+
+    return new Promise<void>((resolve, reject) => {
+      db.serialize(() => {
+        // Clear existing plugins
+        db.run("DELETE FROM plugins", (err) => {
+          if (err) {
+            db.close();
+            reject(err);
+            return;
+          }
+
+          // Insert plugins from JSON
+          const stmt = db.prepare(`
+            INSERT INTO plugins (
+              id, name, vendor, version, path, category, subCategories, 
+              isValid, error, sdkVersion, cardinality, flags, cid
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+
+          data.plugins.forEach((plugin: any) => {
+            const id = plugin.cid || plugin.path; // Use cid as primary key, fallback to path
+            const subCategories = JSON.stringify(plugin.subCategories || []);
+
+            stmt.run([id, plugin.name, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid]);
+          });
+
+          stmt.finalize((err) => {
+            db.close();
+            if (err) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+      });
+    });
+  } catch (error) {
+    console.error("Error syncing plugins from JSON:", error);
+    throw error;
+  }
 }
 
 // Helper function to run queries with promises
