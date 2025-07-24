@@ -6,20 +6,45 @@ import { mkdir } from "node:fs/promises";
 // Database connection
 const dbPath = path.join(process.cwd(), "data", "plugins.db");
 
-export function getDatabase() {
-  const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      console.error("Error opening database:", err.message);
-      console.error("Database path:", dbPath);
-    } else {
-      console.log("Connected to SQLite database at:", dbPath);
-    }
-  });
-  return db;
+// Singleton database instance
+let dbInstance: sqlite3.Database | null = null;
+let isInitialized = false;
+
+export function getDatabase(): sqlite3.Database {
+  if (!dbInstance) {
+    dbInstance = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        console.error("Error opening database:", err.message);
+        console.error("Database path:", dbPath);
+      } else {
+        console.log("Connected to SQLite database at:", dbPath);
+      }
+    });
+  }
+  return dbInstance;
+}
+
+// Close database connection (useful for cleanup)
+export function closeDatabase(): void {
+  if (dbInstance) {
+    dbInstance.close((err) => {
+      if (err) {
+        console.error("Error closing database:", err.message);
+      } else {
+        console.log("Database connection closed");
+      }
+    });
+    dbInstance = null;
+    isInitialized = false;
+  }
 }
 
 // Initialize database with schema
 export async function initializeDatabase() {
+  if (isInitialized) {
+    return; // Already initialized
+  }
+
   try {
     // Ensure data directory exists
     const dataDir = path.dirname(dbPath);
@@ -57,11 +82,10 @@ export async function initializeDatabase() {
           (err) => {
             if (err) {
               console.error("Error creating table:", err);
-              db.close();
               reject(err);
             } else {
               console.log("Table created successfully");
-              db.close();
+              isInitialized = true;
               resolve();
             }
           },
@@ -78,7 +102,6 @@ export async function testDatabaseConnection(): Promise<boolean> {
   return new Promise((resolve) => {
     const db = getDatabase();
     db.get("SELECT 1 as test", (err, row) => {
-      db.close();
       if (err) {
         console.error("Database connection test failed:", err);
         resolve(false);
@@ -108,7 +131,6 @@ export async function syncPluginsFromJson() {
         // Clear existing plugins
         db.run("DELETE FROM plugins", (err) => {
           if (err) {
-            db.close();
             reject(err);
             return;
           }
@@ -138,7 +160,6 @@ export async function syncPluginsFromJson() {
           });
 
           stmt.finalize((err) => {
-            db.close();
             if (err) {
               reject(err);
             } else {
@@ -159,7 +180,6 @@ export function runQuery(query: string, params: any[] = []): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
     db.all(query, params, (err, rows) => {
-      db.close();
       if (err) {
         reject(err);
       } else {
@@ -174,7 +194,6 @@ export function runCommand(query: string, params: any[] = []): Promise<void> {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
     db.run(query, params, function (err) {
-      db.close();
       if (err) {
         reject(err);
       } else {
@@ -213,13 +232,11 @@ export async function addSettingsTable() {
         db.run(table.sql, (err) => {
           if (err) {
             console.error(`Error creating ${table.name} table:`, err);
-            db.close();
             reject(err);
           } else {
             console.log(`${table.name} table created successfully`);
             completed++;
             if (completed === total) {
-              db.close();
               resolve();
             }
           }
