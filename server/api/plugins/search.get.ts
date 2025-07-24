@@ -1,4 +1,4 @@
-import dbService from "../database";
+import { readFile } from "node:fs/promises";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -11,11 +11,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Initialize database if not already done
-    await dbService.initialize();
-
-    // Search plugins
-    const plugins = await dbService.searchPlugins(query);
+    const plugins = await readFile("./data/scanned-plugins.json", "utf8");
 
     return {
       success: true,

@@ -1,17 +1,13 @@
-import dbService from "../database";
+import { readFile } from "node:fs/promises";
 
 export default defineEventHandler(async (event) => {
   try {
-    // Initialize database if not already done
-    await dbService.initialize();
-
-    // Get all plugins
-    const plugins = await dbService.getAllPlugins();
+    const data = await readFile("./data/scanned-plugins.json", "utf8");
 
     return {
       success: true,
-      data: plugins,
-      count: plugins.length,
+      data: JSON.parse(data).plugins,
+      count: JSON.parse(data).plugins.length,
     };
   } catch (error: any) {
     console.error("API: Error fetching plugins:", error);

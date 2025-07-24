@@ -1,94 +1,40 @@
-// server/api/vst/scan.post.ts
-import dbService from "../database";
+// Execute vst_scanner with file path from settings.vue
+import { exec } from "child_process";
+import { promisify } from "util";
+import { readFileSync } from "fs";
+import { readdir } from "fs/promises";
+import { join } from "path";
+
+const execAsync = promisify(exec);
 
 export default defineEventHandler(async (event) => {
   try {
-    const body = await readBody(event);
-    const { directoryPath, outputFile = null } = body;
+    const scannerPath = join(process.cwd(), "tools/vst_scanner.exe");
+    const outputPath = join(process.cwd(), "data/scanned-plugins.json");
+    const directoryPath = "E:\\Recording\\VSTPlugins";
 
-    // Default directory path if not provided
-    const scanDirectory = directoryPath || "C:\\Program Files\\Common Files\\VST3";
-
-    // Import Node.js modules dynamically
-    const { exec } = await import("node:child_process");
-    const { promisify } = await import("node:util");
-    const { readFile, unlink, mkdir, writeFile } = await import("node:fs/promises");
-    const { join } = await import("node:path");
-    const { existsSync } = await import("node:fs");
-
-    const execAsync = promisify(exec);
-
-    // Validate that the directory exists
-    if (!existsSync(scanDirectory)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: `Directory does not exist: ${scanDirectory}`,
-      });
-    }
-
-    // Path to scanner in your Nuxt project
-    const scannerPath = join(process.cwd(), "tools", "vst_scanner.exe");
-
-    if (!existsSync(scannerPath)) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: "VST Scanner not found in tools directory",
-      });
-    }
-
-    // Use data directory for output
-    const dataDir = join(process.cwd(), "data");
-    if (!existsSync(dataDir)) {
-      await mkdir(dataDir, { recursive: true });
-    }
-
-    const outputFileName = outputFile || `scanned-plugins.json`;
-    const outputPath = join(dataDir, outputFileName);
-
-    // Execute scanner
-    const command = `"${scannerPath}" "${scanDirectory}" -o "${outputPath}"`;
+    const command = `"${scannerPath}" "${directoryPath}" -o "${outputPath}"`;
     console.log(`Executing command: ${command}`);
 
+    // Execute the scanner
     const { stdout, stderr } = await execAsync(command);
 
-    // Log stdout and stderr for debugging
-    if (stdout) {
-      console.log("Scanner stdout:", stdout);
-    }
     if (stderr) {
-      console.log("Scanner stderr:", stderr);
+      console.error("Scanner stderr:", stderr);
     }
 
-    // Check if output file was created
-    if (!existsSync(outputPath)) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Scanner did not create output file. stderr: ${stderr || "No error output"}`,
-      });
-    }
-
-    // Read results
-    const jsonContent = await readFile(outputPath, "utf-8");
-    const scanResults = JSON.parse(jsonContent);
-
-    // Initialize database and import the scanned plugins
-    await dbService.initialize();
-    await dbService.importFromJson();
-
-    // Get the updated count from database
-    const plugins = await dbService.getAllPlugins();
+    // Read the results from the output file
+    const results = JSON.parse(readFileSync(outputPath, "utf8"));
 
     return {
       success: true,
-      count: scanResults.totalPlugins || 0,
-      message: `Scanned ${scanResults.totalPlugins || 0} plugins and updated database with ${plugins.length} total plugins`,
-      skippedPaths: scanResults.skippedPaths || [],
+      results,
     };
-  } catch (error: any) {
-    console.error("Scan error:", error);
-    throw createError({
-      statusCode: 500,
-      statusMessage: `Scanner failed: ${error.message}`,
-    });
+  } catch (error) {
+    console.error("Scan failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+    };
   }
 });

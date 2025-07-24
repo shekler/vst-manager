@@ -47,7 +47,6 @@ const isScanning = ref(false);
 const results = ref(null);
 const showErrorModal = ref(false);
 const errorMessage = ref("");
-let resultsTimer = null;
 
 const { success, error: showError } = useToast();
 
@@ -55,54 +54,32 @@ async function scanPlugins() {
   isScanning.value = true;
   results.value = null;
 
-  // Clear any existing timer
-  if (resultsTimer) {
-    clearTimeout(resultsTimer);
-    resultsTimer = null;
-  }
-
   try {
-    const response = await $fetch("/api/scan-vst-settings", {
+    const response = await $fetch("/api/vst/scan", {
       method: "POST",
     });
 
-    results.value = response.data;
-
-    // Set timer to clear results after 10 seconds
-    resultsTimer = setTimeout(() => {
-      results.value = null;
-      resultsTimer = null;
-    }, 10000);
-
-    // Show success toast with scan results
-    const { totalPlugins, validPlugins } = response.data;
-    const invalidPlugins = totalPlugins - validPlugins;
-    const message = `Scan complete! Found ${totalPlugins} plugins (${validPlugins} valid${invalidPlugins > 0 ? `, ${invalidPlugins} invalid` : ""})`;
-    success(message);
-
-    // Emit event to notify parent that scanning is complete
-    emit("scan-complete", response.data);
+    if (response.success) {
+      results.value = response.results;
+      success("Plugins scanned successfully!");
+      emit("scan-complete", response.results);
+    } else {
+      errorMessage.value = response.error || "Scan failed";
+      showErrorModal.value = true;
+    }
   } catch (error) {
     console.error("Scan failed:", error);
-    errorMessage.value = `Scan failed: ${error.message}`;
+    errorMessage.value = "Failed to connect to scanner service";
     showErrorModal.value = true;
-    showError(`Scan failed: ${error.message}`);
   } finally {
     isScanning.value = false;
   }
 }
 
-function closeResults() {
-  results.value = null;
-  resultsTimer = null; // Clear timer when results are closed
+async function getPluginData() {
+  const response = usePlugins();
+  return response.plugins;
 }
-
-// Clean up timer when component is unmounted
-onUnmounted(() => {
-  if (resultsTimer) {
-    clearTimeout(resultsTimer);
-  }
-});
 </script>
 
 <style scoped>
