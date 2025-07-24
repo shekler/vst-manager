@@ -177,3 +177,49 @@ export function runCommand(query: string, params: any[] = []): Promise<void> {
     });
   });
 }
+
+// Add settings table to existing database
+export async function addSettingsTable() {
+  return new Promise<void>((resolve, reject) => {
+    const db = getDatabase();
+
+    db.serialize(() => {
+      // Add your new tables here
+      const tables = [
+        {
+          name: "settings",
+          sql: `
+            CREATE TABLE IF NOT EXISTS settings (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              key TEXT UNIQUE NOT NULL,
+              value TEXT NOT NULL,
+              description TEXT,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+          `,
+        },
+      ];
+
+      let completed = 0;
+      const total = tables.length;
+
+      tables.forEach((table) => {
+        db.run(table.sql, (err) => {
+          if (err) {
+            console.error(`Error creating ${table.name} table:`, err);
+            db.close();
+            reject(err);
+          } else {
+            console.log(`${table.name} table created successfully`);
+            completed++;
+            if (completed === total) {
+              db.close();
+              resolve();
+            }
+          }
+        });
+      });
+    });
+  });
+}

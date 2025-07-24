@@ -24,10 +24,13 @@
         </div>
 
         <!-- Save Button -->
-        <div class="flex items-center gap-4">
-          <button @click="saveSettings" :disabled="loading || !hasChanges" class="c-button c-button--mint">
-            {{ loading ? "Saving..." : "Save Settings" }}
-          </button>
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <button @click="saveSettings" :disabled="loading || !hasChanges" class="c-button c-button--mint">
+              {{ loading ? "Saving..." : "Save Settings" }}
+            </button>
+            <button @click="validatePathsLocally" class="c-button c-button--clear">Validate Paths</button>
+          </div>
           <button @click="resetToDefaults" :disabled="loading" class="c-button c-button--red">Reset to Defaults</button>
         </div>
 
@@ -35,40 +38,30 @@
         <div v-if="message" class="text-sm" :class="messageType === 'success' ? 'text-mint' : 'text-red-400'">
           {{ message }}
         </div>
-      </div>
-    </div>
-
-    <!-- Path Validation Section -->
-    <div class="from-onyx to-onyx/50 mt-4 mb-8 rounded-lg bg-gradient-to-br p-6">
-      <h2 class="text-powder/90 mb-4 text-xl font-bold">Path Validation</h2>
-      <p class="text-powder/70 mb-4 text-sm">Test if the configured paths exist and are accessible.</p>
-
-      <div class="space-y-4">
-        <div v-for="(validation, index) in pathValidations" :key="index" class="flex items-center gap-3">
-          <div class="flex-1">
-            <div class="text-powder/90 font-bold">{{ validation.name }}</div>
-            <div class="text-powder/50 text-sm">{{ validation.path }}</div>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="size-3 rounded-full" :class="validation.exists ? 'bg-mint' : 'bg-red-400'"></div>
-            <span class="text-powder/70 text-sm">
-              {{ validation.exists ? "Valid" : "Invalid" }}
-            </span>
+        <div v-if="pathValidations.length > 0">
+          <div v-for="validation in pathValidations" :key="validation.path">
+            <div v-if="validation.exists" class="text-mint flex items-center gap-2 text-xs">
+              <IconCheck class="size-4" />
+              <span>{{ validation.path }} <span class="font-bold">| Valid Path</span></span>
+            </div>
+            <div v-else class="text-red flex items-center gap-2 text-xs">
+              <IconExclamationCircle class="size-4" />
+              <span>{{ validation.path }} <span class="text-xs font-bold">| Invalid Path</span></span>
+            </div>
           </div>
         </div>
       </div>
-
-      <button @click="validatePathsLocally" :disabled="loading" class="c-button c-button--clear mt-4">Validate Paths</button>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useSettings } from "~/composables/useSettings";
+import { IconCheck, IconExclamationCircle } from "@tabler/icons-vue";
 
 // Use the settings composable
-const { settings, loading, error, fetchSettings, updateSetting, getSettingValue, getSettingDescription, validatePaths } = useSettings();
+const { settings, loading, fetchSettings, updateSetting, getSettingValue, getSettingDescription, validatePaths } = useSettings();
 
 // Fetch settings on server-side to prevent hydration mismatches
 await fetchSettings();
@@ -144,8 +137,16 @@ const initializeForm = () => {
   vstPaths.value = getSettingValue("vst_paths");
 };
 
-// Initialize form after settings are fetched
-initializeForm();
+// Watch for settings to be loaded and initialize form
+watch(
+  () => settings.value,
+  () => {
+    if (settings.value.length > 0) {
+      initializeForm();
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <style></style>
