@@ -26,6 +26,12 @@
           <label for="manufacturer" class="text-powder/70 text-sm font-bold">Manufacturer</label>
           <CustomSelect v-model="selectedManufacturer" :options="manufacturerOptions" placeholder="All Manufacturers" :show-search="uniqueManufacturers.length > 10" />
         </div>
+
+        <!-- Category Filter -->
+        <div class="flex flex-col gap-2">
+          <label for="category" class="text-powder/70 text-sm font-bold">Category</label>
+          <CustomSelect v-model="selectedCategory" :options="categoryOptions" placeholder="All Categories" :show-search="uniqueCategories.length > 10" />
+        </div>
       </div>
 
       <div class="mt-4 flex items-end justify-between">
@@ -66,16 +72,24 @@
 
             <div class="mt-2 flex flex-wrap gap-2">
               <span v-if="plugin.subCategories.length > 0" v-for="subCategory in plugin.subCategories" :key="subCategory" class="from-powder/10 border-powder/50 text-powder/70 rounded-md border bg-gradient-to-br px-2 py-1 text-xs">{{ subCategory }}</span>
-
               <span v-if="!plugin.isValid" class="bg-red/20 text-red border-red rounded-md border px-2 py-1 text-xs">Invalid</span>
             </div>
 
-            <div class="text-powder/70 mt-4 text-sm">
-              <div class="flex flex-col items-start gap-1">
-                <div class="font-bold">Path:</div>
-                <div class="border-powder/20 flex w-full items-center gap-2 rounded-md border px-2 py-1">
-                  <span class="text-powder/30 truncate">{{ plugin.path }}</span>
-                  <IconCopy class="ml-2 size-4 shrink-0 cursor-pointer" @click="copyPath(plugin.path)" />
+            <div class="mt-4 flex flex-col items-start gap-1 text-sm">
+              <div class="font-bold">Install Location:</div>
+              <div class="border-powder/20 flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1">
+                <span class="text-powder/30 truncate">{{ plugin.path }}</span>
+                <IconCopy class="ml-2 size-4 shrink-0 cursor-pointer" @click="copyPath(plugin.path)" />
+              </div>
+            </div>
+
+            <div class="mt-4 flex flex-col items-start gap-1 text-sm">
+              <div class="font-bold">Key:</div>
+              <div class="border-powder/20 relative w-full rounded-md border">
+                <input class="text-powder/70 w-full truncate px-2 py-1" :value="plugin.key" placeholder="Enter key" />
+                <div class="absolute top-1.5 right-2 flex shrink-0 items-center gap-2">
+                  <IconDeviceFloppy class="size-4 cursor-pointer" @click="saveKey(plugin.key)" />
+                  <IconCopy class="size-4 cursor-pointer" @click="copyKey(plugin.key)" />
                 </div>
               </div>
             </div>
@@ -126,7 +140,7 @@ await fetchPlugins();
 // Additional reactive state
 const searchFilter = ref("");
 const selectedManufacturer = ref("");
-const selectedType = ref("");
+const selectedCategory = ref("");
 
 // Handle scan complete
 const handleScanComplete = async (scanData: any) => {
@@ -143,12 +157,31 @@ const uniqueManufacturers = computed(() => {
   return [...new Set(manufacturers)].sort();
 });
 
+const uniqueCategories = computed(() => {
+  if (!plugins.value || !Array.isArray(plugins.value)) {
+    return [];
+  }
+  const categories = plugins.value
+    .filter((plugin: any) => plugin && plugin.subCategories)
+    .map((plugin: any) => plugin.subCategories)
+    .flat();
+  return [...new Set(categories)].sort();
+});
+
 // Options for custom selects
 const manufacturerOptions = computed(() => [
   { value: "", label: "All Manufacturers" },
   ...uniqueManufacturers.value.map((manufacturer) => ({
     value: manufacturer as string,
     label: manufacturer as string,
+  })),
+]);
+
+const categoryOptions = computed(() => [
+  { value: "", label: "All Categories" },
+  ...uniqueCategories.value.map((category) => ({
+    value: category as string,
+    label: category as string,
   })),
 ]);
 
@@ -169,10 +202,10 @@ const filteredPlugins = computed(() => {
     // Manufacturer filter
     const manufacturerMatch = !selectedManufacturer.value || plugin.vendor === selectedManufacturer.value;
 
-    // Type filter
-    const typeMatch = !selectedType.value || plugin.category === selectedType.value;
+    // Category filter
+    const categoryMatch = !selectedCategory.value || plugin.subCategories.includes(selectedCategory.value);
 
-    return searchMatch && manufacturerMatch && typeMatch;
+    return searchMatch && manufacturerMatch && categoryMatch;
   });
 });
 
@@ -180,11 +213,22 @@ const filteredPlugins = computed(() => {
 const clearFilters = () => {
   searchFilter.value = "";
   selectedManufacturer.value = "";
-  selectedType.value = "";
+  selectedCategory.value = "";
 };
 
 const copyPath = (path: string) => {
-  navigator.clipboard.writeText(path);
+  const directory = path.split("\\").slice(0, -1).join("\\");
+  navigator.clipboard.writeText(directory);
   success("Path copied to clipboard");
+};
+
+const copyKey = (key: string) => {
+  navigator.clipboard.writeText(key);
+  success("Key copied to clipboard");
+};
+
+const saveKey = (key: string) => {
+  // TODO: Implement key saving functionality
+  success("Key saved");
 };
 </script>
