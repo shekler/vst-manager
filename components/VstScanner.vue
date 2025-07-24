@@ -93,9 +93,25 @@ async function scanPlugins() {
     });
 
     if (response.success) {
-      results.value = response.results;
+      // Get the current database state after scan
+      const dbResponse = await $fetch("/api/plugins");
+      if (dbResponse.success && dbResponse.data) {
+        const totalPlugins = dbResponse.data.length;
+        const validPlugins = dbResponse.data.filter((plugin) => plugin.isValid).length;
+        const invalidPlugins = totalPlugins - validPlugins;
+
+        // Create results object from database state
+        results.value = {
+          totalPlugins,
+          validPlugins,
+          plugins: dbResponse.data,
+        };
+      } else {
+        // Fallback to scan results if database fetch fails
+        results.value = response.results;
+      }
       success("Plugins scanned successfully!");
-      emit("scan-complete", response.results);
+      emit("scan-complete", results.value);
     } else {
       errorMessage.value = response.error || "Scan failed";
       showErrorModal.value = true;

@@ -122,16 +122,19 @@ export async function syncPluginsFromJson() {
           `);
 
           data.plugins.forEach((plugin: any) => {
-            // Skip invalid plugins that don't have required fields
-            if (!plugin.isValid || !plugin.name) {
-              console.log(`Skipping invalid plugin: ${plugin.path}`);
-              return;
-            }
-
+            // Include all plugins, including invalid ones
             const id = plugin.cid || plugin.path; // Use cid as primary key, fallback to path
             const subCategories = JSON.stringify(plugin.subCategories || []);
 
-            stmt.run([id, plugin.name, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid]);
+            // For invalid plugins without a name, extract name from path
+            let pluginName = plugin.name;
+            if (!pluginName && plugin.path) {
+              const pathParts = plugin.path.split(/[\\\/]/);
+              const fileName = pathParts[pathParts.length - 1];
+              pluginName = fileName.replace(/\.vst3?$/i, "") || "Unknown Plugin";
+            }
+
+            stmt.run([id, pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid]);
           });
 
           stmt.finalize((err) => {
