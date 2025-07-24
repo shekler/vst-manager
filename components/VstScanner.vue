@@ -13,7 +13,7 @@
 
     <Transition name="fade" mode="out-in">
       <div v-if="results" class="bg-jet/50 relative mt-4 rounded-lg p-6">
-        <button @click="closeResults" class="text-powder/50 hover:text-powder/80 absolute top-2 right-2 transition-colors" title="Close results">
+        <button @click="closeResults" class="text-powder/50 hover:text-powder/80 absolute top-2 right-2 cursor-pointer transition-colors" title="Close results">
           <IconX class="size-5" />
         </button>
         <h3 class="text-powder/90 text-lg font-bold">Scan Results</h3>
