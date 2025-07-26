@@ -3,11 +3,20 @@
     <h1 class="text-4xl font-bold">Library</h1>
 
     <!-- Scan Section -->
-    <div class="from-onyx to-onyx/50 mt-6 mb-4 rounded-lg bg-gradient-to-br p-6">
-      <h2 class="text-powder/90 mb-4 text-xl font-bold">Options</h2>
-      <div class="flex flex-col gap-2">
-        <VstScanner @scan-complete="handleScanComplete" />
-        <p class="text-powder/70 text-sm">Scan for VST plugins using the paths configured in <NuxtLink to="/settings" class="text-mint hover:text-powder font-bold underline">Settings</NuxtLink>.</p>
+    <div class="mt-6 mb-4 flex w-full gap-4">
+      <div class="from-onyx to-onyx/50 w-full rounded-lg bg-gradient-to-br p-6">
+        <h2 class="text-powder/90 mb-2 text-xl font-bold">Scanning</h2>
+        <div class="flex flex-col gap-4">
+          <p class="text-powder/70 text-sm">Scan for VST plugins using the paths configured in <NuxtLink to="/settings" class="text-mint hover:text-powder font-bold underline">Settings</NuxtLink>.</p>
+          <VstScanner @scan-complete="handleScanComplete" />
+        </div>
+      </div>
+      <div class="from-onyx to-onyx/50 w-full rounded-lg bg-gradient-to-br p-6">
+        <h2 class="text-powder/90 mb-2 text-xl font-bold">Database</h2>
+        <div class="flex flex-col gap-4">
+          <p class="text-powder/70 text-sm">Options for exporting and importing the database.</p>
+          <DatabaseOptions />
+        </div>
       </div>
     </div>
 

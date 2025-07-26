@@ -11,7 +11,6 @@
         </button>
         <button @click="deletePlugins" class="c-button c-button--red w-fit">Delete Plugins</button>
       </div>
-      <button class="c-button c-button--clear w-fit" @click="exportPlugins">Export Database</button>
     </div>
 
     <Transition name="fade" mode="out-in">
@@ -135,59 +134,6 @@ async function deletePlugins() {
     emit("scan-complete", []);
   } else {
     errorMessage.value = response.error || "Failed to delete plugins";
-    showErrorModal.value = true;
-  }
-}
-
-async function exportPlugins() {
-  try {
-    const response = await $fetch("/api/vst/export");
-    if (response.success) {
-      success("Plugins exported successfully!");
-      await downloadFile(response.filePath);
-    } else {
-      errorMessage.value = response.error || "Failed to export plugins";
-      showErrorModal.value = true;
-    }
-  } catch (error) {
-    console.error("Export failed:", error);
-    errorMessage.value = "Failed to export plugins";
-    showErrorModal.value = true;
-  }
-}
-
-async function downloadFile(filePath) {
-  try {
-    // Fetch the file content from the server
-    const fileResponse = await $fetch(`/api/vst/download?filePath=${encodeURIComponent(filePath)}`, {
-      method: "GET",
-    });
-
-    if (fileResponse.success && fileResponse.data) {
-      // Create a blob from the JSON data
-      const blob = new Blob([JSON.stringify(fileResponse.data, null, 2)], {
-        type: "application/json",
-      });
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "exported-plugins.json";
-
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-
-      // Cleanup
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } else {
-      throw new Error("Failed to fetch file data");
-    }
-  } catch (error) {
-    console.error("Download failed:", error);
-    errorMessage.value = "Failed to download file";
     showErrorModal.value = true;
   }
 }
