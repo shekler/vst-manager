@@ -10,9 +10,9 @@ export default defineEventHandler(async (event) => {
         path,
         vendor,
         version,
-        categories,
-        sdk_version as sdkVersion,
-        is_valid as isValid,
+        subCategories,
+        sdkVersion,
+        isValid,
         error,
         key,
         created_at as createdAt,
@@ -21,10 +21,10 @@ export default defineEventHandler(async (event) => {
       ORDER BY name
     `);
 
-    // Parse categories JSON string back to array
+    // Parse subCategories JSON string back to array
     const processedPlugins = plugins.map((plugin) => ({
       ...plugin,
-      subCategories: JSON.parse(plugin.categories || "[]"),
+      subCategories: JSON.parse(plugin.subCategories || "[]"),
     }));
 
     return {

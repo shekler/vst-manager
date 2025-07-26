@@ -132,15 +132,15 @@ export async function syncPluginsFromJson() {
         const insertStmt = db.prepare(`
           INSERT INTO plugins (
             id, name, vendor, version, path, category, subCategories, 
-            isValid, error, sdkVersion, cardinality, flags, cid, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            isValid, error, sdkVersion, cardinality, flags, cid, key, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         `);
 
         const updateStmt = db.prepare(`
           UPDATE plugins SET 
             name = ?, vendor = ?, version = ?, path = ?, category = ?, 
             subCategories = ?, isValid = ?, error = ?, sdkVersion = ?, 
-            cardinality = ?, flags = ?, cid = ?, updated_at = CURRENT_TIMESTAMP
+            cardinality = ?, flags = ?, cid = ?, key = ?, updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
         `);
 
@@ -177,8 +177,8 @@ export async function syncPluginsFromJson() {
           }
 
           const plugin = data.plugins[index];
-          const id = plugin.cid || plugin.path; // Use cid as primary key, fallback to path
-          const subCategories = JSON.stringify(plugin.subCategories || []);
+          const id = plugin.id || plugin.cid || plugin.path; // Use id as primary key, fallback to cid, then path
+          const subCategories = typeof plugin.subCategories === "string" ? plugin.subCategories : JSON.stringify(plugin.subCategories || []);
 
           // For invalid plugins without a name, extract name from path
           let pluginName = plugin.name;
@@ -197,7 +197,7 @@ export async function syncPluginsFromJson() {
 
             if (row) {
               // Plugin exists - update it
-              updateStmt.run([pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, id], (updateErr) => {
+              updateStmt.run([pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null, id], (updateErr) => {
                 if (updateErr) {
                   reject(updateErr);
                   return;
@@ -208,7 +208,7 @@ export async function syncPluginsFromJson() {
               });
             } else {
               // Plugin doesn't exist - insert it
-              insertStmt.run([id, pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid], (insertErr) => {
+              insertStmt.run([id, pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null], (insertErr) => {
                 if (insertErr) {
                   reject(insertErr);
                   return;

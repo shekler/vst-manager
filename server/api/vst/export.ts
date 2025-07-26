@@ -20,8 +20,23 @@ export default defineEventHandler(async (event) => {
       ORDER BY name
     `);
 
+    // Transform the data to match the exact scanned plugins format
+    const transformedPlugins = plugins.map((plugin) => ({
+      id: plugin.id,
+      name: plugin.name,
+      path: plugin.path,
+      vendor: plugin.vendor,
+      version: plugin.version,
+      category: plugin.category,
+      subCategories: plugin.subCategories || "[]",
+      sdkVersion: plugin.sdkVersion,
+      key: plugin.key,
+      createdAt: plugin.createdAt,
+      updatedAt: plugin.updatedAt,
+    }));
+
     const filePath = "./data/exported-plugins.json";
-    const fileContent = JSON.stringify(plugins, null, 2);
+    const fileContent = JSON.stringify({ plugins: transformedPlugins }, null, 2);
     await writeFile(filePath, fileContent, "utf-8");
 
     return { success: true, message: "Plugins exported successfully", filePath };
