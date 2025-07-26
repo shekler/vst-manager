@@ -28,18 +28,26 @@ export default defineEventHandler(async (event) => {
       return { success: false, error: "Invalid JSON format" };
     }
 
-    // Validate the structure - should have a plugins array
-    if (!jsonData.plugins || !Array.isArray(jsonData.plugins)) {
-      return { success: false, error: "JSON file must contain a 'plugins' array" };
+    // Handle different JSON formats
+    let pluginsArray;
+    if (Array.isArray(jsonData)) {
+      // Direct array format: [...]
+      pluginsArray = jsonData;
+    } else if (jsonData.plugins && Array.isArray(jsonData.plugins)) {
+      // Object with plugins array: { "plugins": [...] }
+      pluginsArray = jsonData.plugins;
+    } else {
+      return { success: false, error: "JSON file must contain a plugins array or an object with a 'plugins' property" };
     }
 
     // Ensure data directory exists
     const dataDir = path.join(process.cwd(), "data");
     await mkdir(dataDir, { recursive: true });
 
-    // Overwrite the scanned-plugins.json file
+    // Create the proper format for scanned-plugins.json
+    const formattedData = { plugins: pluginsArray };
     const jsonPath = path.join(dataDir, "scanned-plugins.json");
-    await writeFile(jsonPath, fileContent, "utf-8");
+    await writeFile(jsonPath, JSON.stringify(formattedData, null, 2), "utf-8");
 
     // Initialize database and sync plugins
     await initializeDatabase();
@@ -47,8 +55,8 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      message: `Successfully imported ${jsonData.plugins.length} plugins`,
-      count: jsonData.plugins.length,
+      message: `Successfully imported ${pluginsArray.length} plugins`,
+      count: pluginsArray.length,
     };
   } catch (error: any) {
     console.error("API: Error importing plugins:", error);
