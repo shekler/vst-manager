@@ -197,7 +197,7 @@ export async function syncPluginsFromJson() {
 
             if (row) {
               // Plugin exists - update it
-              updateStmt.run([pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null, id], (updateErr) => {
+              updateStmt.run([pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid !== undefined ? (plugin.isValid ? 1 : 0) : 1, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null, id], (updateErr) => {
                 if (updateErr) {
                   reject(updateErr);
                   return;
@@ -208,7 +208,7 @@ export async function syncPluginsFromJson() {
               });
             } else {
               // Plugin doesn't exist - insert it
-              insertStmt.run([id, pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid ? 1 : 0, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null], (insertErr) => {
+              insertStmt.run([id, pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid !== undefined ? (plugin.isValid ? 1 : 0) : 1, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null], (insertErr) => {
                 if (insertErr) {
                   reject(insertErr);
                   return;
