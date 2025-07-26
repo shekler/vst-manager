@@ -14,7 +14,9 @@
       <div class="from-onyx to-onyx/50 w-full rounded-lg bg-gradient-to-br p-6">
         <h2 class="text-powder/90 mb-2 text-xl font-bold">Database</h2>
         <div class="flex flex-col gap-4">
-          <p class="text-powder/70 text-sm">Options for exporting and importing the database.</p>
+          <p class="text-powder/70 text-sm">
+            Options for exporting and importing the database as JSON. This can be used to backup your database or share it with others. <span class="font-bold"><span class="text-red">Note:</span> Importing a JSON file will overwrite your current database.</span>
+          </p>
           <DatabaseOptions />
         </div>
       </div>

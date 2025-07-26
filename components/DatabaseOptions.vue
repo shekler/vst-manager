@@ -1,7 +1,7 @@
 <template>
   <div class="flex gap-2">
-    <button class="c-button c-button--clear w-fit" @click="showImportDialog">Import JSON</button>
-    <button class="c-button c-button--clear w-fit" @click="exportPlugins">Export JSON</button>
+    <button class="c-button c-button--clear w-fit" @click="showImportDialog">Import</button>
+    <button class="c-button c-button--clear w-fit" @click="exportPlugins">Export</button>
 
     <!-- Hidden file input -->
     <input ref="fileInput" type="file" accept=".json" class="hidden" @change="handleFileSelect" />
