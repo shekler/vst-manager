@@ -28,6 +28,37 @@ export const useToast = () => {
     }
   };
 
+  // New method for persistent toasts that survive page reloads
+  const persistentSuccess = (message: string, duration: number = 3000) => {
+    if (process.client) {
+      localStorage.setItem(
+        "persistentToast",
+        JSON.stringify({
+          message,
+          type: "success",
+          duration,
+        }),
+      );
+    }
+  };
+
+  // Method to check and show persistent toasts on page load
+  const checkPersistentToast = () => {
+    if (process.client) {
+      const stored = localStorage.getItem("persistentToast");
+      if (stored) {
+        try {
+          const toastData = JSON.parse(stored);
+          addToast(toastData.message, toastData.type, toastData.duration);
+          localStorage.removeItem("persistentToast");
+        } catch (error) {
+          console.error("Failed to parse persistent toast:", error);
+          localStorage.removeItem("persistentToast");
+        }
+      }
+    }
+  };
+
   const success = (message: string, duration?: number) => addToast(message, "success", duration);
   const error = (message: string, duration?: number) => addToast(message, "error", duration);
   const info = (message: string, duration?: number) => addToast(message, "info", duration);
@@ -39,5 +70,7 @@ export const useToast = () => {
     success,
     error,
     info,
+    persistentSuccess,
+    checkPersistentToast,
   };
 };

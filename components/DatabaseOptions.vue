@@ -22,7 +22,7 @@
 
     <template #footer>
       <button class="c-button c-button--clear" @click="showWarningModal = false">Cancel</button>
-      <button class="c-button c-button--danger" @click="confirmImport">Import & Overwrite</button>
+      <button class="c-button c-button--red" @click="confirmImport">Import & Overwrite</button>
     </template>
   </ModalWindow>
 
@@ -45,7 +45,7 @@ const errorMessage = ref("");
 const fileInput = ref<HTMLInputElement>();
 const selectedFile = ref<File | null>(null);
 
-const { success, error: showError } = useToast();
+const { success, error: showError, persistentSuccess } = useToast();
 
 function showImportDialog() {
   fileInput.value?.click();
@@ -82,7 +82,7 @@ async function confirmImport() {
 
     if (response.success) {
       const count = "count" in response ? response.count : 0;
-      success(`Successfully imported ${count} plugins!`);
+      persistentSuccess(`Successfully imported ${count} plugins!`);
       showWarningModal.value = false;
       selectedFile.value = null;
 

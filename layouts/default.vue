@@ -14,6 +14,13 @@
   </div>
 </template>
 
-<script lang="ts" setup></script>
+<script lang="ts" setup>
+// Check for persistent toasts on page load
+const { checkPersistentToast } = useToast();
+
+onMounted(() => {
+  checkPersistentToast();
+});
+</script>
 
 <style></style>
