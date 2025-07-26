@@ -29,12 +29,21 @@ module.exports = {
   ],
   hooks: {
     packageAfterCopy: async (config, buildPath) => {
-      // Build Nuxt app before packaging
-      const { execSync } = require("child_process");
-      execSync("npm run build", {
-        cwd: buildPath,
-        stdio: "inherit",
-      });
+      // Copy the built main process files to the build directory root
+      const { copyFileSync, copyFileSync: copyFileSyncAsync } = require("fs");
+      const { join } = require("path");
+      const { copySync } = require("fs-extra");
+
+      try {
+        // Copy main process files to root
+        copyFileSync(join(__dirname, "dist", "main.js"), join(buildPath, "main.js"));
+        copyFileSync(join(__dirname, "dist", "preload.js"), join(buildPath, "preload.js"));
+
+        // Copy the entire .output directory to the build directory
+        copySync(join(__dirname, ".output"), join(buildPath, ".output"));
+      } catch (error) {
+        console.error("Error copying files:", error);
+      }
     },
   },
 };

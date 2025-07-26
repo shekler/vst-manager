@@ -1,8 +1,61 @@
 import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import * as path from "path";
 import * as fs from "fs";
+import { createServer } from "http";
+import { createReadStream } from "fs";
+import { extname } from "path";
 
 let mainWindow: BrowserWindow;
+let staticServer: any;
+
+// Simple static file server for production
+const createStaticServer = (port: number = 3001) => {
+  const publicPath = path.join(app.getAppPath(), ".output", "public");
+
+  return createServer((req, res) => {
+    if (!req.url) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+
+    let filePath = path.join(publicPath, req.url === "/" ? "index.html" : req.url);
+
+    // Security check to prevent directory traversal
+    if (!filePath.startsWith(publicPath)) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+
+    const ext = extname(filePath);
+    const contentType =
+      {
+        ".html": "text/html",
+        ".js": "text/javascript",
+        ".css": "text/css",
+        ".json": "application/json",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+        ".woff": "font/woff",
+        ".woff2": "font/woff2",
+        ".ttf": "font/ttf",
+        ".eot": "application/vnd.ms-fontobject",
+      }[ext] || "application/octet-stream";
+
+    res.writeHead(200, { "Content-Type": contentType });
+    createReadStream(filePath).pipe(res);
+  }).listen(port);
+};
 
 const createWindow = (): void => {
   mainWindow = new BrowserWindow({
@@ -19,7 +72,9 @@ const createWindow = (): void => {
     mainWindow.loadURL("http://localhost:3000");
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, "../nuxt/dist/index.html"));
+    // Start static server for production
+    staticServer = createStaticServer(3001);
+    mainWindow.loadURL("http://localhost:3001");
   }
 };
 
@@ -92,6 +147,9 @@ ipcMain.handle("store-set", (_event, key, value) => {
 app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
+  if (staticServer) {
+    staticServer.close();
+  }
   if (process.platform !== "darwin") {
     app.quit();
   }

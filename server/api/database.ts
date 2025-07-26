@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { mkdir } from "node:fs/promises";
 
 // Database connection
-const dbPath = path.join(process.cwd(), "data", "plugins.db");
+const dbPath = path.join(__dirname, "data", "plugins.db");
 
 // Singleton database instance
 let dbInstance: sqlite3.Database | null = null;
@@ -116,7 +116,7 @@ export async function testDatabaseConnection(): Promise<boolean> {
 // Sync plugins from JSON to database
 export async function syncPluginsFromJson() {
   try {
-    const jsonPath = path.join(process.cwd(), "data", "scanned-plugins.json");
+    const jsonPath = path.join(__dirname, "data", "scanned-plugins.json");
     const jsonData = await readFile(jsonPath, "utf8");
     const data = JSON.parse(jsonData);
 

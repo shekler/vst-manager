@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Ensure data directory exists
-    const dataDir = path.join(process.cwd(), "data");
+    const dataDir = path.join(__dirname, "data");
     await mkdir(dataDir, { recursive: true });
 
     // Create the proper format for scanned-plugins.json

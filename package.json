@@ -3,12 +3,14 @@
   "productName": "VST Manager",
   "version": "0.1.0-alpha",
   "description": "A plugin manager for the audio plugins",
-  "main": "dist/main.js",
+  "main": "main.js",
+
   "author": "Sven Wolf",
   "scripts": {
     "dev": "nuxi dev",
     "build": "nuxi generate",
     "build:electron": "tsc -p tsconfig.electron.json",
+
     "start": "electron .",
     "package": "npm run build && npm run build:electron && electron-forge package",
     "make": "npm run build && npm run build:electron && electron-forge make",
@@ -36,7 +38,9 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
     "@electron-forge/plugin-fuses": "^7.8.1",
     "@electron/fuses": "^1.8.0",
+    "@types/fs-extra": "^11.0.4",
     "electron": "^37.2.4",
+    "fs-extra": "^11.3.0",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "ts-node": "^10.9.2",

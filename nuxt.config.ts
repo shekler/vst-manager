@@ -2,7 +2,7 @@
 export default defineNuxtConfig({
   app: {
     baseURL: "./",
-    buildAssetsDir: "/_nuxt/",
+    buildAssetsDir: "_nuxt",
     head: {
       charset: "utf-8",
       viewport: "width=device-width, initial-scale=1",
@@ -39,4 +39,16 @@ export default defineNuxtConfig({
     transpile: ["@tabler/icons-vue"],
   },
   ssr: false,
+
+  // Vite configuration for better Electron bundling
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          // Bundle everything into fewer files for Electron
+          manualChunks: undefined,
+        },
+      },
+    },
+  },
 });
