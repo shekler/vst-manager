@@ -2,6 +2,7 @@
 export default defineNuxtConfig({
   app: {
     baseURL: "./",
+    buildAssetsDir: "/_nuxt/",
     head: {
       charset: "utf-8",
       viewport: "width=device-width, initial-scale=1",
@@ -20,6 +21,9 @@ export default defineNuxtConfig({
   nitro: {
     // Reduce bundle size for Electron
     minify: true,
+    prerender: {
+      routes: ["/"],
+    },
   },
 
   // Runtime config for version info
@@ -34,4 +38,5 @@ export default defineNuxtConfig({
     // Reduce bundle size
     transpile: ["@tabler/icons-vue"],
   },
+  ssr: false,
 });

@@ -3,14 +3,16 @@
   "productName": "VST Manager",
   "version": "0.1.0-alpha",
   "description": "A plugin manager for the audio plugins",
-  "main": "main.js",
+  "main": "dist/main.js",
   "author": "Sven Wolf",
   "scripts": {
     "dev": "nuxi dev",
     "build": "nuxi generate",
+    "build:electron": "tsc -p tsconfig.electron.json",
     "start": "electron .",
-    "package": "electron-forge package",
-    "make": "electron-forge make"
+    "package": "npm run build && npm run build:electron && electron-forge package",
+    "make": "npm run build && npm run build:electron && electron-forge make",
+    "publish": "npm run build && npm run build:electron && electron-forge publish"
   },
   "dependencies": {
     "@nuxt/devtools": "^2.6.2",

@@ -157,7 +157,7 @@ vst-manager/
 ├── assets/             # Static assets
 ├── public/             # Public files
 ├── tools/              # VST scanning tools
-└── main.js             # Electron main process
+└── main.ts             # Electron main process
 ```
 
 ### Technology Stack
