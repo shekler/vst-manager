@@ -64,7 +64,7 @@ const createWindow = (): void => {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, "preload.js"),
+      preload: process.env.NODE_ENV === "development" ? "preload.js" : path.join(__dirname, "preload.js"),
     },
   });
 

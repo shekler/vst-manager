@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { mkdir } from "node:fs/promises";
 import path from "path";
 import { initializeDatabase, syncPluginsFromJson } from "../database";
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Ensure data directory exists
-    const dataDir = path.join(__dirname, "data");
+    const dataDir = process.env.NODE_ENV === "development" ? "data" : path.join(__dirname, "data");
     await mkdir(dataDir, { recursive: true });
 
     // Create the proper format for scanned-plugins.json

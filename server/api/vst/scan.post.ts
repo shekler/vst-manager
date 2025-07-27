@@ -2,7 +2,6 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import { readFileSync, writeFileSync } from "fs";
-import { readdir } from "fs/promises";
 import { join } from "path";
 import { initializeDatabase, syncPluginsFromJson, runQuery } from "../database";
 
@@ -10,8 +9,8 @@ const execAsync = promisify(exec);
 
 export default defineEventHandler(async (event) => {
   try {
-    const scannerPath = join(__dirname, "tools/vst_scanner.exe");
-    const outputPath = join(__dirname, "data/scanned-plugins.json");
+    const scannerPath = process.env.NODE_ENV === "development" ? "tools/vst_scanner.exe" : join(__dirname, "tools/vst_scanner.exe");
+    const outputPath = process.env.NODE_ENV === "development" ? "data/scanned-plugins.json" : join(__dirname, "data/scanned-plugins.json");
 
     // Fetch VST paths from settings
     let vstPathsSetting;
