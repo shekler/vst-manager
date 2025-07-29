@@ -53,7 +53,7 @@ export const usePlugins = () => {
           plugins.value = response.data;
           console.log(`Loaded ${response.data.length} plugins via Electron IPC`);
         } else {
-          throw new Error(response.error || "Failed to fetch plugins");
+          throw new Error((response as any).error || "Failed to fetch plugins");
         }
       } else {
         // Fallback to HTTP API for development
