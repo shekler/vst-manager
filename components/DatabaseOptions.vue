@@ -46,6 +46,7 @@ const fileInput = ref<HTMLInputElement>();
 const selectedFile = ref<File | null>(null);
 
 const { success, error: showError, persistentSuccess } = useToast();
+const { exportPlugins: exportPluginsIPC, importPlugins: importPluginsIPC } = useElectron();
 
 function showImportDialog() {
   fileInput.value?.click();
@@ -72,12 +73,12 @@ async function confirmImport() {
   }
 
   try {
-    const formData = new FormData();
-    formData.append("file", selectedFile.value);
+    // Read the file content
+    const fileContent = await selectedFile.value.text();
 
-    const response = await $fetch("/api/vst/import", {
-      method: "POST",
-      body: formData,
+    const response = await importPluginsIPC({
+      name: selectedFile.value.name,
+      content: fileContent,
     });
 
     if (response.success) {
@@ -101,7 +102,7 @@ async function confirmImport() {
 
 async function exportPlugins() {
   try {
-    const response = await $fetch("/api/vst/export");
+    const response = await exportPluginsIPC();
     if (response.success && "filePath" in response) {
       success("Plugins exported successfully!");
       await downloadFile(response.filePath);

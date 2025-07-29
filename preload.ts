@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getStore: (key: string) => ipcRenderer.invoke("store-get", key),
   setStore: (key: string, value: any) => ipcRenderer.invoke("store-set", key, value),
 
+  // VST operations
+  exportPlugins: () => ipcRenderer.invoke("vst:exportPlugins"),
+  importPlugins: (fileData: { name: string; content: string }) => ipcRenderer.invoke("vst:importPlugins", fileData),
+
   // Event listeners
   onMenuAction: (callback: (action: string) => void) => {
     ipcRenderer.on("menu-action", (_event, action) => callback(action));

@@ -35,6 +35,10 @@ export default defineEventHandler(async (event) => {
       updatedAt: plugin.updatedAt,
     }));
 
+    // Ensure data directory exists
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir("data", { recursive: true });
+
     const filePath = "./data/exported-plugins.json";
     const fileContent = JSON.stringify({ plugins: transformedPlugins }, null, 2);
     await writeFile(filePath, fileContent, "utf-8");

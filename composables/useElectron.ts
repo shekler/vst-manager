@@ -1,6 +1,8 @@
 interface ElectronAPI {
   openFileExplorer: (path: string) => Promise<void>;
   getAppVersion: () => Promise<string>;
+  exportPlugins: () => Promise<any>;
+  importPlugins: (fileData: { name: string; content: string }) => Promise<any>;
 }
 
 declare global {
@@ -40,9 +42,47 @@ export const useElectron = () => {
     return "Web Version";
   };
 
+  const exportPlugins = async () => {
+    if (isElectron && window.electronAPI?.exportPlugins) {
+      try {
+        return await window.electronAPI.exportPlugins();
+      } catch (error) {
+        console.error("Failed to export plugins:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch("/api/vst/export");
+    }
+  };
+
+  const importPlugins = async (fileData: { name: string; content: string }) => {
+    if (isElectron && window.electronAPI?.importPlugins) {
+      try {
+        return await window.electronAPI.importPlugins(fileData);
+      } catch (error) {
+        console.error("Failed to import plugins:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      const formData = new FormData();
+      const blob = new Blob([fileData.content], { type: "application/json" });
+      const file = new File([blob], fileData.name, { type: "application/json" });
+      formData.append("file", file);
+
+      return await $fetch("/api/vst/import", {
+        method: "POST",
+        body: formData,
+      });
+    }
+  };
+
   return {
     isElectron,
     openFileExplorer,
     getAppVersion,
+    exportPlugins,
+    importPlugins,
   };
 };

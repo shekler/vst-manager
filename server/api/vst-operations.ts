@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { ipcMain, app } from "electron";
 import path from "path";
 import { writeFile, mkdir } from "node:fs/promises";
 import { initializeDatabase, syncPluginsFromJson, runQuery } from "./database";
@@ -36,28 +36,29 @@ export const exportPlugins = async () => {
     updatedAt: plugin.updatedAt,
   }));
 
-  const filePath = "./data/exported-plugins.json";
+  // Ensure data directory exists
+  const dataDir = process.env.NODE_ENV === "development" ? "data" : path.join(app.getPath("userData"), "data");
+  await mkdir(dataDir, { recursive: true });
+
+  const filePath = path.join(dataDir, "exported-plugins.json");
   const fileContent = JSON.stringify({ plugins: transformedPlugins }, null, 2);
   await writeFile(filePath, fileContent, "utf-8");
 
   return { success: true, message: "Plugins exported successfully", filePath };
 };
 
-export const importPlugins = async (event: any) => {
-  const formData = await readFormData(event);
-  const file = formData.get("file") as File;
-
-  if (!file) {
+export const importPlugins = async (fileData: { name: string; content: string }) => {
+  if (!fileData) {
     return { success: false, error: "No file provided" };
   }
 
   // Validate file type
-  if (!file.name.toLowerCase().endsWith(".json")) {
+  if (!fileData.name.toLowerCase().endsWith(".json")) {
     return { success: false, error: "File must be a JSON file" };
   }
 
-  // Read the uploaded file content
-  const fileContent = await file.text();
+  // Use the file content directly
+  const fileContent = fileData.content;
 
   // Validate JSON format
   let jsonData;
@@ -80,7 +81,7 @@ export const importPlugins = async (event: any) => {
   }
 
   // Ensure data directory exists
-  const dataDir = process.env.NODE_ENV === "development" ? "data" : path.join(__dirname, "data");
+  const dataDir = process.env.NODE_ENV === "development" ? "data" : path.join(app.getPath("userData"), "data");
   await mkdir(dataDir, { recursive: true });
 
   // Create the proper format for scanned-plugins.json
@@ -112,9 +113,9 @@ export function setupVstIPC() {
     }
   });
 
-  ipcMain.handle("vst:importPlugins", async (event) => {
+  ipcMain.handle("vst:importPlugins", async (event, fileData: { name: string; content: string }) => {
     try {
-      return await importPlugins(event);
+      return await importPlugins(fileData);
     } catch (error: any) {
       return { success: false, error: error.message };
     }

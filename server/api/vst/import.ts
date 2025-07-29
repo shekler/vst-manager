@@ -41,12 +41,11 @@ export default defineEventHandler(async (event) => {
     }
 
     // Ensure data directory exists
-    const dataDir = process.env.NODE_ENV === "development" ? "data" : path.join(__dirname, "data");
-    await mkdir(dataDir, { recursive: true });
+    await mkdir("data", { recursive: true });
 
     // Create the proper format for scanned-plugins.json
     const formattedData = { plugins: pluginsArray };
-    const jsonPath = path.join(dataDir, "scanned-plugins.json");
+    const jsonPath = "./data/scanned-plugins.json";
     await writeFile(jsonPath, JSON.stringify(formattedData, null, 2), "utf-8");
 
     // Initialize database and sync plugins
