@@ -104,6 +104,76 @@ export const scanPlugins = async () => {
   // Another VST operation
 };
 
+export const getPlugins = async () => {
+  try {
+    const { runQuery, initializeDatabase, syncPluginsFromJson } = await import("./database");
+
+    // Try to fetch plugins first
+    let plugins;
+    try {
+      plugins = await runQuery(`
+        SELECT 
+          id,
+          name,
+          path,
+          vendor,
+          version,
+          subCategories,
+          sdkVersion,
+          isValid,
+          error,
+          key,
+          created_at as createdAt,
+          updated_at as updatedAt
+        FROM plugins 
+        ORDER BY name
+      `);
+    } catch (tableError: any) {
+      // If table doesn't exist, initialize the database
+      if (tableError.message.includes("no such table")) {
+        await initializeDatabase();
+        await syncPluginsFromJson();
+
+        // Try fetching again after initialization
+        plugins = await runQuery(`
+          SELECT 
+            id,
+            name,
+            path,
+            vendor,
+            version,
+            subCategories,
+            sdkVersion,
+            isValid,
+            error,
+            key,
+            created_at as createdAt,
+            updated_at as updatedAt
+          FROM plugins 
+          ORDER BY name
+        `);
+      } else {
+        throw tableError;
+      }
+    }
+
+    // Parse subCategories JSON string back to array
+    const processedPlugins = plugins.map((plugin) => ({
+      ...plugin,
+      subCategories: JSON.parse(plugin.subCategories || "[]"),
+    }));
+
+    return {
+      success: true,
+      data: processedPlugins,
+      count: processedPlugins.length,
+    };
+  } catch (error: any) {
+    console.error("Error fetching plugins:", error);
+    return { success: false, error: error.message };
+  }
+};
+
 export function setupVstIPC() {
   ipcMain.handle("vst:exportPlugins", async () => {
     try {
@@ -116,6 +186,14 @@ export function setupVstIPC() {
   ipcMain.handle("vst:importPlugins", async (event, fileData: { name: string; content: string }) => {
     try {
       return await importPlugins(fileData);
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("vst:getPlugins", async () => {
+    try {
+      return await getPlugins();
     } catch (error: any) {
       return { success: false, error: error.message };
     }

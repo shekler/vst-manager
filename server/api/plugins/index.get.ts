@@ -1,10 +1,17 @@
 import { runQuery, initializeDatabase, syncPluginsFromJson } from "../database";
 
 export default defineEventHandler(async (event) => {
+  console.log("API: /api/plugins endpoint called");
   try {
+    // Test database connection first
+    console.log("API: Testing database connection...");
+    const dbTest = await runQuery("SELECT 1 as test");
+    console.log("API: Database connection test result:", dbTest);
+
     // Try to fetch plugins first
     let plugins;
     try {
+      console.log("API: Attempting to fetch plugins from database...");
       plugins = await runQuery(`
         SELECT 
           id,
@@ -22,10 +29,11 @@ export default defineEventHandler(async (event) => {
         FROM plugins 
         ORDER BY name
       `);
+      console.log(`API: Successfully fetched ${plugins.length} plugins from database`);
     } catch (tableError: any) {
       // If table doesn't exist, initialize the database
       if (tableError.message.includes("no such table")) {
-        console.log("Plugins table not found, initializing database...");
+        console.log("API: Plugins table not found, initializing database...");
         await initializeDatabase();
         await syncPluginsFromJson();
 
@@ -47,6 +55,7 @@ export default defineEventHandler(async (event) => {
           FROM plugins 
           ORDER BY name
         `);
+        console.log(`API: Successfully fetched ${plugins.length} plugins after initialization`);
       } else {
         throw tableError;
       }
@@ -58,6 +67,7 @@ export default defineEventHandler(async (event) => {
       subCategories: JSON.parse(plugin.subCategories || "[]"),
     }));
 
+    console.log(`API: Returning ${processedPlugins.length} processed plugins`);
     return {
       success: true,
       data: processedPlugins,

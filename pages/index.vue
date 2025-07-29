@@ -132,7 +132,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { IconKeyFilled, IconCopy, IconDeviceFloppy, IconLoader2 } from "@tabler/icons-vue";
 
 // Import the custom select component
@@ -147,8 +147,10 @@ const { success, error: showError } = useToast();
 // Use Electron composable
 const { openFileExplorer } = useElectron();
 
-// Fetch plugins on server-side to prevent hydration mismatches
-await fetchPlugins();
+// Fetch plugins on client-side since SSR is disabled
+onMounted(() => {
+  fetchPlugins();
+});
 
 // Additional reactive state
 const searchFilter = ref("");

@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // VST operations
   exportPlugins: () => ipcRenderer.invoke("vst:exportPlugins"),
   importPlugins: (fileData: { name: string; content: string }) => ipcRenderer.invoke("vst:importPlugins", fileData),
+  getPlugins: () => ipcRenderer.invoke("vst:getPlugins"),
 
   // Event listeners
   onMenuAction: (callback: (action: string) => void) => {

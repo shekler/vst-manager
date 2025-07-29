@@ -29,7 +29,7 @@ export const usePlugins = () => {
   const loading = useState<boolean>("vst-manager-loading", () => false);
   const error = useState<string | null>("vst-manager-error", () => null);
 
-  // Fetch all plugins
+  // Fetch all plugins using Electron IPC
   const fetchPlugins = async () => {
     // Prevent multiple simultaneous fetches
     if (loading.value) {
@@ -40,11 +40,31 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<Plugin[]>>(`/api/plugins`);
-      if (response.success && response.data) {
-        plugins.value = response.data;
+      console.log("Fetching plugins via Electron IPC...");
+
+      // Check if we're in Electron environment
+      if (typeof window !== "undefined" && window.electronAPI) {
+        // Use Electron IPC to get plugins from the database
+        console.log("Using Electron IPC for plugin fetching");
+        const response = await window.electronAPI.getPlugins();
+        console.log("Electron API response:", response);
+        if (response.success && response.data) {
+          plugins.value = response.data;
+          console.log(`Loaded ${response.data.length} plugins via Electron IPC`);
+        } else {
+          throw new Error(response.error || "Failed to fetch plugins");
+        }
       } else {
-        throw new Error("Failed to fetch plugins");
+        // Fallback to HTTP API for development
+        console.log("Using HTTP API for plugin fetching");
+        const response = await $fetch<ApiResponse<Plugin[]>>(`/api/plugins`);
+        console.log("API response:", response);
+        if (response.success && response.data) {
+          plugins.value = response.data;
+          console.log(`Loaded ${response.data.length} plugins`);
+        } else {
+          throw new Error("Failed to fetch plugins");
+        }
       }
     } catch (err: any) {
       error.value = err.message || "Failed to fetch plugins";
