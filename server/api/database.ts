@@ -2,9 +2,10 @@ import sqlite3 from "sqlite3";
 import path from "path";
 import { readFile } from "node:fs/promises";
 import { mkdir } from "node:fs/promises";
+import { app } from "electron";
 
 // Database connection
-const dbPath = process.env.NODE_ENV === "development" ? "data/plugins.db" : path.join(__dirname, "data", "plugins.db");
+const dbPath = process.env.NODE_ENV === "development" ? "data/plugins.db" : path.join(app.getPath("userData"), "data", "plugins.db");
 
 // Singleton database instance
 let dbInstance: sqlite3.Database | null = null;
@@ -116,7 +117,7 @@ export async function testDatabaseConnection(): Promise<boolean> {
 // Sync plugins from JSON to database
 export async function syncPluginsFromJson() {
   try {
-    const jsonPath = process.env.NODE_ENV === "development" ? "data/scanned-plugins.json" : path.join(__dirname, "data", "scanned-plugins.json");
+    const jsonPath = process.env.NODE_ENV === "development" ? "data/scanned-plugins.json" : path.join(app.getPath("userData"), "data", "scanned-plugins.json");
     const jsonData = await readFile(jsonPath, "utf8");
     const data = JSON.parse(jsonData);
 

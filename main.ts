@@ -4,6 +4,7 @@ import * as fs from "fs";
 import { createServer } from "http";
 import { createReadStream } from "fs";
 import { extname } from "path";
+import { setupVstIPC } from "./server/api/vst/vst-operations";
 
 let mainWindow: BrowserWindow;
 let staticServer: any;
@@ -144,7 +145,10 @@ ipcMain.handle("store-set", (_event, key, value) => {
   store.set(key, value);
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  setupVstIPC();
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (staticServer) {
