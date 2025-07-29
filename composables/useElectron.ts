@@ -1,14 +1,8 @@
 interface ElectronAPI {
-  openFileExplorer: (path: string) => Promise<void>;
-  getAppVersion: () => Promise<string>;
+  openFile: () => Promise<string | null>;
+  getVersion: () => Promise<string>;
   exportPlugins: () => Promise<any>;
   importPlugins: (fileData: { name: string; content: string }) => Promise<any>;
-}
-
-declare global {
-  interface Window {
-    electronAPI?: ElectronAPI;
-  }
 }
 
 export const useElectron = () => {
@@ -17,9 +11,9 @@ export const useElectron = () => {
 
   // Electron-specific functions
   const openFileExplorer = async (path: string) => {
-    if (isElectron && window.electronAPI?.openFileExplorer) {
+    if (isElectron && window.electronAPI?.openFile) {
       try {
-        await window.electronAPI.openFileExplorer(path);
+        await window.electronAPI.openFile();
       } catch (error) {
         console.error("Failed to open file explorer:", error);
       }
@@ -31,9 +25,9 @@ export const useElectron = () => {
   };
 
   const getAppVersion = async (): Promise<string> => {
-    if (isElectron && window.electronAPI?.getAppVersion) {
+    if (isElectron && window.electronAPI?.getVersion) {
       try {
-        return await window.electronAPI.getAppVersion();
+        return await window.electronAPI.getVersion();
       } catch (error) {
         console.error("Failed to get app version:", error);
         return "Unknown";
