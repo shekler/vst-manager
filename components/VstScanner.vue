@@ -90,13 +90,12 @@ async function scanPlugins() {
   results.value = null;
 
   try {
-    const response = await $fetch("/api/vst/scan", {
-      method: "POST",
-    });
+    const { scanPlugins, getPlugins } = useElectron();
+    const response = await scanPlugins();
 
     if (response.success) {
       // Get the current database state after scan
-      const dbResponse = await $fetch("/api/plugins");
+      const dbResponse = await getPlugins();
       if (dbResponse.success && dbResponse.data) {
         const totalPlugins = dbResponse.data.length;
         const validPlugins = dbResponse.data.filter((plugin) => plugin.isValid).length;
@@ -128,12 +127,19 @@ async function scanPlugins() {
 }
 
 async function deletePlugins() {
-  const response = await $fetch("/api/vst/delete");
-  if (response.success) {
-    success("Plugins deleted successfully!");
-    emit("scan-complete", []);
-  } else {
-    errorMessage.value = response.error || "Failed to delete plugins";
+  try {
+    const { deletePlugins } = useElectron();
+    const response = await deletePlugins();
+    if (response.success) {
+      success("Plugins deleted successfully!");
+      emit("scan-complete", []);
+    } else {
+      errorMessage.value = response.error || "Failed to delete plugins";
+      showErrorModal.value = true;
+    }
+  } catch (error) {
+    console.error("Delete failed:", error);
+    errorMessage.value = "Failed to delete plugins";
     showErrorModal.value = true;
   }
 }

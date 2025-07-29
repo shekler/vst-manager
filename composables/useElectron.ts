@@ -3,6 +3,12 @@ interface ElectronAPI {
   getVersion: () => Promise<string>;
   exportPlugins: () => Promise<any>;
   importPlugins: (fileData: { name: string; content: string }) => Promise<any>;
+  getPlugins: () => Promise<any>;
+  scanPlugins: () => Promise<any>;
+  deletePlugins: () => Promise<any>;
+  downloadPlugins: () => Promise<any>;
+  searchPlugins: (query: string) => Promise<any>;
+  savePluginKey: (pluginId: string, key: string) => Promise<any>;
 }
 
 export const useElectron = () => {
@@ -72,11 +78,104 @@ export const useElectron = () => {
     }
   };
 
+  const getPlugins = async () => {
+    if (isElectron && window.electronAPI?.getPlugins) {
+      try {
+        return await window.electronAPI.getPlugins();
+      } catch (error) {
+        console.error("Failed to get plugins:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch("/api/plugins");
+    }
+  };
+
+  const scanPlugins = async () => {
+    if (isElectron && window.electronAPI?.scanPlugins) {
+      try {
+        return await window.electronAPI.scanPlugins();
+      } catch (error) {
+        console.error("Failed to scan plugins:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch("/api/vst/scan", { method: "POST" });
+    }
+  };
+
+  const deletePlugins = async () => {
+    if (isElectron && window.electronAPI?.deletePlugins) {
+      try {
+        return await window.electronAPI.deletePlugins();
+      } catch (error) {
+        console.error("Failed to delete plugins:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch("/api/vst/delete");
+    }
+  };
+
+  const downloadPlugins = async () => {
+    if (isElectron && window.electronAPI?.downloadPlugins) {
+      try {
+        return await window.electronAPI.downloadPlugins();
+      } catch (error) {
+        console.error("Failed to download plugins:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch("/api/vst/download");
+    }
+  };
+
+  const searchPlugins = async (query: string) => {
+    if (isElectron && window.electronAPI?.searchPlugins) {
+      try {
+        return await window.electronAPI.searchPlugins(query);
+      } catch (error) {
+        console.error("Failed to search plugins:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch(`/api/plugins/search?q=${encodeURIComponent(query)}`);
+    }
+  };
+
+  const savePluginKey = async (pluginId: string, key: string) => {
+    if (isElectron && window.electronAPI?.savePluginKey) {
+      try {
+        return await window.electronAPI.savePluginKey(pluginId, key);
+      } catch (error) {
+        console.error("Failed to save plugin key:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch(`/api/plugins/${pluginId}/key`, {
+        method: "POST",
+        body: { key },
+      });
+    }
+  };
+
   return {
     isElectron,
     openFileExplorer,
     getAppVersion,
     exportPlugins,
     importPlugins,
+    getPlugins,
+    scanPlugins,
+    deletePlugins,
+    downloadPlugins,
+    searchPlugins,
+    savePluginKey,
   };
 };

@@ -46,7 +46,8 @@ export const usePlugins = () => {
       if (typeof window !== "undefined" && window.electronAPI) {
         // Use Electron IPC to get plugins from the database
         console.log("Using Electron IPC for plugin fetching");
-        const response = await window.electronAPI.getPlugins();
+        const { getPlugins } = useElectron();
+        const response = await getPlugins();
         console.log("Electron API response:", response);
         if (response.success && response.data) {
           plugins.value = response.data;
@@ -77,11 +78,22 @@ export const usePlugins = () => {
   // Search plugins
   const searchPlugins = async (query: string): Promise<Plugin[]> => {
     try {
-      const response = await $fetch<ApiResponse<Plugin[]>>(`/api/plugins/search?q=${encodeURIComponent(query)}`);
-      if (response.success && response.data) {
-        return response.data;
+      // Check if we're in Electron environment
+      if (typeof window !== "undefined" && window.electronAPI) {
+        const { searchPlugins: searchPluginsIPC } = useElectron();
+        const response = await searchPluginsIPC(query);
+        if (response.success && response.data) {
+          return response.data;
+        }
+        return [];
+      } else {
+        // Fallback to HTTP API for development
+        const response = await $fetch<ApiResponse<Plugin[]>>(`/api/plugins/search?q=${encodeURIComponent(query)}`);
+        if (response.success && response.data) {
+          return response.data;
+        }
+        return [];
       }
-      return [];
     } catch (err: any) {
       console.error("Error searching plugins:", err);
       return [];
@@ -91,24 +103,45 @@ export const usePlugins = () => {
   // Save plugin key
   const savePluginKey = async (pluginId: string, key: string): Promise<boolean> => {
     try {
-      const response = await $fetch<ApiResponse<any>>(`/api/plugins/${pluginId}/key`, {
-        method: "POST",
-        body: { key },
-      });
+      // Check if we're in Electron environment
+      if (typeof window !== "undefined" && window.electronAPI) {
+        const { savePluginKey: savePluginKeyIPC } = useElectron();
+        const response = await savePluginKeyIPC(pluginId, key);
 
-      if (response.success) {
-        // Update the plugin in the local state
-        const pluginIndex = plugins.value.findIndex((p) => p.id === pluginId);
-        if (pluginIndex !== -1) {
-          const currentPlugin = plugins.value[pluginIndex];
-          plugins.value[pluginIndex] = {
-            ...currentPlugin,
-            key,
-          } as Plugin;
+        if (response.success) {
+          // Update the plugin in the local state
+          const pluginIndex = plugins.value.findIndex((p) => p.id === pluginId);
+          if (pluginIndex !== -1) {
+            const currentPlugin = plugins.value[pluginIndex];
+            plugins.value[pluginIndex] = {
+              ...currentPlugin,
+              key,
+            } as Plugin;
+          }
+          return true;
         }
-        return true;
+        return false;
+      } else {
+        // Fallback to HTTP API for development
+        const response = await $fetch<ApiResponse<any>>(`/api/plugins/${pluginId}/key`, {
+          method: "POST",
+          body: { key },
+        });
+
+        if (response.success) {
+          // Update the plugin in the local state
+          const pluginIndex = plugins.value.findIndex((p) => p.id === pluginId);
+          if (pluginIndex !== -1) {
+            const currentPlugin = plugins.value[pluginIndex];
+            plugins.value[pluginIndex] = {
+              ...currentPlugin,
+              key,
+            } as Plugin;
+          }
+          return true;
+        }
+        return false;
       }
-      return false;
     } catch (err: any) {
       console.error("Error saving plugin key:", err);
       return false;

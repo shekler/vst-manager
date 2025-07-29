@@ -24,6 +24,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   exportPlugins: () => ipcRenderer.invoke("vst:exportPlugins"),
   importPlugins: (fileData: { name: string; content: string }) => ipcRenderer.invoke("vst:importPlugins", fileData),
   getPlugins: () => ipcRenderer.invoke("vst:getPlugins"),
+  scanPlugins: () => ipcRenderer.invoke("vst:scanPlugins"),
+  deletePlugins: () => ipcRenderer.invoke("vst:deletePlugins"),
+  downloadPlugins: () => ipcRenderer.invoke("vst:downloadPlugins"),
+  searchPlugins: (query: string) => ipcRenderer.invoke("vst:searchPlugins", query),
+  savePluginKey: (pluginId: string, key: string) => ipcRenderer.invoke("vst:savePluginKey", pluginId, key),
 
   // Event listeners
   onMenuAction: (callback: (action: string) => void) => {

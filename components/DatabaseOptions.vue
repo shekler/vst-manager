@@ -119,10 +119,8 @@ async function exportPlugins() {
 
 async function downloadFile(filePath: string) {
   try {
-    // Fetch the file content from the server
-    const fileResponse = await $fetch(`/api/vst/download?filePath=${encodeURIComponent(filePath)}`, {
-      method: "GET",
-    });
+    const { downloadPlugins } = useElectron();
+    const fileResponse = await downloadPlugins();
 
     if (fileResponse.success && "data" in fileResponse && fileResponse.data) {
       // Create a blob from the JSON data
