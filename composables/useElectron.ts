@@ -1,16 +1,3 @@
-interface ElectronAPI {
-  openFile: () => Promise<string | null>;
-  getVersion: () => Promise<string>;
-  exportPlugins: () => Promise<any>;
-  importPlugins: (fileData: { name: string; content: string }) => Promise<any>;
-  getPlugins: () => Promise<any>;
-  scanPlugins: () => Promise<any>;
-  deletePlugins: () => Promise<any>;
-  downloadPlugins: () => Promise<any>;
-  searchPlugins: (query: string) => Promise<any>;
-  savePluginKey: (pluginId: string, key: string) => Promise<any>;
-}
-
 export const useElectron = () => {
   // Check if we're running in Electron
   const isElectron = process.client && window?.electronAPI;
@@ -165,6 +152,69 @@ export const useElectron = () => {
     }
   };
 
+  // Settings operations
+  const getSettings = async () => {
+    if (isElectron && window.electronAPI?.getSettings) {
+      try {
+        return await window.electronAPI.getSettings();
+      } catch (error) {
+        console.error("Failed to get settings:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch("/api/settings");
+    }
+  };
+
+  const getSetting = async (key: string) => {
+    if (isElectron && window.electronAPI?.getSetting) {
+      try {
+        return await window.electronAPI.getSetting(key);
+      } catch (error) {
+        console.error("Failed to get setting:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch(`/api/settings/${key}`);
+    }
+  };
+
+  const updateSetting = async (key: string, value: string) => {
+    if (isElectron && window.electronAPI?.updateSetting) {
+      try {
+        return await window.electronAPI.updateSetting(key, value);
+      } catch (error) {
+        console.error("Failed to update setting:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch(`/api/settings/${key}`, {
+        method: "PUT",
+        body: { value },
+      });
+    }
+  };
+
+  const validatePaths = async (paths: string[]) => {
+    if (isElectron && window.electronAPI?.validatePaths) {
+      try {
+        return await window.electronAPI.validatePaths(paths);
+      } catch (error) {
+        console.error("Failed to validate paths:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - use HTTP API
+      return await $fetch("/api/settings/validate-paths", {
+        method: "POST",
+        body: { paths },
+      });
+    }
+  };
+
   return {
     isElectron,
     openFileExplorer,
@@ -177,5 +227,9 @@ export const useElectron = () => {
     downloadPlugins,
     searchPlugins,
     savePluginKey,
+    getSettings,
+    getSetting,
+    updateSetting,
+    validatePaths,
   };
 };

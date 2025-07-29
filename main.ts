@@ -5,6 +5,8 @@ import { createServer } from "http";
 import { createReadStream } from "fs";
 import { extname } from "path";
 import { setupVstIPC } from "./server/api/vst-operations";
+import { setupPluginsIPC } from "./server/api/plugins-operations";
+import { setupSettingsIPC } from "./server/api/settings-operations";
 
 let mainWindow: BrowserWindow;
 let staticServer: any;
@@ -147,6 +149,8 @@ ipcMain.handle("store-set", (_event, key, value) => {
 
 app.whenReady().then(() => {
   setupVstIPC();
+  setupPluginsIPC();
+  setupSettingsIPC();
   createWindow();
 });
 

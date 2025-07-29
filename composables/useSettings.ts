@@ -11,6 +11,7 @@ interface ApiResponse<T> {
   success: boolean;
   data?: T;
   message?: string;
+  error?: string;
 }
 
 export const useSettings = () => {
@@ -24,11 +25,30 @@ export const useSettings = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<Setting[]>>("/api/settings");
-      if (response.success && response.data) {
-        settings.value = response.data;
+      // Check if we're in Electron environment
+      if (typeof window !== "undefined" && window.electronAPI) {
+        // Use Electron IPC to get settings from the database
+        console.log("Using Electron IPC for settings fetching");
+        const { getSettings } = useElectron();
+        const response = (await getSettings()) as ApiResponse<Setting[]>;
+        console.log("Electron API response:", response);
+        if (response.success && response.data) {
+          settings.value = response.data;
+          console.log(`Loaded ${response.data.length} settings via Electron IPC`);
+        } else {
+          throw new Error(response.error || "Failed to fetch settings");
+        }
       } else {
-        throw new Error("Failed to fetch settings");
+        // Fallback to HTTP API for development
+        console.log("Using HTTP API for settings fetching");
+        const response = await $fetch<ApiResponse<Setting[]>>("/api/settings");
+        console.log("API response:", response);
+        if (response.success && response.data) {
+          settings.value = response.data;
+          console.log(`Loaded ${response.data.length} settings`);
+        } else {
+          throw new Error("Failed to fetch settings");
+        }
       }
     } catch (err: any) {
       error.value = err.message || "Failed to fetch settings";
@@ -41,11 +61,22 @@ export const useSettings = () => {
   // Get setting by key
   const getSetting = async (key: string): Promise<Setting | null> => {
     try {
-      const response = await $fetch<ApiResponse<Setting>>(`/api/settings/${key}`);
-      if (response.success && response.data) {
-        return response.data;
+      // Check if we're in Electron environment
+      if (typeof window !== "undefined" && window.electronAPI) {
+        const { getSetting: getSettingIPC } = useElectron();
+        const response = (await getSettingIPC(key)) as ApiResponse<Setting>;
+        if (response.success && response.data) {
+          return response.data;
+        }
+        return null;
+      } else {
+        // Fallback to HTTP API for development
+        const response = await $fetch<ApiResponse<Setting>>(`/api/settings/${key}`);
+        if (response.success && response.data) {
+          return response.data;
+        }
+        return null;
       }
-      return null;
     } catch (err: any) {
       console.error("Error fetching setting:", err);
       return null;
@@ -58,25 +89,48 @@ export const useSettings = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<ApiResponse<Setting>>(`/api/settings/${key}`, {
-        method: "PUT",
-        body: { value },
-      });
+      // Check if we're in Electron environment
+      if (typeof window !== "undefined" && window.electronAPI) {
+        const { updateSetting: updateSettingIPC } = useElectron();
+        const response = (await updateSettingIPC(key, value)) as ApiResponse<Setting>;
 
-      if (response.success && response.data) {
-        // Update the local settings array
-        const index = settings.value.findIndex((s) => s.key === key);
-        if (index !== -1) {
-          settings.value[index] = response.data;
+        if (response.success && response.data) {
+          // Update the local settings array
+          const index = settings.value.findIndex((s) => s.key === key);
+          if (index !== -1) {
+            settings.value[index] = response.data;
+          }
+
+          return {
+            success: true,
+            data: response.data,
+            message: response.message,
+          };
+        } else {
+          throw new Error(response.error || "Failed to update setting");
         }
-
-        return {
-          success: true,
-          data: response.data,
-          message: response.message,
-        };
       } else {
-        throw new Error("Failed to update setting");
+        // Fallback to HTTP API for development
+        const response = await $fetch<ApiResponse<Setting>>(`/api/settings/${key}`, {
+          method: "PUT",
+          body: { value },
+        });
+
+        if (response.success && response.data) {
+          // Update the local settings array
+          const index = settings.value.findIndex((s) => s.key === key);
+          if (index !== -1) {
+            settings.value[index] = response.data;
+          }
+
+          return {
+            success: true,
+            data: response.data,
+            message: response.message,
+          };
+        } else {
+          throw new Error("Failed to update setting");
+        }
       }
     } catch (err: any) {
       error.value = err.message || "Failed to update setting";
@@ -102,15 +156,28 @@ export const useSettings = () => {
   // Validate paths
   const validatePaths = async (paths: string[]): Promise<Array<{ path: string; exists: boolean; error?: string }>> => {
     try {
-      const response = await $fetch<ApiResponse<Array<{ path: string; exists: boolean; error?: string }>>>("/api/settings/validate-paths", {
-        method: "POST",
-        body: { paths },
-      });
+      // Check if we're in Electron environment
+      if (typeof window !== "undefined" && window.electronAPI) {
+        const { validatePaths: validatePathsIPC } = useElectron();
+        const response = (await validatePathsIPC(paths)) as ApiResponse<Array<{ path: string; exists: boolean; error?: string }>>;
 
-      if (response.success && response.data) {
-        return response.data;
+        if (response.success && response.data) {
+          return response.data;
+        } else {
+          throw new Error(response.error || "Failed to validate paths");
+        }
       } else {
-        throw new Error("Failed to validate paths");
+        // Fallback to HTTP API for development
+        const response = await $fetch<ApiResponse<Array<{ path: string; exists: boolean; error?: string }>>>("/api/settings/validate-paths", {
+          method: "POST",
+          body: { paths },
+        });
+
+        if (response.success && response.data) {
+          return response.data;
+        } else {
+          throw new Error("Failed to validate paths");
+        }
       }
     } catch (err: any) {
       console.error("Error validating paths:", err);

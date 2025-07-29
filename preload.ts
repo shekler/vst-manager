@@ -23,12 +23,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // VST operations
   exportPlugins: () => ipcRenderer.invoke("vst:exportPlugins"),
   importPlugins: (fileData: { name: string; content: string }) => ipcRenderer.invoke("vst:importPlugins", fileData),
-  getPlugins: () => ipcRenderer.invoke("vst:getPlugins"),
   scanPlugins: () => ipcRenderer.invoke("vst:scanPlugins"),
   deletePlugins: () => ipcRenderer.invoke("vst:deletePlugins"),
   downloadPlugins: () => ipcRenderer.invoke("vst:downloadPlugins"),
-  searchPlugins: (query: string) => ipcRenderer.invoke("vst:searchPlugins", query),
-  savePluginKey: (pluginId: string, key: string) => ipcRenderer.invoke("vst:savePluginKey", pluginId, key),
+
+  // Plugins operations
+  getPlugins: () => ipcRenderer.invoke("plugins:getPlugins"),
+  searchPlugins: (query: string) => ipcRenderer.invoke("plugins:searchPlugins", query),
+  savePluginKey: (pluginId: string, key: string) => ipcRenderer.invoke("plugins:savePluginKey", pluginId, key),
+
+  // Settings operations
+  getSettings: () => ipcRenderer.invoke("settings:getSettings"),
+  getSetting: (key: string) => ipcRenderer.invoke("settings:getSetting", key),
+  updateSetting: (key: string, value: string) => ipcRenderer.invoke("settings:updateSetting", key, value),
+  validatePaths: (paths: string[]) => ipcRenderer.invoke("settings:validatePaths", paths),
 
   // Event listeners
   onMenuAction: (callback: (action: string) => void) => {
