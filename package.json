@@ -12,9 +12,9 @@
     "build:electron": "tsc -p tsconfig.electron.json",
 
     "start": "electron .",
-    "package": "npm run build && npm run build:electron && electron-forge package",
-    "make": "npm run build && npm run build:electron && electron-forge make",
-    "publish": "npm run build && npm run build:electron && electron-forge publish"
+    "package": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge package",
+    "make": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge make",
+    "publish": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge publish"
   },
   "dependencies": {
     "@nuxt/devtools": "^2.6.2",

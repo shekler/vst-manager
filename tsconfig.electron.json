@@ -10,6 +10,14 @@
   },
   "include": [
     "main.ts",
-    "preload.ts"
+    "preload.ts",
+    "server/api/vst-operations.ts",
+    "server/api/database.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".nuxt",
+    ".output",
+    "dist"
   ]
 }
