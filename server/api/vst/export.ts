@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { runQuery } from "../database";
 
 export default defineEventHandler(async (event) => {
