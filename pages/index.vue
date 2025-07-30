@@ -58,9 +58,28 @@
       <p class="text-pretty">This is an alpha version. Bugs and errors might occur. If you want to submit a bug, you can do so in <a href="https://github.com/shekler/vst-manager/issues" target="_blank" class="text-powder hover:text-red font-bold underline duration-200">GitHub</a>.</p>
     </div>
 
+    <!-- Debug Section (only in development) -->
+    <div v-if="isDevelopment" class="from-onyx to-onyx/50 mb-4 rounded-lg bg-gradient-to-br p-4">
+      <h3 class="text-powder/90 mb-2 text-lg font-bold">Debug Info</h3>
+      <div class="flex gap-2">
+        <button @click="debugElectronAPI" class="c-button c-button--clear">Debug Electron API</button>
+        <button @click="fetchPlugins" class="c-button c-button--clear">Refresh Plugins</button>
+        <span class="text-powder/50 text-sm">Electron: {{ isElectron ? "Yes" : "No" }}</span>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div v-if="loading" class="mt-8 text-center">
       <div class="text-powder/50 text-lg"><IconLoader2 class="animate-spin" /> Loading plugins...</div>
+    </div>
+
+    <!-- Error State -->
+    <div v-if="error" class="mt-8 text-center">
+      <div class="bg-red/10 border-red text-red rounded-lg border p-4">
+        <div class="mb-2 text-lg font-bold">Error Loading Plugins</div>
+        <div class="text-sm">{{ error }}</div>
+        <button @click="fetchPlugins" class="c-button c-button--red mt-4">Retry</button>
+      </div>
     </div>
 
     <!-- Plugin Grid -->
@@ -145,11 +164,58 @@ const { plugins, loading, error, fetchPlugins, savePluginKey } = usePlugins();
 const { success, error: showError } = useToast();
 
 // Use Electron composable
-const { openFileExplorer } = useElectron();
+const { openFileExplorer, isElectron } = useElectron();
+
+// Development mode check
+const isDevelopment = computed(() => process.env.NODE_ENV === "development");
+
+// Debug function to test Electron API
+const debugElectronAPI = async () => {
+  console.log("=== Electron API Debug ===");
+  console.log("isElectron:", isElectron);
+  console.log("window.electronAPI:", typeof window !== "undefined" ? window.electronAPI : "window not available");
+  console.log("process.client:", process.client);
+
+  if (typeof window !== "undefined" && window.electronAPI) {
+    console.log("Available methods:", Object.keys(window.electronAPI));
+
+    try {
+      const version = await window.electronAPI.getVersion();
+      console.log("App version:", version);
+    } catch (err) {
+      console.error("Error getting version:", err);
+    }
+  }
+
+  console.log("=== End Debug ===");
+};
 
 // Fetch plugins on client-side since SSR is disabled
-onMounted(() => {
-  fetchPlugins();
+onMounted(async () => {
+  // Add a small delay to ensure Electron API is properly initialized
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  // Try to fetch plugins with retry mechanism
+  let retryCount = 0;
+  const maxRetries = 3;
+
+  const attemptFetch = async () => {
+    try {
+      await fetchPlugins();
+    } catch (err) {
+      console.error(`Fetch attempt ${retryCount + 1} failed:`, err);
+      retryCount++;
+
+      if (retryCount < maxRetries) {
+        console.log(`Retrying in 1 second... (${retryCount}/${maxRetries})`);
+        setTimeout(attemptFetch, 1000);
+      } else {
+        console.error("Max retries reached, giving up");
+      }
+    }
+  };
+
+  await attemptFetch();
 });
 
 // Additional reactive state

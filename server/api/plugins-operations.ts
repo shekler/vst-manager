@@ -1,21 +1,5 @@
 import { runQuery, runCommand, initializeDatabase, syncPluginsFromJson } from "./database";
-
-// Conditionally import Electron modules
-let ipcMain: any;
-
-// Only import Electron modules if we're in an Electron environment
-if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
-  // Skip Electron imports in web development
-  console.log("Running in web development mode, skipping Electron imports");
-} else {
-  try {
-    const electron = require("electron");
-    ipcMain = electron.ipcMain;
-  } catch (error) {
-    // Electron not available, continue without it
-    console.log("Electron not available, running in web mode");
-  }
-}
+import { ipcMain } from "./electron-utils";
 
 // Get all plugins from database
 export const getPlugins = async () => {

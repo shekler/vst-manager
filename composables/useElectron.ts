@@ -1,6 +1,6 @@
 export const useElectron = () => {
-  // Check if we're running in Electron
-  const isElectron = process.client && window?.electronAPI;
+  // Check if we're running in Electron with better detection
+  const isElectron = process.client && typeof window !== "undefined" && window.electronAPI && typeof window.electronAPI.getPlugins === "function";
 
   // Electron-specific functions
   const openFileExplorer = async (path: string) => {
@@ -68,13 +68,17 @@ export const useElectron = () => {
   const getPlugins = async () => {
     if (isElectron && window.electronAPI?.getPlugins) {
       try {
-        return await window.electronAPI.getPlugins();
+        console.log("Calling Electron IPC getPlugins...");
+        const result = await window.electronAPI.getPlugins();
+        console.log("Electron IPC getPlugins result:", result);
+        return result;
       } catch (error) {
-        console.error("Failed to get plugins:", error);
+        console.error("Failed to get plugins via Electron IPC:", error);
         throw error;
       }
     } else {
-      // Fallback for web version - use HTTP API
+      // Fallback to HTTP API for development
+      console.log("Falling back to HTTP API for getPlugins...");
       return await $fetch("/api/plugins");
     }
   };

@@ -40,10 +40,12 @@ export const usePlugins = () => {
     error.value = null;
 
     try {
-      console.log("Fetching plugins via Electron IPC...");
+      console.log("Fetching plugins...");
 
-      // Check if we're in Electron environment
-      if (typeof window !== "undefined" && window.electronAPI) {
+      // Check if we're in Electron environment with better detection
+      const isElectron = process.client && typeof window !== "undefined" && window.electronAPI && typeof window.electronAPI.getPlugins === "function";
+
+      if (isElectron) {
         // Use Electron IPC to get plugins from the database
         console.log("Using Electron IPC for plugin fetching");
         const { getPlugins } = useElectron();
@@ -53,7 +55,7 @@ export const usePlugins = () => {
           plugins.value = response.data;
           console.log(`Loaded ${response.data.length} plugins via Electron IPC`);
         } else {
-          throw new Error((response as any).error || "Failed to fetch plugins");
+          throw new Error((response as any).error || "Failed to fetch plugins via Electron IPC");
         }
       } else {
         // Fallback to HTTP API for development
@@ -64,12 +66,14 @@ export const usePlugins = () => {
           plugins.value = response.data;
           console.log(`Loaded ${response.data.length} plugins`);
         } else {
-          throw new Error("Failed to fetch plugins");
+          throw new Error("Failed to fetch plugins via HTTP API");
         }
       }
     } catch (err: any) {
       error.value = err.message || "Failed to fetch plugins";
       console.error("Error fetching plugins:", err);
+      // Set plugins to empty array on error to prevent infinite loading
+      plugins.value = [];
     } finally {
       loading.value = false;
     }

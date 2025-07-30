@@ -5,25 +5,7 @@ import { promisify } from "util";
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { initializeDatabase, syncPluginsFromJson, runQuery } from "./database";
-
-// Conditionally import Electron modules
-let ipcMain: any;
-let app: any;
-
-// Only import Electron modules if we're in an Electron environment
-if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
-  // Skip Electron imports in web development
-  console.log("Running in web development mode, skipping Electron imports");
-} else {
-  try {
-    const electron = require("electron");
-    ipcMain = electron.ipcMain;
-    app = electron.app;
-  } catch (error) {
-    // Electron not available, continue without it
-    console.log("Electron not available, running in web mode");
-  }
-}
+import { isElectron, app, ipcMain, getDataDir, getScannerPath } from "./electron-utils";
 
 const execAsync = promisify(exec);
 
@@ -60,8 +42,8 @@ export const exportPlugins = async () => {
     updatedAt: plugin.updatedAt,
   }));
 
-  // Ensure data directory exists
-  const dataDir = process.env.NODE_ENV === "development" ? "data" : app && app.getPath ? path.join(app.getPath("userData"), "data") : "data";
+  // Ensure data directory exists - use shared utility
+  const dataDir = getDataDir();
   await mkdir(dataDir, { recursive: true });
 
   const filePath = path.join(dataDir, "exported-plugins.json");
@@ -105,7 +87,7 @@ export const importPlugins = async (fileData: { name: string; content: string })
   }
 
   // Ensure data directory exists
-  const dataDir = process.env.NODE_ENV === "development" ? "data" : app && app.getPath ? path.join(app.getPath("userData"), "data") : "data";
+  const dataDir = getDataDir();
   await mkdir(dataDir, { recursive: true });
 
   // Create the proper format for scanned-plugins.json
@@ -127,8 +109,9 @@ export const importPlugins = async (fileData: { name: string; content: string })
 export const scanPlugins = async () => {
   console.log("Scanning plugins...");
   try {
-    const scannerPath = process.env.NODE_ENV === "development" ? "tools/vst_scanner.exe" : path.join(process.resourcesPath, "tools/vst_scanner.exe");
-    const outputPath = process.env.NODE_ENV === "development" ? "data/scanned-plugins.json" : app && app.getPath ? path.join(app.getPath("userData"), "data", "scanned-plugins.json") : "data/scanned-plugins.json";
+    // Use shared utilities for path logic
+    const scannerPath = getScannerPath();
+    const outputPath = path.join(getDataDir(), "scanned-plugins.json");
 
     // Fetch VST paths from settings
     let vstPathsSetting;
@@ -171,7 +154,7 @@ export const scanPlugins = async () => {
     for (const directoryPath of directoryPaths) {
       try {
         // Create a temporary output file for each directory scan
-        const tempOutputPath = process.env.NODE_ENV === "development" ? `data/temp-scan-${Date.now()}.json` : app && app.getPath ? path.join(app.getPath("userData"), "data", `temp-scan-${Date.now()}.json`) : `data/temp-scan-${Date.now()}.json`;
+        const tempOutputPath = path.join(getDataDir(), `temp-scan-${Date.now()}.json`);
 
         const command = `"${scannerPath}" "${directoryPath}" -o "${tempOutputPath}"`;
         console.log(`Executing command: ${command}`);
@@ -219,7 +202,7 @@ export const scanPlugins = async () => {
     };
 
     // Ensure data directory exists before writing
-    const dataDir = process.env.NODE_ENV === "development" ? "data" : app && app.getPath ? path.join(app.getPath("userData"), "data") : "data";
+    const dataDir = getDataDir();
     await mkdir(dataDir, { recursive: true });
 
     // Write the combined results to the scanned-plugins.json file

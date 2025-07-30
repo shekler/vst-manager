@@ -8,6 +8,9 @@ import { setupVstIPC } from "./server/api/vst-operations";
 import { setupPluginsIPC } from "./server/api/plugins-operations";
 import { setupSettingsIPC } from "./server/api/settings-operations";
 
+// Import database initialization
+import { initializeDatabase } from "./server/api/database";
+
 let mainWindow: BrowserWindow;
 let staticServer: any;
 
@@ -68,7 +71,19 @@ const createWindow = (): void => {
       nodeIntegration: false,
       contextIsolation: true,
       preload: process.env.NODE_ENV === "development" ? path.join(__dirname, "preload.js") : path.join(__dirname, "preload.js"),
+      webSecurity: true,
+      allowRunningInsecureContent: false,
     },
+  });
+
+  // Set CSP headers for security
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": ["default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:*;"],
+      },
+    });
   });
 
   if (process.env.NODE_ENV === "development") {
@@ -147,7 +162,17 @@ ipcMain.handle("store-set", (_event, key, value) => {
   store.set(key, value);
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Initialize database on app startup
+  try {
+    console.log("Initializing database on app startup...");
+    await initializeDatabase();
+    console.log("Database initialized successfully on startup");
+  } catch (error) {
+    console.error("Failed to initialize database on startup:", error);
+    // Don't throw here - let the app continue even if database init fails
+  }
+
   setupVstIPC();
   setupPluginsIPC();
   setupSettingsIPC();

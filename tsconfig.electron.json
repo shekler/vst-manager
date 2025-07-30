@@ -12,7 +12,10 @@
     "main.ts",
     "preload.ts",
     "server/api/vst-operations.ts",
-    "server/api/database.ts"
+    "server/api/plugins-operations.ts",
+    "server/api/settings-operations.ts",
+    "server/api/database.ts",
+    "server/api/electron-utils.ts"
   ],
   "exclude": [
     "node_modules",

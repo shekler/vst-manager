@@ -1,27 +1,10 @@
 import sqlite3 from "sqlite3";
-import path from "path";
 import { readFile } from "node:fs/promises";
 import { mkdir } from "node:fs/promises";
+import path from "path";
+import { getDbPath, getScannedPluginsPath } from "./electron-utils";
 
-// Conditionally import Electron modules
-let app: any;
-
-// Only import Electron modules if we're in an Electron environment
-if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
-  // Skip Electron imports in web development
-  console.log("Running in web development mode, skipping Electron imports");
-} else {
-  try {
-    const electron = require("electron");
-    app = electron.app;
-  } catch (error) {
-    // Electron not available, continue without it
-    console.log("Electron not available, running in web mode");
-  }
-}
-
-// Database connection
-const dbPath = process.env.NODE_ENV === "development" ? "data/plugins.db" : app && app.getPath ? path.join(app.getPath("userData"), "data", "plugins.db") : "data/plugins.db";
+const dbPath = getDbPath();
 
 // Singleton database instance
 let dbInstance: sqlite3.Database | null = null;
@@ -63,9 +46,17 @@ export async function initializeDatabase() {
   }
 
   try {
+    console.log("Initializing database at:", dbPath);
+
     // Ensure data directory exists
     const dataDir = path.dirname(dbPath);
-    await mkdir(dataDir, { recursive: true });
+    try {
+      await mkdir(dataDir, { recursive: true });
+      console.log("Database directory created/verified:", dataDir);
+    } catch (mkdirError) {
+      console.error("Error creating database directory:", mkdirError);
+      throw mkdirError;
+    }
 
     // Create settings table if it doesn't exist
     await addSettingsTable();
@@ -98,10 +89,10 @@ export async function initializeDatabase() {
         `,
           (err) => {
             if (err) {
-              console.error("Error creating table:", err);
+              console.error("Error creating plugins table:", err);
               reject(err);
             } else {
-              console.log("Table created successfully");
+              console.log("Plugins table created/verified successfully");
               isInitialized = true;
               resolve();
             }
@@ -133,13 +124,32 @@ export async function testDatabaseConnection(): Promise<boolean> {
 // Sync plugins from JSON to database
 export async function syncPluginsFromJson() {
   try {
-    const jsonPath = process.env.NODE_ENV === "development" ? "data/scanned-plugins.json" : path.join(app.getPath("userData"), "data", "scanned-plugins.json");
+    // Use the shared utility for path logic
+    const jsonPath = getScannedPluginsPath();
+
+    console.log("Attempting to sync plugins from JSON file:", jsonPath);
+
+    // Check if JSON file exists
+    try {
+      await readFile(jsonPath, "utf8");
+    } catch (fileError: any) {
+      if (fileError.code === "ENOENT") {
+        console.log("JSON file not found, skipping sync. This is normal for new installations.");
+        return; // File doesn't exist, which is normal for new installations
+      } else {
+        throw fileError;
+      }
+    }
+
     const jsonData = await readFile(jsonPath, "utf8");
     const data = JSON.parse(jsonData);
 
     if (!data.plugins || !Array.isArray(data.plugins)) {
-      throw new Error("Invalid plugins data in JSON file");
+      console.log("Invalid plugins data in JSON file, skipping sync");
+      return;
     }
+
+    console.log(`Found ${data.plugins.length} plugins in JSON file, syncing to database...`);
 
     const db = getDatabase();
 
@@ -244,7 +254,8 @@ export async function syncPluginsFromJson() {
     });
   } catch (error) {
     console.error("Error syncing plugins from JSON:", error);
-    throw error;
+    // Don't throw error, just log it and continue
+    console.log("Continuing without JSON sync...");
   }
 }
 
