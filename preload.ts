@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   scanPlugins: () => ipcRenderer.invoke("vst:scanPlugins"),
   deletePlugins: () => ipcRenderer.invoke("vst:deletePlugins"),
   downloadPlugins: () => ipcRenderer.invoke("vst:downloadPlugins"),
+  checkPermissions: () => ipcRenderer.invoke("vst:checkPermissions"),
 
   // Plugins operations
   getPlugins: () => ipcRenderer.invoke("plugins:getPlugins"),

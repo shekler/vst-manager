@@ -219,6 +219,20 @@ export const useElectron = () => {
     }
   };
 
+  const checkPermissions = async () => {
+    if (isElectron && window.electronAPI?.checkPermissions) {
+      try {
+        return await window.electronAPI.checkPermissions();
+      } catch (error) {
+        console.error("Failed to check permissions:", error);
+        throw error;
+      }
+    } else {
+      // Fallback for web version - return basic check
+      return { success: true, checks: { webMode: true } };
+    }
+  };
+
   return {
     isElectron,
     openFileExplorer,
@@ -235,5 +249,6 @@ export const useElectron = () => {
     getSetting,
     updateSetting,
     validatePaths,
+    checkPermissions,
   };
 };

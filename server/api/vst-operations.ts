@@ -1,13 +1,180 @@
 import path from "path";
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, access } from "node:fs/promises";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync, constants } from "fs";
 import { initializeDatabase, syncPluginsFromJson, runQuery } from "./database";
-import { isElectron, app, ipcMain, getDataDir, getScannerPath } from "./electron-utils";
+import { ipcMain, getDataDir, getScannerPath } from "./electron-utils";
 
 const execAsync = promisify(exec);
+
+// Permission check function for write operations
+export const checkWritePermissions = async () => {
+  const dataDir = getDataDir();
+  const scannerPath = getScannerPath();
+
+  const checks = {
+    dataDirectory: {
+      path: dataDir,
+      exists: false,
+      writable: false,
+      error: null as string | null,
+    },
+    scannerExecutable: {
+      path: scannerPath,
+      exists: false,
+      executable: false,
+      error: null as string | null,
+    },
+    testFile: {
+      path: path.join(dataDir, "permission-test.txt"),
+      writable: false,
+      error: null as string | null,
+    },
+  };
+
+  try {
+    // Check if data directory exists and is writable
+    try {
+      await access(dataDir, constants.F_OK);
+      checks.dataDirectory.exists = true;
+
+      try {
+        await access(dataDir, constants.W_OK);
+        checks.dataDirectory.writable = true;
+      } catch (error) {
+        checks.dataDirectory.error = "Directory exists but is not writable";
+      }
+    } catch (error) {
+      checks.dataDirectory.error = "Directory does not exist";
+    }
+
+    // Check if scanner executable exists and is executable
+    try {
+      await access(scannerPath, constants.F_OK);
+      checks.scannerExecutable.exists = true;
+
+      try {
+        await access(scannerPath, constants.X_OK);
+        checks.scannerExecutable.executable = true;
+      } catch (error) {
+        checks.scannerExecutable.error = "File exists but is not executable";
+      }
+    } catch (error) {
+      checks.scannerExecutable.error = "Scanner executable not found";
+    }
+
+    // Test write permission by creating a test file
+    try {
+      await mkdir(dataDir, { recursive: true });
+      await writeFile(checks.testFile.path, "test", "utf-8");
+      checks.testFile.writable = true;
+
+      // Clean up test file
+      try {
+        const { unlink } = await import("node:fs/promises");
+        await unlink(checks.testFile.path);
+      } catch (cleanupError) {
+        console.warn("Could not clean up test file:", cleanupError);
+      }
+    } catch (error) {
+      checks.testFile.error = "Cannot write to data directory";
+    }
+
+    return {
+      success: checks.dataDirectory.writable && checks.scannerExecutable.executable && checks.testFile.writable,
+      checks,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error during permission check",
+      checks,
+    };
+  }
+};
+
+// Permission check function for read operations (scanning)
+export const checkReadPermissions = async () => {
+  const scannerPath = getScannerPath();
+  const dataDir = getDataDir();
+
+  console.log("Checking read permissions:");
+  console.log("Scanner path:", scannerPath);
+  console.log("Data directory:", dataDir);
+
+  const checks = {
+    scannerExecutable: {
+      path: scannerPath,
+      exists: false,
+      executable: false,
+      error: null as string | null,
+    },
+    dataDirectory: {
+      path: dataDir,
+      exists: false,
+      readable: false,
+      error: null as string | null,
+    },
+    // Note: VST directory access is handled by Electron's File System Access API
+    // through the 'file-system-access-restricted' event in main.ts
+  };
+
+  try {
+    // Check if scanner executable exists and is executable
+    try {
+      await access(scannerPath, constants.F_OK);
+      checks.scannerExecutable.exists = true;
+      console.log("Scanner executable exists");
+
+      try {
+        await access(scannerPath, constants.X_OK);
+        checks.scannerExecutable.executable = true;
+        console.log("Scanner executable is executable");
+      } catch (error) {
+        checks.scannerExecutable.error = "File exists but is not executable";
+        console.error("Scanner executable not executable:", error);
+      }
+    } catch (error) {
+      checks.scannerExecutable.error = `Scanner executable not found at: ${scannerPath}`;
+      console.error("Scanner executable not found:", error);
+    }
+
+    // Check if data directory exists and is readable
+    try {
+      await access(dataDir, constants.F_OK);
+      checks.dataDirectory.exists = true;
+      console.log("Data directory exists");
+
+      try {
+        await access(dataDir, constants.R_OK);
+        checks.dataDirectory.readable = true;
+        console.log("Data directory is readable");
+      } catch (error) {
+        checks.dataDirectory.error = "Directory exists but is not readable";
+        console.error("Data directory not readable:", error);
+      }
+    } catch (error) {
+      checks.dataDirectory.error = "Data directory does not exist";
+      console.error("Data directory does not exist:", error);
+    }
+
+    const success = checks.scannerExecutable.executable && checks.dataDirectory.readable;
+    console.log("Permission check result:", success ? "SUCCESS" : "FAILED");
+
+    return {
+      success,
+      checks,
+    };
+  } catch (error) {
+    console.error("Unexpected error during permission check:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error during permission check",
+      checks,
+    };
+  }
+};
 
 export const exportPlugins = async () => {
   const plugins = await runQuery(`
@@ -109,6 +276,17 @@ export const importPlugins = async (fileData: { name: string; content: string })
 export const scanPlugins = async () => {
   console.log("Scanning plugins...");
   try {
+    // Check permissions first
+    const permissionCheck = await checkReadPermissions();
+    if (!permissionCheck.success) {
+      console.error("Permission check failed:", permissionCheck);
+      return {
+        success: false,
+        error: "Scanner executable access denied. Please check permissions.",
+        permissionDetails: permissionCheck,
+      };
+    }
+
     // Use shared utilities for path logic
     const scannerPath = getScannerPath();
     const outputPath = path.join(getDataDir(), "scanned-plugins.json");
@@ -136,17 +314,6 @@ export const scanPlugins = async () => {
       .split(",")
       .map((path: string) => path.trim())
       .filter((path: string) => path.length > 0);
-
-    console.log("Parsed directory paths:", directoryPaths);
-
-    if (directoryPaths.length === 0) {
-      return {
-        success: false,
-        error: "No valid VST paths configured. Please set up paths in Settings first.",
-      };
-    }
-
-    console.log(`Scanning ${directoryPaths.length} VST directories:`, directoryPaths);
 
     // Scan each directory and combine results
     let allResults: any[] = [];
@@ -311,6 +478,22 @@ export function setupVstIPC() {
   ipcMain.handle("vst:downloadPlugins", async () => {
     try {
       return await downloadPlugins();
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("vst:checkPermissions", async () => {
+    try {
+      return await checkWritePermissions();
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("vst:checkReadPermissions", async () => {
+    try {
+      return await checkReadPermissions();
     } catch (error: any) {
       return { success: false, error: error.message };
     }

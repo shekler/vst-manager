@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, protocol, session } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import { createServer } from "http";
@@ -71,19 +71,24 @@ const createWindow = (): void => {
       nodeIntegration: false,
       contextIsolation: true,
       preload: process.env.NODE_ENV === "development" ? path.join(__dirname, "preload.js") : path.join(__dirname, "preload.js"),
-      webSecurity: true,
+      webSecurity: false, // Allow local file access for VST scanning
       allowRunningInsecureContent: false,
     },
   });
 
-  // Set CSP headers for security
+  // Set CSP headers for security - relaxed for file access
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        "Content-Security-Policy": ["default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:*;"],
+        "Content-Security-Policy": ["default-src 'self' file:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: file:; font-src 'self' data: file:; connect-src 'self' http://localhost:* file:; object-src 'none';"],
       },
     });
+  });
+
+  // Additional security: Prevent new window creation
+  mainWindow.webContents.setWindowOpenHandler(() => {
+    return { action: "deny" };
   });
 
   if (process.env.NODE_ENV === "development") {
@@ -163,6 +168,78 @@ ipcMain.handle("store-set", (_event, key, value) => {
 });
 
 app.whenReady().then(async () => {
+  // Register file protocol for local file access
+  protocol.registerFileProtocol("file", (request, callback) => {
+    const filePath = request.url.replace("file://", "");
+    callback(filePath);
+  });
+
+  // Set up permission request handler for basic permissions
+  // Note: File System Access API permissions are handled via the 'file-system-access-restricted' event
+  // This handler covers other web permissions like fullscreen, notifications, etc.
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const url = webContents?.getURL() || "unknown";
+    console.log(`Permission request: ${permission} from ${url}`, details);
+
+    // Handle basic permissions needed for the app
+    switch (permission) {
+      case "fullscreen":
+      case "notifications":
+      case "media":
+        callback(true);
+        break;
+      default:
+        console.log(`Permission ${permission} denied by default`);
+        callback(false);
+    }
+  });
+
+  // Set up permission check handler for basic permissions
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    const url = webContents?.getURL() || "unknown";
+    console.log(`Permission check: ${permission} from ${requestingOrigin}`, details);
+
+    // Handle basic permission checks
+    switch (permission) {
+      case "fullscreen":
+      case "notifications":
+      case "media":
+        return true;
+      default:
+        return false;
+    }
+  });
+
+  // Handle file system access restrictions for VST scanning (legacy approach)
+  session.defaultSession.on("file-system-access-restricted", async (event, details, callback) => {
+    const { origin, path: filePath, isDirectory } = details;
+    console.log(`File system access restricted: ${origin} trying to access ${filePath} (directory: ${isDirectory})`);
+
+    // Allow access to VST directories and scanner executable
+    if (isDirectory || filePath.includes("vst") || filePath.includes("VST") || filePath.includes("plugin") || filePath.includes("Plugin")) {
+      console.log(`Allowing access to VST-related path: ${filePath}`);
+      callback("allow");
+    } else {
+      // For other paths, show a dialog to let user decide
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: "question",
+        buttons: ["Allow", "Deny", "Choose Different Path"],
+        defaultId: 0,
+        title: "File System Access Request",
+        message: `Allow ${origin} to access ${filePath}?`,
+        detail: "This is required for VST plugin scanning functionality.",
+      });
+
+      if (response === 0) {
+        callback("allow");
+      } else if (response === 1) {
+        callback("deny");
+      } else {
+        callback("tryAgain");
+      }
+    }
+  });
+
   // Initialize database on app startup
   try {
     console.log("Initializing database on app startup...");

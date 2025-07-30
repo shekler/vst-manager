@@ -22,6 +22,7 @@ interface ElectronAPI {
   scanPlugins: () => Promise<any>;
   deletePlugins: () => Promise<any>;
   downloadPlugins: () => Promise<any>;
+  checkPermissions: () => Promise<{ success: boolean; checks?: any; error?: string }>;
 
   // Plugins operations
   getPlugins: () => Promise<{ success: boolean; data?: any[]; count?: number; error?: string }>;

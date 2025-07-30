@@ -2,9 +2,8 @@
   "name": "vst-manager",
   "productName": "VST Manager",
   "version": "0.1.0-alpha",
-  "description": "A plugin manager for the audio plugins",
+  "description": "Plugin manager for the audio plugins",
   "main": "dist/main.js",
-
   "author": "Sven Wolf",
   "scripts": {
     "dev": "nuxi dev",
