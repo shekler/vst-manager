@@ -59,6 +59,7 @@
 import { ref, computed, watch } from "vue";
 import { useSettings } from "~/composables/useSettings";
 import { IconCheck, IconExclamationCircle } from "@tabler/icons-vue";
+import { defaultVstPaths } from "~/utils/constants";
 
 // Use the settings composable
 const { settings, loading, fetchSettings, updateSetting, getSettingValue, getSettingDescription, validatePaths } = useSettings();
@@ -107,7 +108,7 @@ const saveSettings = async () => {
 
 // Reset to default values
 const resetToDefaults = () => {
-  vstPaths.value = "C:\\Program Files\\VSTPlugins,C:\\Program Files (x86)\\VSTPlugins";
+  vstPaths.value = defaultVstPaths;
 };
 
 // Validate paths using the API

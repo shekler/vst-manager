@@ -7,7 +7,7 @@
       <div class="from-onyx to-onyx/50 w-full rounded-lg bg-gradient-to-br p-6">
         <h2 class="text-powder/90 mb-2 text-xl font-bold">Scanning</h2>
         <div class="flex flex-col gap-4">
-          <p class="text-powder/70 text-sm">Scan for VST plugins using the paths configured in <NuxtLink to="/settings" class="text-mint hover:text-powder font-bold underline">Settings</NuxtLink>.</p>
+          <p class="text-powder/70 text-sm">Scan for VST plugins using the paths configured in <NuxtLink to="/settings" class="text-mint hover:text-powder font-bold underline">Settings</NuxtLink>. Depending on your system, the defined paths and the plugins you have installed, the scan might take a while.</p>
           <VstScanner @scan-complete="handleScanComplete" />
         </div>
       </div>

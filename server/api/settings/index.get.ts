@@ -1,4 +1,5 @@
 import { runQuery, initializeDatabase } from "../database";
+import { defaultSettings } from "../../constants";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -40,14 +41,6 @@ export default defineEventHandler(async (event) => {
 
 async function createDefaultSettings() {
   const { runCommand } = await import("../database");
-
-  const defaultSettings = [
-    {
-      key: "vst_paths",
-      value: "C:\\Program Files\\VSTPlugins,C:\\Program Files (x86)\\VSTPlugins",
-      description: "Comma-separated list of directories containing VST plugins",
-    },
-  ];
 
   for (const setting of defaultSettings) {
     await runCommand("INSERT INTO settings (key, value, description) VALUES (?, ?, ?)", [setting.key, setting.value, setting.description]);

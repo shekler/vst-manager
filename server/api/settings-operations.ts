@@ -2,6 +2,7 @@ import { runQuery, runCommand, initializeDatabase } from "./database";
 import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { ipcMain } from "./electron-utils";
+import { defaultSettings } from "../constants";
 
 // Get all settings from database
 export const getSettings = async () => {
@@ -152,14 +153,6 @@ export const validatePaths = async (paths: string[]) => {
 
 // Create default settings
 async function createDefaultSettings() {
-  const defaultSettings = [
-    {
-      key: "vst_paths",
-      value: "C:\\Program Files\\VSTPlugins,C:\\Program Files (x86)\\VSTPlugins",
-      description: "Comma-separated list of directories containing VST plugins",
-    },
-  ];
-
   for (const setting of defaultSettings) {
     await runCommand("INSERT INTO settings (key, value, description) VALUES (?, ?, ?)", [setting.key, setting.value, setting.description]);
   }
