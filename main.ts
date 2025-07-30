@@ -74,11 +74,10 @@ const createWindow = (): void => {
       webSecurity: true,
       allowRunningInsecureContent: false,
     },
-    icon: path.join(__dirname, "public", "icon.png"),
   });
 
   // Set CSP headers for security
-  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details: any, callback: any) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
@@ -129,7 +128,7 @@ ipcMain.handle("dialog-open-file", async () => {
   return null;
 });
 
-ipcMain.handle("dialog-save-file", async (_event, data) => {
+ipcMain.handle("dialog-save-file", async (_event: any, data: any) => {
   const result = await dialog.showSaveDialog(mainWindow, {
     filters: [
       { name: "Text Files", extensions: ["txt"] },
@@ -155,11 +154,11 @@ ipcMain.handle("app-get-platform", () => {
 // Simple store implementation (you might want to use electron-store instead)
 const store = new Map();
 
-ipcMain.handle("store-get", (_event, key) => {
+ipcMain.handle("store-get", (_event: any, key: string) => {
   return store.get(key);
 });
 
-ipcMain.handle("store-set", (_event, key, value) => {
+ipcMain.handle("store-set", (_event: any, key: string, value: any) => {
   store.set(key, value);
 });
 

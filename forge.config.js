@@ -1,35 +1,14 @@
 module.exports = {
   packagerConfig: {
     asar: true,
-    icon: "./public/icon.png",
+    extraResource: ["node_modules", "tools"],
   },
   rebuildConfig: {},
   makers: [
     {
       name: "@electron-forge/maker-squirrel",
       config: {
-        options: {
-          icon: "./public/icon.png",
-        },
-      },
-    },
-    {
-      name: "@electron-forge/maker-zip",
-      platforms: ["darwin"],
-      config: {
-        icon: "./public/icon.png",
-      },
-    },
-    {
-      name: "@electron-forge/maker-deb",
-      config: {
-        icon: "./public/icon.png",
-      },
-    },
-    {
-      name: "@electron-forge/maker-rpm",
-      config: {
-        icon: "./public/icon.png",
+        name: "VST Manager",
       },
     },
   ],
@@ -42,9 +21,7 @@ module.exports = {
   hooks: {
     packageAfterCopy: async (config, buildPath) => {
       // Copy the built main process files to the build directory root
-      const { copyFileSync } = require("fs");
-      const { join } = require("path");
-      const { copySync } = require("fs-extra");
+      const { copyFileSync, copySync } = require("fs");
 
       try {
         console.log("Copying files from dist to build directory...");

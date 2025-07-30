@@ -41,6 +41,10 @@ export const getDataDir = () => {
   }
 };
 
+export const getToolDir = () => {
+  return path.join(process.cwd(), "tools");
+};
+
 // Utility function to get the database path
 export const getDbPath = () => {
   return path.join(getDataDir(), "plugins.db");
@@ -54,5 +58,5 @@ export const getScannedPluginsPath = () => {
 // Utility function to get the scanner path
 export const getScannerPath = () => {
   // Always use the scanner from the project's tools directory
-  return path.join(process.cwd(), "tools", "vst_scanner.exe");
+  return path.join(getToolDir(), "vst_scanner.exe");
 };
