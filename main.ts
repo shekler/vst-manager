@@ -74,6 +74,7 @@ const createWindow = (): void => {
       webSecurity: true,
       allowRunningInsecureContent: false,
     },
+    icon: path.join(__dirname, "public", "icon.png"),
   });
 
   // Set CSP headers for security
