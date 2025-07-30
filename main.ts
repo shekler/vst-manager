@@ -99,6 +99,29 @@ const createWindow = (): void => {
     staticServer = createStaticServer(3001);
     mainWindow.loadURL("http://localhost:3001");
   }
+
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    console.log("Permission requested:", permission, details);
+
+    switch (permission) {
+      case "openExternal":
+      case "media":
+      case "clipboard-read":
+      case "clipboard-sanitized-write":
+        callback(true);
+        break;
+      default:
+        callback(false);
+    }
+  });
+
+  // Also set up file protocol permissions if needed
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    if (permission === "openExternal") {
+      return true;
+    }
+    return false;
+  });
 };
 
 // IPC handlers
@@ -168,49 +191,7 @@ ipcMain.handle("store-set", (_event, key, value) => {
 });
 
 app.whenReady().then(async () => {
-  // Register file protocol for local file access
-  protocol.registerFileProtocol("file", (request, callback) => {
-    const filePath = request.url.replace("file://", "");
-    callback(filePath);
-  });
-
-  // Set up permission request handler for basic permissions
-  // Note: File System Access API permissions are handled via the 'file-system-access-restricted' event
-  // This handler covers other web permissions like fullscreen, notifications, etc.
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
-    const url = webContents?.getURL() || "unknown";
-    console.log(`Permission request: ${permission} from ${url}`, details);
-
-    // Handle basic permissions needed for the app
-    switch (permission) {
-      case "fullscreen":
-      case "notifications":
-      case "media":
-        callback(true);
-        break;
-      default:
-        console.log(`Permission ${permission} denied by default`);
-        callback(false);
-    }
-  });
-
-  // Set up permission check handler for basic permissions
-  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    const url = webContents?.getURL() || "unknown";
-    console.log(`Permission check: ${permission} from ${requestingOrigin}`, details);
-
-    // Handle basic permission checks
-    switch (permission) {
-      case "fullscreen":
-      case "notifications":
-      case "media":
-        return true;
-      default:
-        return false;
-    }
-  });
-
-  // Handle file system access restrictions for VST scanning (legacy approach)
+  // Handle file system access restrictions for VST scanning
   session.defaultSession.on("file-system-access-restricted", async (event, details, callback) => {
     const { origin, path: filePath, isDirectory } = details;
     console.log(`File system access restricted: ${origin} trying to access ${filePath} (directory: ${isDirectory})`);

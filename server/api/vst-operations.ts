@@ -5,8 +5,53 @@ import { promisify } from "util";
 import { readFileSync, writeFileSync, constants } from "fs";
 import { initializeDatabase, syncPluginsFromJson, runQuery } from "./database";
 import { ipcMain, getDataDir, getScannerPath } from "./electron-utils";
+import { dialog } from "electron";
 
 const execAsync = promisify(exec);
+
+// Add path validation
+const validateAndResolvePath = (inputPath: string): string | null => {
+  try {
+    const resolvedPath = path.resolve(inputPath);
+
+    if (resolvedPath.includes("..")) {
+      console.warn("Path contains parent directory references:", inputPath);
+      return null;
+    }
+
+    // Check if path exists
+    try {
+      require("fs").accessSync(resolvedPath, constants.F_OK);
+      return resolvedPath;
+    } catch (error) {
+      console.warn("Path does not exist:", resolvedPath);
+      return null;
+    }
+  } catch (error) {
+    console.warn("Invalid path:", inputPath);
+    return null;
+  }
+};
+
+// Add user consent function
+const requestDirectoryAccess = async (directoryPath: string): Promise<boolean> => {
+  try {
+    // You could show a dialog to confirm access
+    const { response } = await dialog.showMessageBox({
+      type: "question",
+      buttons: ["Allow", "Deny"],
+      defaultId: 0,
+      title: "Directory Access Request",
+      message: `Allow access to directory?`,
+      detail: `The application wants to scan plugins in: ${directoryPath}`,
+    });
+
+    return response === 0; // 0 = Allow
+  } catch (error) {
+    console.error("Error requesting directory access:", error);
+    return false;
+  }
+};
 
 // Permission check function for write operations
 export const checkWritePermissions = async () => {
@@ -86,88 +131,6 @@ export const checkWritePermissions = async () => {
       checks,
     };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error during permission check",
-      checks,
-    };
-  }
-};
-
-// Permission check function for read operations (scanning)
-export const checkReadPermissions = async () => {
-  const scannerPath = getScannerPath();
-  const dataDir = getDataDir();
-
-  console.log("Checking read permissions:");
-  console.log("Scanner path:", scannerPath);
-  console.log("Data directory:", dataDir);
-
-  const checks = {
-    scannerExecutable: {
-      path: scannerPath,
-      exists: false,
-      executable: false,
-      error: null as string | null,
-    },
-    dataDirectory: {
-      path: dataDir,
-      exists: false,
-      readable: false,
-      error: null as string | null,
-    },
-    // Note: VST directory access is handled by Electron's File System Access API
-    // through the 'file-system-access-restricted' event in main.ts
-  };
-
-  try {
-    // Check if scanner executable exists and is executable
-    try {
-      await access(scannerPath, constants.F_OK);
-      checks.scannerExecutable.exists = true;
-      console.log("Scanner executable exists");
-
-      try {
-        await access(scannerPath, constants.X_OK);
-        checks.scannerExecutable.executable = true;
-        console.log("Scanner executable is executable");
-      } catch (error) {
-        checks.scannerExecutable.error = "File exists but is not executable";
-        console.error("Scanner executable not executable:", error);
-      }
-    } catch (error) {
-      checks.scannerExecutable.error = `Scanner executable not found at: ${scannerPath}`;
-      console.error("Scanner executable not found:", error);
-    }
-
-    // Check if data directory exists and is readable
-    try {
-      await access(dataDir, constants.F_OK);
-      checks.dataDirectory.exists = true;
-      console.log("Data directory exists");
-
-      try {
-        await access(dataDir, constants.R_OK);
-        checks.dataDirectory.readable = true;
-        console.log("Data directory is readable");
-      } catch (error) {
-        checks.dataDirectory.error = "Directory exists but is not readable";
-        console.error("Data directory not readable:", error);
-      }
-    } catch (error) {
-      checks.dataDirectory.error = "Data directory does not exist";
-      console.error("Data directory does not exist:", error);
-    }
-
-    const success = checks.scannerExecutable.executable && checks.dataDirectory.readable;
-    console.log("Permission check result:", success ? "SUCCESS" : "FAILED");
-
-    return {
-      success,
-      checks,
-    };
-  } catch (error) {
-    console.error("Unexpected error during permission check:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error during permission check",
@@ -273,21 +236,10 @@ export const importPlugins = async (fileData: { name: string; content: string })
   };
 };
 
-export const scanPlugins = async () => {
+// Update your scanPlugins function
+export const scanPlugins = async (skipUserConsent: boolean = false) => {
   console.log("Scanning plugins...");
   try {
-    // Check permissions first
-    const permissionCheck = await checkReadPermissions();
-    if (!permissionCheck.success) {
-      console.error("Permission check failed:", permissionCheck);
-      return {
-        success: false,
-        error: "Scanner executable access denied. Please check permissions.",
-        permissionDetails: permissionCheck,
-      };
-    }
-
-    // Use shared utilities for path logic
     const scannerPath = getScannerPath();
     const outputPath = path.join(getDataDir(), "scanned-plugins.json");
 
@@ -309,24 +261,69 @@ export const scanPlugins = async () => {
       };
     }
 
-    // Parse comma-separated paths
-    const directoryPaths = vstPathsSetting
+    // Parse and validate paths
+    const rawPaths = vstPathsSetting
       .split(",")
       .map((path: string) => path.trim())
       .filter((path: string) => path.length > 0);
 
-    // Scan each directory and combine results
+    // Validate each path and get user consent
+    const validatedPaths: string[] = [];
+    const invalidPaths: string[] = [];
+    const deniedPaths: string[] = [];
+
+    for (const rawPath of rawPaths) {
+      const validatedPath = validateAndResolvePath(rawPath);
+
+      if (!validatedPath) {
+        invalidPaths.push(rawPath);
+        continue;
+      }
+
+      // Request user consent for each directory (unless skipped)
+      if (!skipUserConsent) {
+        const hasConsent = await requestDirectoryAccess(validatedPath);
+        if (!hasConsent) {
+          deniedPaths.push(validatedPath);
+          continue;
+        }
+      }
+
+      validatedPaths.push(validatedPath);
+    }
+
+    // Report any issues with paths
+    if (invalidPaths.length > 0) {
+      console.warn("Invalid paths found:", invalidPaths);
+    }
+    if (deniedPaths.length > 0) {
+      console.warn("Access denied to paths:", deniedPaths);
+    }
+
+    if (validatedPaths.length === 0) {
+      return {
+        success: false,
+        error: "No valid or accessible VST paths found. Please check your settings.",
+        details: {
+          invalidPaths,
+          deniedPaths,
+        },
+      };
+    }
+
+    // Scan each validated directory
     let allResults: any[] = [];
+    const scanErrors: string[] = [];
 
-    for (const directoryPath of directoryPaths) {
+    for (const directoryPath of validatedPaths) {
       try {
-        // Create a temporary output file for each directory scan
-        const tempOutputPath = path.join(getDataDir(), `temp-scan-${Date.now()}.json`);
+        // Additional runtime permission check
+        await access(directoryPath, constants.R_OK);
 
+        const tempOutputPath = path.join(getDataDir(), `temp-scan-${Date.now()}.json`);
         const command = `"${scannerPath}" "${directoryPath}" -o "${tempOutputPath}"`;
         console.log(`Executing command: ${command}`);
 
-        // Execute the scanner for this directory
         const { stdout, stderr } = await execAsync(command);
 
         if (stderr) {
@@ -337,10 +334,9 @@ export const scanPlugins = async () => {
           console.log(`Scanner stdout for ${directoryPath}:`, stdout);
         }
 
-        // Read the results from the temporary output file
+        // Read results
         const results = JSON.parse(readFileSync(tempOutputPath, "utf8"));
 
-        // Add the directory path to each plugin result for tracking
         if (results.plugins) {
           results.plugins.forEach((plugin: any) => {
             plugin.sourceDirectory = directoryPath;
@@ -349,33 +345,32 @@ export const scanPlugins = async () => {
 
         allResults = allResults.concat(results.plugins || []);
 
-        // Clean up temporary file
+        // Cleanup
         try {
           await import("fs").then((fs) => fs.promises.unlink(tempOutputPath));
         } catch (cleanupError) {
           console.warn(`Failed to cleanup temp file ${tempOutputPath}:`, cleanupError);
         }
       } catch (error) {
-        console.error(`Failed to scan directory ${directoryPath}:`, error);
-        // Continue with other directories even if one fails
+        const errorMsg = `Failed to scan directory ${directoryPath}: ${error instanceof Error ? error.message : "Unknown error"}`;
+        console.error(errorMsg);
+        scanErrors.push(errorMsg);
       }
     }
 
-    // Write combined results back to the output file
+    // Write combined results
     const combinedResults = {
       plugins: allResults,
       totalPlugins: allResults.length,
       validPlugins: allResults.filter((plugin) => plugin.isValid).length,
+      scannedPaths: validatedPaths,
+      errors: scanErrors.length > 0 ? scanErrors : undefined,
     };
 
-    // Ensure data directory exists before writing
     const dataDir = getDataDir();
     await mkdir(dataDir, { recursive: true });
-
-    // Write the combined results to the scanned-plugins.json file
     writeFileSync(outputPath, JSON.stringify(combinedResults, null, 2));
 
-    // Initialize database and sync plugins
     console.log("Initializing database...");
     await initializeDatabase();
 
@@ -385,6 +380,11 @@ export const scanPlugins = async () => {
     return {
       success: true,
       results: combinedResults,
+      warnings: {
+        invalidPaths: invalidPaths.length > 0 ? invalidPaths : undefined,
+        deniedPaths: deniedPaths.length > 0 ? deniedPaths : undefined,
+        scanErrors: scanErrors.length > 0 ? scanErrors : undefined,
+      },
     };
   } catch (error) {
     console.error("Scan failed:", error);
@@ -459,9 +459,60 @@ export function setupVstIPC() {
     }
   });
 
-  ipcMain.handle("vst:scanPlugins", async () => {
+  ipcMain.handle("vst:scanPlugins", async (_event: any, options: { skipUserConsent?: boolean } = {}) => {
     try {
-      return await scanPlugins();
+      return await scanPlugins(options.skipUserConsent || false);
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Handler for selecting VST paths
+  ipcMain.handle("vst:selectVstPath", async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ["openDirectory"],
+        title: "Select VST Plugin Directory",
+        buttonLabel: "Select Directory",
+      });
+
+      if (!result.canceled && result.filePaths.length > 0) {
+        return {
+          success: true,
+          path: result.filePaths[0],
+        };
+      }
+
+      return { success: false, error: "No directory selected" };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Handler for testing VST path permissions
+  ipcMain.handle("vst:testVstPermissions", async (_event: any, paths: string[]) => {
+    try {
+      const results: Record<string, { accessible: boolean; error?: string }> = {};
+      let allAccessible = true;
+
+      for (const vstPath of paths) {
+        try {
+          const resolvedPath = path.resolve(vstPath);
+          await access(resolvedPath, constants.R_OK);
+          results[vstPath] = { accessible: true };
+        } catch (error) {
+          results[vstPath] = {
+            accessible: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          };
+          allAccessible = false;
+        }
+      }
+
+      return {
+        success: allAccessible,
+        details: results,
+      };
     } catch (error: any) {
       return { success: false, error: error.message };
     }
@@ -486,14 +537,6 @@ export function setupVstIPC() {
   ipcMain.handle("vst:checkPermissions", async () => {
     try {
       return await checkWritePermissions();
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle("vst:checkReadPermissions", async () => {
-    try {
-      return await checkReadPermissions();
     } catch (error: any) {
       return { success: false, error: error.message };
     }
