@@ -1,7 +1,23 @@
-import { ipcMain } from "electron";
 import { runQuery, runCommand, initializeDatabase } from "./database";
 import { access } from "node:fs/promises";
 import { constants } from "node:fs";
+
+// Conditionally import Electron modules
+let ipcMain: any;
+
+// Only import Electron modules if we're in an Electron environment
+if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+  // Skip Electron imports in web development
+  console.log("Running in web development mode, skipping Electron imports");
+} else {
+  try {
+    const electron = require("electron");
+    ipcMain = electron.ipcMain;
+  } catch (error) {
+    // Electron not available, continue without it
+    console.log("Electron not available, running in web mode");
+  }
+}
 
 // Get all settings from database
 export const getSettings = async () => {
@@ -167,6 +183,12 @@ async function createDefaultSettings() {
 
 // Setup IPC handlers for settings operations
 export function setupSettingsIPC() {
+  // Only setup IPC handlers if ipcMain is available (Electron environment)
+  if (!ipcMain) {
+    console.log("IPC not available, skipping settings IPC setup");
+    return;
+  }
+
   ipcMain.handle("settings:getSettings", async () => {
     try {
       return await getSettings();
@@ -175,7 +197,7 @@ export function setupSettingsIPC() {
     }
   });
 
-  ipcMain.handle("settings:getSetting", async (event, key: string) => {
+  ipcMain.handle("settings:getSetting", async (_event: any, key: string) => {
     try {
       return await getSetting(key);
     } catch (error: any) {
@@ -183,7 +205,7 @@ export function setupSettingsIPC() {
     }
   });
 
-  ipcMain.handle("settings:updateSetting", async (event, key: string, value: string) => {
+  ipcMain.handle("settings:updateSetting", async (_event: any, key: string, value: string) => {
     try {
       return await updateSetting(key, value);
     } catch (error: any) {
@@ -191,7 +213,7 @@ export function setupSettingsIPC() {
     }
   });
 
-  ipcMain.handle("settings:validatePaths", async (event, paths: string[]) => {
+  ipcMain.handle("settings:validatePaths", async (_event: any, paths: string[]) => {
     try {
       return await validatePaths(paths);
     } catch (error: any) {

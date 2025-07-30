@@ -2,10 +2,26 @@ import sqlite3 from "sqlite3";
 import path from "path";
 import { readFile } from "node:fs/promises";
 import { mkdir } from "node:fs/promises";
-import { app } from "electron";
+
+// Conditionally import Electron modules
+let app: any;
+
+// Only import Electron modules if we're in an Electron environment
+if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+  // Skip Electron imports in web development
+  console.log("Running in web development mode, skipping Electron imports");
+} else {
+  try {
+    const electron = require("electron");
+    app = electron.app;
+  } catch (error) {
+    // Electron not available, continue without it
+    console.log("Electron not available, running in web mode");
+  }
+}
 
 // Database connection
-const dbPath = process.env.NODE_ENV === "development" ? "data/plugins.db" : path.join(app.getPath("userData"), "data", "plugins.db");
+const dbPath = process.env.NODE_ENV === "development" ? "data/plugins.db" : app ? path.join(app.getPath("userData"), "data", "plugins.db") : "data/plugins.db";
 
 // Singleton database instance
 let dbInstance: sqlite3.Database | null = null;

@@ -1,4 +1,3 @@
-import { ipcMain, app } from "electron";
 import path from "path";
 import { writeFile, mkdir } from "node:fs/promises";
 import { exec } from "child_process";
@@ -6,6 +5,25 @@ import { promisify } from "util";
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { initializeDatabase, syncPluginsFromJson, runQuery } from "./database";
+
+// Conditionally import Electron modules
+let ipcMain: any;
+let app: any;
+
+// Only import Electron modules if we're in an Electron environment
+if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+  // Skip Electron imports in web development
+  console.log("Running in web development mode, skipping Electron imports");
+} else {
+  try {
+    const electron = require("electron");
+    ipcMain = electron.ipcMain;
+    app = electron.app;
+  } catch (error) {
+    // Electron not available, continue without it
+    console.log("Electron not available, running in web mode");
+  }
+}
 
 const execAsync = promisify(exec);
 
@@ -107,9 +125,10 @@ export const importPlugins = async (fileData: { name: string; content: string })
 };
 
 export const scanPlugins = async () => {
+  console.log("Scanning plugins...");
   try {
-    const scannerPath = process.env.NODE_ENV === "development" ? "tools/vst_scanner.exe" : join(__dirname, "tools/vst_scanner.exe");
-    const outputPath = process.env.NODE_ENV === "development" ? "data/scanned-plugins.json" : join(__dirname, "data/scanned-plugins.json");
+    const scannerPath = process.env.NODE_ENV === "development" ? "tools/vst_scanner.exe" : path.join(process.resourcesPath, "tools/vst_scanner.exe");
+    const outputPath = process.env.NODE_ENV === "development" ? "data/scanned-plugins.json" : path.join(app.getPath("userData"), "data", "scanned-plugins.json");
 
     // Fetch VST paths from settings
     let vstPathsSetting;
@@ -151,7 +170,10 @@ export const scanPlugins = async () => {
 
     for (const directoryPath of directoryPaths) {
       try {
-        const command = `"${scannerPath}" "${directoryPath}" -o "${outputPath}"`;
+        // Create a temporary output file for each directory scan
+        const tempOutputPath = process.env.NODE_ENV === "development" ? `data/temp-scan-${Date.now()}.json` : path.join(app.getPath("userData"), "data", `temp-scan-${Date.now()}.json`);
+
+        const command = `"${scannerPath}" "${directoryPath}" -o "${tempOutputPath}"`;
         console.log(`Executing command: ${command}`);
 
         // Execute the scanner for this directory
@@ -161,8 +183,12 @@ export const scanPlugins = async () => {
           console.error(`Scanner stderr for ${directoryPath}:`, stderr);
         }
 
-        // Read the results from the output file
-        const results = JSON.parse(readFileSync(outputPath, "utf8"));
+        if (stdout) {
+          console.log(`Scanner stdout for ${directoryPath}:`, stdout);
+        }
+
+        // Read the results from the temporary output file
+        const results = JSON.parse(readFileSync(tempOutputPath, "utf8"));
 
         // Add the directory path to each plugin result for tracking
         if (results.plugins) {
@@ -172,6 +198,13 @@ export const scanPlugins = async () => {
         }
 
         allResults = allResults.concat(results.plugins || []);
+
+        // Clean up temporary file
+        try {
+          await import("fs").then((fs) => fs.promises.unlink(tempOutputPath));
+        } catch (cleanupError) {
+          console.warn(`Failed to cleanup temp file ${tempOutputPath}:`, cleanupError);
+        }
       } catch (error) {
         console.error(`Failed to scan directory ${directoryPath}:`, error);
         // Continue with other directories even if one fails
@@ -184,6 +217,10 @@ export const scanPlugins = async () => {
       totalPlugins: allResults.length,
       validPlugins: allResults.filter((plugin) => plugin.isValid).length,
     };
+
+    // Ensure data directory exists before writing
+    const dataDir = process.env.NODE_ENV === "development" ? "data" : path.join(app.getPath("userData"), "data");
+    await mkdir(dataDir, { recursive: true });
 
     // Write the combined results to the scanned-plugins.json file
     writeFileSync(outputPath, JSON.stringify(combinedResults, null, 2));
@@ -250,6 +287,12 @@ export const downloadPlugins = async () => {
 };
 
 export function setupVstIPC() {
+  // Only setup IPC handlers if ipcMain is available (Electron environment)
+  if (!ipcMain) {
+    console.log("IPC not available, skipping VST IPC setup");
+    return;
+  }
+
   ipcMain.handle("vst:exportPlugins", async () => {
     try {
       return await exportPlugins();
@@ -258,7 +301,7 @@ export function setupVstIPC() {
     }
   });
 
-  ipcMain.handle("vst:importPlugins", async (event, fileData: { name: string; content: string }) => {
+  ipcMain.handle("vst:importPlugins", async (_event: any, fileData: { name: string; content: string }) => {
     try {
       return await importPlugins(fileData);
     } catch (error: any) {

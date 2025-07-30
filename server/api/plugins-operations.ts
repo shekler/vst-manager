@@ -1,5 +1,21 @@
-import { ipcMain } from "electron";
 import { runQuery, runCommand, initializeDatabase, syncPluginsFromJson } from "./database";
+
+// Conditionally import Electron modules
+let ipcMain: any;
+
+// Only import Electron modules if we're in an Electron environment
+if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+  // Skip Electron imports in web development
+  console.log("Running in web development mode, skipping Electron imports");
+} else {
+  try {
+    const electron = require("electron");
+    ipcMain = electron.ipcMain;
+  } catch (error) {
+    // Electron not available, continue without it
+    console.log("Electron not available, running in web mode");
+  }
+}
 
 // Get all plugins from database
 export const getPlugins = async () => {
@@ -161,6 +177,12 @@ export const savePluginKey = async (pluginId: string, key: string) => {
 
 // Setup IPC handlers for plugins operations
 export function setupPluginsIPC() {
+  // Only setup IPC handlers if ipcMain is available (Electron environment)
+  if (!ipcMain) {
+    console.log("IPC not available, skipping plugins IPC setup");
+    return;
+  }
+
   ipcMain.handle("plugins:getPlugins", async () => {
     try {
       return await getPlugins();
@@ -169,7 +191,7 @@ export function setupPluginsIPC() {
     }
   });
 
-  ipcMain.handle("plugins:searchPlugins", async (event, query: string) => {
+  ipcMain.handle("plugins:searchPlugins", async (_event: any, query: string) => {
     try {
       return await searchPlugins(query);
     } catch (error: any) {
@@ -177,7 +199,7 @@ export function setupPluginsIPC() {
     }
   });
 
-  ipcMain.handle("plugins:savePluginKey", async (event, pluginId: string, key: string) => {
+  ipcMain.handle("plugins:savePluginKey", async (_event: any, pluginId: string, key: string) => {
     try {
       return await savePluginKey(pluginId, key);
     } catch (error: any) {
