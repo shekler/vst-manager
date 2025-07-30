@@ -21,7 +21,7 @@ if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
 }
 
 // Database connection
-const dbPath = process.env.NODE_ENV === "development" ? "data/plugins.db" : app ? path.join(app.getPath("userData"), "data", "plugins.db") : "data/plugins.db";
+const dbPath = process.env.NODE_ENV === "development" ? "data/plugins.db" : app && app.getPath ? path.join(app.getPath("userData"), "data", "plugins.db") : "data/plugins.db";
 
 // Singleton database instance
 let dbInstance: sqlite3.Database | null = null;

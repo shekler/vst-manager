@@ -61,7 +61,7 @@ export const exportPlugins = async () => {
   }));
 
   // Ensure data directory exists
-  const dataDir = process.env.NODE_ENV === "development" ? "data" : path.join(app.getPath("userData"), "data");
+  const dataDir = process.env.NODE_ENV === "development" ? "data" : app && app.getPath ? path.join(app.getPath("userData"), "data") : "data";
   await mkdir(dataDir, { recursive: true });
 
   const filePath = path.join(dataDir, "exported-plugins.json");
@@ -105,7 +105,7 @@ export const importPlugins = async (fileData: { name: string; content: string })
   }
 
   // Ensure data directory exists
-  const dataDir = process.env.NODE_ENV === "development" ? "data" : path.join(app.getPath("userData"), "data");
+  const dataDir = process.env.NODE_ENV === "development" ? "data" : app && app.getPath ? path.join(app.getPath("userData"), "data") : "data";
   await mkdir(dataDir, { recursive: true });
 
   // Create the proper format for scanned-plugins.json
@@ -128,7 +128,7 @@ export const scanPlugins = async () => {
   console.log("Scanning plugins...");
   try {
     const scannerPath = process.env.NODE_ENV === "development" ? "tools/vst_scanner.exe" : path.join(process.resourcesPath, "tools/vst_scanner.exe");
-    const outputPath = process.env.NODE_ENV === "development" ? "data/scanned-plugins.json" : path.join(app.getPath("userData"), "data", "scanned-plugins.json");
+    const outputPath = process.env.NODE_ENV === "development" ? "data/scanned-plugins.json" : app && app.getPath ? path.join(app.getPath("userData"), "data", "scanned-plugins.json") : "data/scanned-plugins.json";
 
     // Fetch VST paths from settings
     let vstPathsSetting;
@@ -171,7 +171,7 @@ export const scanPlugins = async () => {
     for (const directoryPath of directoryPaths) {
       try {
         // Create a temporary output file for each directory scan
-        const tempOutputPath = process.env.NODE_ENV === "development" ? `data/temp-scan-${Date.now()}.json` : path.join(app.getPath("userData"), "data", `temp-scan-${Date.now()}.json`);
+        const tempOutputPath = process.env.NODE_ENV === "development" ? `data/temp-scan-${Date.now()}.json` : app && app.getPath ? path.join(app.getPath("userData"), "data", `temp-scan-${Date.now()}.json`) : `data/temp-scan-${Date.now()}.json`;
 
         const command = `"${scannerPath}" "${directoryPath}" -o "${tempOutputPath}"`;
         console.log(`Executing command: ${command}`);
@@ -219,7 +219,7 @@ export const scanPlugins = async () => {
     };
 
     // Ensure data directory exists before writing
-    const dataDir = process.env.NODE_ENV === "development" ? "data" : path.join(app.getPath("userData"), "data");
+    const dataDir = process.env.NODE_ENV === "development" ? "data" : app && app.getPath ? path.join(app.getPath("userData"), "data") : "data";
     await mkdir(dataDir, { recursive: true });
 
     // Write the combined results to the scanned-plugins.json file

@@ -3,7 +3,7 @@
   "productName": "VST Manager",
   "version": "0.1.0-alpha",
   "description": "A plugin manager for the audio plugins",
-  "main": "main.js",
+  "main": "dist/main.js",
 
   "author": "Sven Wolf",
   "scripts": {
@@ -12,6 +12,7 @@
     "build:electron": "tsc -p tsconfig.electron.json",
 
     "start": "electron .",
+    "dev:electron": "npm run build:electron && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "package": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge package",
     "make": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge make",
     "publish": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge publish"
@@ -44,6 +45,8 @@
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0"
   }
 }
