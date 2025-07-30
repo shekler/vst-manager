@@ -33,20 +33,37 @@ const validateAndResolvePath = (inputPath: string): string | null => {
   }
 };
 
-// Add user consent function
+// Improved user consent function following Electron best practices
 const requestDirectoryAccess = async (directoryPath: string): Promise<boolean> => {
   try {
-    // You could show a dialog to confirm access
-    const { response } = await dialog.showMessageBox({
-      type: "question",
-      buttons: ["Allow", "Deny"],
-      defaultId: 0,
-      title: "Directory Access Request",
-      message: `Allow access to directory?`,
-      detail: `The application wants to scan plugins in: ${directoryPath}`,
+    // Use showOpenDialog for proper file system access consent
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory"],
+      title: "Confirm VST Directory Access",
+      message: `Grant access to scan VST plugins in this directory?`,
+      buttonLabel: "Grant Access",
+      defaultPath: directoryPath,
     });
 
-    return response === 0; // 0 = Allow
+    // If user selects the same directory or cancels, handle appropriately
+    if (result.canceled) {
+      return false;
+    }
+
+    // Verify the selected path matches or is within the requested path
+    if (result.filePaths.length === 0) {
+      return false;
+    }
+
+    const selectedPath = result.filePaths[0];
+    if (!selectedPath) {
+      return false;
+    }
+
+    const normalizedRequested = path.resolve(directoryPath);
+    const normalizedSelected = path.resolve(selectedPath);
+
+    return normalizedSelected === normalizedRequested || normalizedSelected.startsWith(normalizedRequested);
   } catch (error) {
     console.error("Error requesting directory access:", error);
     return false;
@@ -321,10 +338,19 @@ export const scanPlugins = async (skipUserConsent: boolean = false) => {
         await access(directoryPath, constants.R_OK);
 
         const tempOutputPath = path.join(getDataDir(), `temp-scan-${Date.now()}.json`);
-        const command = `"${scannerPath}" "${directoryPath}" -o "${tempOutputPath}"`;
-        console.log(`Executing command: ${command}`);
 
-        const { stdout, stderr } = await execAsync(command);
+        // Validate scanner executable exists and is accessible
+        try {
+          await access(scannerPath, constants.F_OK | constants.X_OK);
+        } catch (error) {
+          throw new Error(`Scanner executable not found or not executable: ${scannerPath}`);
+        }
+
+        // Use array form for better security (prevents injection)
+        const args = [directoryPath, "-o", tempOutputPath];
+        console.log(`Executing scanner: ${scannerPath} with args:`, args);
+
+        const { stdout, stderr } = await execAsync(`"${scannerPath}" ${args.map((arg) => `"${arg}"`).join(" ")}`);
 
         if (stderr) {
           console.error(`Scanner stderr for ${directoryPath}:`, stderr);
@@ -352,7 +378,21 @@ export const scanPlugins = async (skipUserConsent: boolean = false) => {
           console.warn(`Failed to cleanup temp file ${tempOutputPath}:`, cleanupError);
         }
       } catch (error) {
-        const errorMsg = `Failed to scan directory ${directoryPath}: ${error instanceof Error ? error.message : "Unknown error"}`;
+        let errorMsg: string;
+        if (error instanceof Error) {
+          // Provide more specific error messages based on error type
+          if (error.message.includes("ENOENT")) {
+            errorMsg = `Scanner executable not found. Please ensure vst_scanner.exe is in the tools directory.`;
+          } else if (error.message.includes("EACCES")) {
+            errorMsg = `Permission denied accessing directory: ${directoryPath}`;
+          } else if (error.message.includes("Scanner executable")) {
+            errorMsg = error.message;
+          } else {
+            errorMsg = `Failed to scan directory ${directoryPath}: ${error.message}`;
+          }
+        } else {
+          errorMsg = `Failed to scan directory ${directoryPath}: Unknown error`;
+        }
         console.error(errorMsg);
         scanErrors.push(errorMsg);
       }

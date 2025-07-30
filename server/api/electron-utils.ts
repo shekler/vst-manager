@@ -53,6 +53,17 @@ export const getScannedPluginsPath = () => {
 
 // Utility function to get the scanner path
 export const getScannerPath = () => {
-  // Always use the scanner from the project's tools directory
-  return path.join(process.cwd(), "tools", "vst_scanner.exe");
+  if (isElectron && app && app.getAppPath) {
+    try {
+      // Use app.getAppPath() for better security in production
+      return path.join(app.getAppPath(), "tools", "vst_scanner.exe");
+    } catch (error) {
+      console.error("Error getting app path:", error);
+      // Fallback to process.cwd() for development
+      return path.join(process.cwd(), "tools", "vst_scanner.exe");
+    }
+  } else {
+    // Development mode - use current working directory
+    return path.join(process.cwd(), "tools", "vst_scanner.exe");
+  }
 };
