@@ -1,3 +1,8 @@
+// Handle creating/removing shortcuts on Windows. Must be before everything else.
+if (require("electron-squirrel-startup")) {
+  app.quit();
+}
+
 import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import * as path from "path";
 import * as fs from "fs";
@@ -67,6 +72,7 @@ const createWindow = (): void => {
   mainWindow = new BrowserWindow({
     height: 800,
     width: 1200,
+    icon: path.join(__dirname, "public", "icon.png"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

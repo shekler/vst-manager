@@ -53,6 +53,47 @@ export const getScannedPluginsPath = () => {
 
 // Utility function to get the scanner path
 export const getScannerPath = () => {
-  // Always use the scanner from the project's tools directory
-  return path.join(process.cwd(), "tools", "vst_scanner.exe");
+  if (isElectron && app && app.getAppPath) {
+    try {
+      const appPath = app.getAppPath();
+      console.log("App path:", appPath);
+      console.log("Resources path:", process.resourcesPath);
+      console.log("Is Electron:", isElectron);
+
+      // Try multiple potential locations for the scanner
+      const potentialPaths = [
+        path.join(process.resourcesPath, "vst_scanner.exe"), // extraResource location (most reliable)
+        path.join(path.dirname(appPath), "vst_scanner.exe"), // App root directory (alongside main executable)
+        path.join(process.resourcesPath, "..", "vst_scanner.exe"), // Resources parent directory
+        path.join(appPath + ".unpacked", "tools", "vst_scanner.exe"), // Standard asar unpacked location
+        path.join(appPath, "tools", "vst_scanner.exe"), // Direct in app path
+        path.join(process.resourcesPath, "app.asar.unpacked", "tools", "vst_scanner.exe"), // Resources path
+        path.join(process.resourcesPath, "tools", "vst_scanner.exe"), // Direct in resources
+        path.join(process.cwd(), "tools", "vst_scanner.exe"), // Current working directory
+      ];
+
+      // Check each potential path
+      for (const potentialPath of potentialPaths) {
+        try {
+          const fs = require("fs");
+          fs.accessSync(potentialPath, fs.constants.F_OK);
+          console.log("Found scanner at:", potentialPath);
+          return potentialPath;
+        } catch (error) {
+          console.log("Scanner not found at:", potentialPath);
+        }
+      }
+
+      // If none found, return the first option as fallback
+      console.log("Scanner not found in any location, using fallback");
+      return potentialPaths[0];
+    } catch (error) {
+      console.error("Error getting app path:", error);
+      // Fallback to current working directory
+      return path.join(process.cwd(), "tools", "vst_scanner.exe");
+    }
+  } else {
+    // Fallback - use current working directory
+    return path.join(process.cwd(), "tools", "vst_scanner.exe");
+  }
 };
