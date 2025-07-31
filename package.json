@@ -21,7 +21,9 @@
     "test:obsolete": "npm run build:electron:full && electron . --squirrel-obsolete",
     "test:squirrel": "npm run build:electron:full && echo 'Testing all Squirrel events...' && npm run test:install && sleep 2 && npm run test:update && sleep 2 && npm run test:uninstall",
     "build:loading-screens": "node scripts/build-loading-screens.mjs",
-    "build:electron:full": "npm run build:loading-screens && npm run build:electron"
+    "build:electron:full": "npm run build:loading-screens && npm run build:electron",
+    "dev:loading-screens": "node scripts/watch-loading-screens.mjs",
+    "dev:loading-screens:test": "node scripts/watch-loading-screens.mjs --test"
   },
   "dependencies": {
     "@electron-forge/maker-dmg": "^7.8.1",

@@ -1,10 +1,11 @@
 <template>
-  <div class="squirrel-loading">
-    <div class="spinner" />
-    <h2 class="title">VST Manager</h2>
-    <p class="message">{{ message }}</p>
-    <div class="progress-bar">
-      <div class="progress-fill" />
+  <div class="squirrel-window">
+    <div class="squirrel-container">
+      <h1 class="title">VST Manager</h1>
+      <p class="message">{{ message }}</p>
+      <div class="progress-bar">
+        <div class="progress-fill" />
+      </div>
     </div>
   </div>
 </template>
@@ -18,45 +19,37 @@ defineProps<Props>();
 </script>
 
 <style scoped>
-.squirrel-loading {
+.squirrel-window {
   margin: 0;
-  padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #101112;
+  color: #f9f7f2;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 160px;
+  height: 100vh;
+  width: 100vw;
   text-align: center;
   overflow: hidden;
 }
 
-.spinner {
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top: 3px solid white;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+.squirrel-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #41c49d20 0%, #101112 50%, #20bfcf20 100%);
 }
 
 .title {
   margin: 0 0 8px 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 .message {

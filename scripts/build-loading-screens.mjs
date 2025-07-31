@@ -34,7 +34,7 @@ const AppLoadingComponent = {
   template: template,
 };
 
-// Use extracted styles
+// Use extracted styles from component
 const styles = `<style>\n${componentStyles}\n</style>`;
 
 async function generateLoadingScreen(message, filename) {

@@ -65,7 +65,7 @@ function handleSquirrelEvent(): boolean {
     });
 
     // Check if pre-rendered Vue loading screen exists
-    const loadingScreenPath = path.join(__dirname, "loading-screens", `${message.toLowerCase().replace(/\s+/g, "-")}.html`);
+    const loadingScreenPath = path.join(__dirname, "loading-screens", `${message.toLowerCase().replace(/\s+/g, "-").replace(/[.]/g, "")}.html`);
     const fsModule = require("fs");
 
     if (fsModule.existsSync(loadingScreenPath)) {
