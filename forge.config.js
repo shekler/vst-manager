@@ -1,36 +1,24 @@
 module.exports = {
   packagerConfig: {
     asar: true,
-    icon: "./public/icon.png",
   },
   rebuildConfig: {},
   makers: [
     {
       name: "@electron-forge/maker-squirrel",
-      config: {
-        options: {
-          icon: "./public/icon.png",
-        },
-      },
+      config: {},
     },
     {
       name: "@electron-forge/maker-zip",
       platforms: ["darwin"],
-      config: {
-        icon: "./public/icon.png",
-      },
     },
     {
       name: "@electron-forge/maker-deb",
-      config: {
-        icon: "./public/icon.png",
-      },
+      config: {},
     },
     {
       name: "@electron-forge/maker-rpm",
-      config: {
-        icon: "./public/icon.png",
-      },
+      config: {},
     },
   ],
   plugins: [
