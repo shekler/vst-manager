@@ -1,6 +1,8 @@
 module.exports = {
   packagerConfig: {
-    asar: true,
+    asar: {
+      unpack: "tools/**/*",
+    },
     icon: "./public/icon.png",
   },
   rebuildConfig: {},
@@ -59,6 +61,9 @@ module.exports = {
 
         // Copy the entire .output directory to the build directory
         copySync(join(__dirname, ".output"), join(buildPath, ".output"));
+
+        // Copy the tools directory containing vst_scanner.exe
+        copySync(join(__dirname, "tools"), join(buildPath, "tools"));
 
         console.log("Files copied successfully");
       } catch (error) {

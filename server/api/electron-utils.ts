@@ -55,15 +55,15 @@ export const getScannedPluginsPath = () => {
 export const getScannerPath = () => {
   if (isElectron && app && app.getAppPath) {
     try {
-      // Use app.getAppPath() for better security in production
-      return path.join(app.getAppPath(), "tools", "vst_scanner.exe");
+      // In production, executables unpacked from asar are in app.getAppPath().unpacked
+      return path.join(app.getAppPath() + ".unpacked", "tools", "vst_scanner.exe");
     } catch (error) {
       console.error("Error getting app path:", error);
-      // Fallback to process.cwd() for development
-      return path.join(process.cwd(), "tools", "vst_scanner.exe");
+      // Fallback to regular app path
+      return path.join(app.getAppPath(), "tools", "vst_scanner.exe");
     }
   } else {
-    // Development mode - use current working directory
+    // Fallback - use current working directory
     return path.join(process.cwd(), "tools", "vst_scanner.exe");
   }
 };
