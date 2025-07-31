@@ -13,7 +13,13 @@
     "dev:electron": "npm run build:electron && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "package": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge package",
     "make": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge make",
-    "publish": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge publish"
+    "publish": "npx tsc -p tsconfig.electron.json && npm run build && electron-forge publish",
+    "test:install": "npm run build:electron && electron . --squirrel-install",
+    "test:update": "npm run build:electron && electron . --squirrel-updated", 
+    "test:uninstall": "npm run build:electron && electron . --squirrel-uninstall",
+    "test:firstrun": "npm run build:electron && electron . --squirrel-firstrun",
+    "test:obsolete": "npm run build:electron && electron . --squirrel-obsolete",
+    "test:squirrel": "npm run build:electron && echo 'Testing all Squirrel events...' && npm run test:install && sleep 2 && npm run test:update && sleep 2 && npm run test:uninstall"
   },
   "dependencies": {
     "@electron-forge/maker-dmg": "^7.8.1",
@@ -21,7 +27,6 @@
     "@nuxt/image": "^1.10.0",
     "@nuxtjs/tailwindcss": "^7.0.0-beta.0",
     "@tabler/icons-vue": "^3.34.1",
-    "electron-squirrel-startup": "1.0.1",
     "eslint": "^9.31.0",
     "nuxt": "^4.0.1",
     "sqlite3": "^5.1.7",
