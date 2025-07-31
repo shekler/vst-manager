@@ -113,6 +113,22 @@ export const scanPlugins = async () => {
     const scannerPath = getScannerPath();
     const outputPath = path.join(getDataDir(), "scanned-plugins.json");
 
+    console.log("Scanner path:", scannerPath);
+    console.log("Output path:", outputPath);
+
+    // Check if scanner executable exists
+    try {
+      const fs = require("fs");
+      fs.accessSync(scannerPath, fs.constants.F_OK);
+      console.log("Scanner executable found");
+    } catch (error) {
+      console.error("Scanner executable not found:", error);
+      return {
+        success: false,
+        error: `Scanner executable not found at: ${scannerPath}`,
+      };
+    }
+
     // Fetch VST paths from settings
     let vstPathsSetting;
     try {

@@ -1,6 +1,7 @@
 module.exports = {
   packagerConfig: {
     asar: true,
+    extraResource: ["./tools/vst_scanner.exe"],
   },
   rebuildConfig: {},
   makers: [
@@ -47,6 +48,8 @@ module.exports = {
 
         // Copy the entire .output directory to the build directory
         copySync(join(__dirname, ".output"), join(buildPath, ".output"));
+
+        // Note: vst_scanner.exe is now handled by extraResource in packagerConfig
 
         console.log("Files copied successfully");
       } catch (error) {
