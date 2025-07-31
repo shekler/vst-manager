@@ -50,6 +50,13 @@ module.exports = {
         // Copy the entire .output directory to the build directory
         copySync(join(__dirname, ".output"), join(buildPath, ".output"));
 
+        // Copy loading screens for Squirrel events
+        const loadingScreensPath = join(__dirname, "dist", "loading-screens");
+        if (require("fs").existsSync(loadingScreensPath)) {
+          copySync(loadingScreensPath, join(buildPath, "loading-screens"));
+          console.log("Loading screens copied successfully");
+        }
+
         // Note: vst_scanner.exe is now handled by extraResource in packagerConfig
 
         console.log("Files copied successfully");
