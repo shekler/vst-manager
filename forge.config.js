@@ -1,25 +1,26 @@
+const path = require("path");
+
 module.exports = {
   packagerConfig: {
     asar: true,
-    extraResource: ["./tools/vst_scanner.exe"],
+    extraResource: process.platform === "win32" ? ["./tools/vst_scanner.exe"] : [],
+    icon: path.join(__dirname, "public", "icon"),
   },
   rebuildConfig: {},
   makers: [
     {
       name: "@electron-forge/maker-squirrel",
-      config: {},
+      config: {
+        iconUrl: path.join(__dirname, "public", "icon.ico"),
+        setupIcon: path.join(__dirname, "public", "install.ico"),
+      },
     },
     {
-      name: "@electron-forge/maker-zip",
-      platforms: ["darwin"],
-    },
-    {
-      name: "@electron-forge/maker-deb",
-      config: {},
-    },
-    {
-      name: "@electron-forge/maker-rpm",
-      config: {},
+      name: "@electron-forge/maker-pkg",
+      config: {
+        iconUrl: path.join(__dirname, "public", "icon.icns"),
+        setupIcon: path.join(__dirname, "public", "install.icns"),
+      },
     },
   ],
   plugins: [
