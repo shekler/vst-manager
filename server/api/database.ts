@@ -204,13 +204,21 @@ export async function syncPluginsFromJson() {
           }
 
           const plugin = data.plugins[index];
-          const id = plugin.id || plugin.cid || plugin.path; // Use id as primary key, fallback to cid, then path
+
+          // Handle path as array or single string for ID fallback
+          const pathForId = Array.isArray(plugin.path) ? plugin.path[0] : plugin.path;
+          const id = plugin.id || plugin.cid || pathForId; // Use id as primary key, fallback to cid, then first path
+
           const subCategories = typeof plugin.subCategories === "string" ? plugin.subCategories : JSON.stringify(plugin.subCategories || []);
+
+          // Store path as JSON string if it's an array, otherwise as single string for backwards compatibility
+          const pathToStore = Array.isArray(plugin.path) ? JSON.stringify(plugin.path) : plugin.path;
 
           // For invalid plugins without a name, extract name from path
           let pluginName = plugin.name;
           if (!pluginName && plugin.path) {
-            const pathParts = plugin.path.split(/[\\\/]/);
+            const firstPath = Array.isArray(plugin.path) ? plugin.path[0] : plugin.path;
+            const pathParts = firstPath.split(/[\\\/]/);
             const fileName = pathParts[pathParts.length - 1];
             pluginName = fileName.replace(/\.vst3?$/i, "") || "Unknown Plugin";
           }
@@ -224,7 +232,7 @@ export async function syncPluginsFromJson() {
 
             if (row) {
               // Plugin exists - update it
-              updateStmt.run([pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid !== undefined ? (plugin.isValid ? 1 : 0) : 1, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null, id], (updateErr) => {
+              updateStmt.run([pluginName, plugin.vendor, plugin.version, pathToStore, plugin.category, subCategories, plugin.isValid !== undefined ? (plugin.isValid ? 1 : 0) : 1, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null, id], (updateErr) => {
                 if (updateErr) {
                   reject(updateErr);
                   return;
@@ -235,7 +243,7 @@ export async function syncPluginsFromJson() {
               });
             } else {
               // Plugin doesn't exist - insert it
-              insertStmt.run([id, pluginName, plugin.vendor, plugin.version, plugin.path, plugin.category, subCategories, plugin.isValid !== undefined ? (plugin.isValid ? 1 : 0) : 1, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null], (insertErr) => {
+              insertStmt.run([id, pluginName, plugin.vendor, plugin.version, pathToStore, plugin.category, subCategories, plugin.isValid !== undefined ? (plugin.isValid ? 1 : 0) : 1, plugin.error || null, plugin.sdkVersion, plugin.cardinality, plugin.flags, plugin.cid, plugin.key || null], (insertErr) => {
                 if (insertErr) {
                   reject(insertErr);
                   return;

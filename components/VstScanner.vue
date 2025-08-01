@@ -27,11 +27,16 @@
         <div v-if="invalidPlugins.length > 0" class="mt-6">
           <h4 class="text-powder/80 text-md mb-3 font-semibold">Invalid Plugins ({{ invalidPlugins.length }})</h4>
           <div class="space-y-3">
-            <div v-for="plugin in invalidPlugins" :key="plugin.path" class="rounded-md border border-red-400/20 bg-red-400/5 p-4">
+            <div v-for="plugin in invalidPlugins" :key="Array.isArray(plugin.path) ? plugin.path.join('|') : plugin.path" class="rounded-md border border-red-400/20 bg-red-400/5 p-4">
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <div class="text-powder/90 font-medium">{{ getPluginName(plugin) }}</div>
-                  <div class="text-powder/60 mt-1 text-sm">{{ plugin.path }}</div>
+                  <div class="text-powder/60 mt-1 text-sm">
+                    <div v-if="Array.isArray(plugin.path)">
+                      <div v-for="path in plugin.path" :key="path" class="mb-1">{{ path }}</div>
+                    </div>
+                    <div v-else>{{ plugin.path }}</div>
+                  </div>
                   <div class="mt-2 text-sm font-medium text-red-400">Error: {{ plugin.error }}</div>
                 </div>
                 <div class="ml-4 flex-shrink-0">
@@ -80,7 +85,8 @@ const getPluginName = (plugin) => {
   if (plugin.name) return plugin.name;
 
   // Extract name from path if no name field
-  const pathParts = plugin.path.split(/[\\\/]/);
+  const firstPath = Array.isArray(plugin.path) ? plugin.path[0] : plugin.path;
+  const pathParts = firstPath.split(/[\\\/]/);
   const fileName = pathParts[pathParts.length - 1];
   return fileName.replace(/\.vst3?$/i, "") || "Unknown Plugin";
 };

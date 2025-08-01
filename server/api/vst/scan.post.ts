@@ -79,11 +79,60 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Group plugins by ID/CID and combine their paths into arrays
+    const pluginMap = new Map();
+
+    for (const plugin of allResults) {
+      // Use ID or CID for primary grouping, fallback to name+vendor for plugins without IDs
+      // This allows grouping plugins that are the same but in different formats/locations
+      const pluginId = plugin.id || plugin.cid || `${plugin.name || "Unknown"}_${plugin.vendor || "Unknown"}`;
+
+      if (pluginMap.has(pluginId)) {
+        const existingPlugin = pluginMap.get(pluginId);
+
+        // Combine paths into array if not already done
+        if (Array.isArray(existingPlugin.path)) {
+          if (!existingPlugin.path.includes(plugin.path)) {
+            existingPlugin.path.push(plugin.path);
+          }
+        } else {
+          // Convert to array and add both paths
+          if (existingPlugin.path !== plugin.path) {
+            existingPlugin.path = [existingPlugin.path, plugin.path];
+          }
+        }
+
+        // Also combine sourceDirectories if they exist
+        if (plugin.sourceDirectory && existingPlugin.sourceDirectory) {
+          if (Array.isArray(existingPlugin.sourceDirectory)) {
+            if (!existingPlugin.sourceDirectory.includes(plugin.sourceDirectory)) {
+              existingPlugin.sourceDirectory.push(plugin.sourceDirectory);
+            }
+          } else {
+            if (existingPlugin.sourceDirectory !== plugin.sourceDirectory) {
+              existingPlugin.sourceDirectory = [existingPlugin.sourceDirectory, plugin.sourceDirectory];
+            }
+          }
+        }
+      } else {
+        // First occurrence - convert path to array for consistency
+        const pluginCopy = { ...plugin };
+        pluginCopy.path = [plugin.path];
+        if (plugin.sourceDirectory) {
+          pluginCopy.sourceDirectory = [plugin.sourceDirectory];
+        }
+        pluginMap.set(pluginId, pluginCopy);
+      }
+    }
+
+    // Convert map back to array
+    const groupedResults = Array.from(pluginMap.values());
+
     // Write combined results back to the output file
     const combinedResults = {
-      plugins: allResults,
-      totalPlugins: allResults.length,
-      validPlugins: allResults.filter((plugin) => plugin.isValid).length,
+      plugins: groupedResults,
+      totalPlugins: groupedResults.length,
+      validPlugins: groupedResults.filter((plugin) => plugin.isValid).length,
     };
 
     // Write the combined results to the scanned-plugins.json file

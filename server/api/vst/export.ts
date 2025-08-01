@@ -24,7 +24,17 @@ export default defineEventHandler(async (event) => {
     const transformedPlugins = plugins.map((plugin) => ({
       id: plugin.id,
       name: plugin.name,
-      path: plugin.path,
+      // Parse path from JSON if it's a string that looks like JSON, otherwise keep as is for backwards compatibility
+      path: (() => {
+        try {
+          if (typeof plugin.path === "string" && plugin.path.startsWith("[")) {
+            return JSON.parse(plugin.path);
+          }
+          return plugin.path;
+        } catch {
+          return plugin.path;
+        }
+      })(),
       vendor: plugin.vendor,
       version: plugin.version,
       category: plugin.category,

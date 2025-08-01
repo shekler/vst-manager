@@ -61,10 +61,21 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Parse subCategories JSON string back to array
+    // Parse subCategories and path JSON strings back to arrays
     const processedPlugins = plugins.map((plugin) => ({
       ...plugin,
       subCategories: JSON.parse(plugin.subCategories || "[]"),
+      // Parse path from JSON if it's a string that looks like JSON, otherwise keep as is for backwards compatibility
+      path: (() => {
+        try {
+          if (typeof plugin.path === "string" && plugin.path.startsWith("[")) {
+            return JSON.parse(plugin.path);
+          }
+          return plugin.path;
+        } catch {
+          return plugin.path;
+        }
+      })(),
     }));
 
     console.log(`API: Returning ${processedPlugins.length} processed plugins`);

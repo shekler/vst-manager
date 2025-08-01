@@ -96,8 +96,14 @@
             </div>
 
             <div class="mt-4 flex flex-col items-start gap-1 text-sm">
-              <div class="font-bold">Install Location:</div>
-              <div class="border-powder/20 flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1">
+              <div class="font-bold">Install Location{{ Array.isArray(plugin.path) && plugin.path.length > 1 ? "s" : "" }}:</div>
+              <div v-if="Array.isArray(plugin.path)" class="w-full space-y-2">
+                <div v-for="(path, index) in plugin.path" :key="path" class="border-powder/20 flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1">
+                  <span class="text-powder/30 pointer-events-none truncate">{{ path }}</span>
+                  <IconCopy class="text-powder/70 hover:text-powder ml-2 size-4 shrink-0 cursor-pointer duration-200" @click="copyPath(path)" />
+                </div>
+              </div>
+              <div v-else class="border-powder/20 flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1">
                 <span class="text-powder/30 pointer-events-none truncate">{{ plugin.path }}</span>
                 <IconCopy class="text-powder/70 hover:text-powder ml-2 size-4 shrink-0 cursor-pointer duration-200" @click="copyPath(plugin.path)" />
               </div>
