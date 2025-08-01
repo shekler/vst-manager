@@ -16,7 +16,7 @@
         </li>
       </ul>
     </nav>
-    <a href="https://www.vstmanager.com" target="_blank" class="text-powder/80 hover:text-powder flex items-center gap-1 self-center text-sm duration-100">Dev blog <IconExternalLink class="size-4" /></a>
+    <a href="https://www.vstmanager.com/blog" target="_blank" class="text-powder/80 hover:text-powder flex items-center gap-1 self-center text-sm duration-100">Dev blog <IconExternalLink class="size-4" /></a>
   </aside>
 </template>
 

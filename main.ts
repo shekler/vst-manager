@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import { createServer } from "http";
@@ -279,6 +279,18 @@ if (!isSquirrelEvent) {
           "Content-Security-Policy": ["default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:*;"],
         },
       });
+    });
+
+    // Handle external links - open in system browser instead of new Electron window
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      // Check if it's an external URL (starts with http:// or https://)
+      if (url.startsWith("http://") || url.startsWith("https://")) {
+        shell.openExternal(url);
+        return { action: "deny" }; // Prevent opening in Electron
+      }
+
+      // Allow internal navigation
+      return { action: "allow" };
     });
 
     if (process.env.NODE_ENV === "development") {
