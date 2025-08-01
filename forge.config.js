@@ -13,6 +13,7 @@ module.exports = {
       config: {
         iconUrl: path.join(__dirname, "public", "icon.ico"),
         setupIcon: path.join(__dirname, "public", "install.ico"),
+        loadingGif: path.join(__dirname, "public", "install-loading.gif"),
       },
     },
     {

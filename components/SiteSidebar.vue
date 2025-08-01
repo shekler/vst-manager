@@ -8,12 +8,6 @@
             Library
           </SidebarLink>
         </li>
-        <!-- <li class="w-full">
-          <SidebarLink to="/updates">
-            <IconRefresh class="size-8" />
-            Updates
-          </SidebarLink>
-        </li> -->
         <li class="w-full">
           <SidebarLink to="/settings">
             <IconSettings class="size-8" />
@@ -22,10 +16,11 @@
         </li>
       </ul>
     </nav>
+    <a href="https://www.vstmanager.com" target="_blank" class="text-powder/80 hover:text-powder flex items-center gap-1 self-center text-sm duration-100">Dev blog <IconExternalLink class="size-4" /></a>
   </aside>
 </template>
 
 <script lang="ts" setup>
-import { IconBooks, IconSettings, IconRefresh } from "@tabler/icons-vue";
+import { IconBooks, IconSettings, IconExternalLink } from "@tabler/icons-vue";
 import SidebarLink from "./SidebarLink.vue";
 </script>

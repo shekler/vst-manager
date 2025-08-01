@@ -11,6 +11,15 @@ import { setupSettingsIPC } from "./server/api/settings-operations";
 // Import database initialization
 import { initializeDatabase } from "./server/api/database";
 
+// Handle Squirrel events early using electron-squirrel-startup
+// This prevents the app from starting multiple times during install/update/uninstall
+const electronSquirrelStartup = require("electron-squirrel-startup") as boolean;
+console.log("Squirrel startup check:", electronSquirrelStartup);
+if (electronSquirrelStartup) {
+  console.log("Electron squirrel startup detected - quitting app");
+  app.quit();
+}
+
 // Squirrel event handler with loading screen
 function handleSquirrelEvent(): boolean {
   if (process.argv.length < 3) {
@@ -190,7 +199,9 @@ function handleSquirrelEvent(): boolean {
 }
 
 // Handle Squirrel events BEFORE any other app logic
+console.log("Process arguments:", process.argv);
 const isSquirrelEvent = handleSquirrelEvent();
+console.log("Is squirrel event:", isSquirrelEvent);
 
 // Only continue with normal app startup if no Squirrel event was detected
 if (!isSquirrelEvent) {
