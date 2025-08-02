@@ -69,10 +69,22 @@ export default defineEventHandler(async (event) => {
       path: (() => {
         try {
           if (typeof plugin.path === "string" && plugin.path.startsWith("[")) {
-            return JSON.parse(plugin.path);
+            const parsed = JSON.parse(plugin.path);
+            // If it's an array with only one element, return just the string for single paths
+            if (Array.isArray(parsed) && parsed.length === 1) {
+              return parsed[0];
+            }
+            return parsed;
           }
           return plugin.path;
-        } catch {
+        } catch (error) {
+          console.warn(`Failed to parse path JSON for plugin ${plugin.name}:`, error, plugin.path);
+          // If JSON parsing fails, try to extract the path from the malformed JSON string
+          if (typeof plugin.path === "string" && plugin.path.includes('"')) {
+            // Extract the path between quotes as a fallback
+            const match = plugin.path.match(/"([^"]+)"/);
+            return match ? match[1] : plugin.path;
+          }
           return plugin.path;
         }
       })(),
