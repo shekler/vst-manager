@@ -63,10 +63,33 @@ export const getPlugins = async () => {
       }
     }
 
-    // Parse subCategories JSON string back to array
+    // Parse subCategories and path JSON strings back to arrays
     const processedPlugins = plugins.map((plugin) => ({
       ...plugin,
       subCategories: JSON.parse(plugin.subCategories || "[]"),
+      // Parse path from JSON if it's a string that looks like JSON, otherwise keep as is for backwards compatibility
+      path: (() => {
+        try {
+          if (typeof plugin.path === "string" && plugin.path.startsWith("[")) {
+            const parsed = JSON.parse(plugin.path);
+            // If it's an array with only one element, return just the string for single paths
+            if (Array.isArray(parsed) && parsed.length === 1) {
+              return parsed[0];
+            }
+            return parsed;
+          }
+          return plugin.path;
+        } catch (error) {
+          console.warn(`Failed to parse path JSON for plugin ${plugin.name}:`, error, plugin.path);
+          // If JSON parsing fails, try to extract the path from the malformed JSON string
+          if (typeof plugin.path === "string" && plugin.path.includes('"')) {
+            // Extract the path between quotes as a fallback
+            const match = plugin.path.match(/"([^"]+)"/);
+            return match ? match[1] : plugin.path;
+          }
+          return plugin.path;
+        }
+      })(),
     }));
 
     console.log(`IPC: Returning ${processedPlugins.length} processed plugins`);
@@ -113,10 +136,33 @@ export const searchPlugins = async (query: string) => {
       [`%${query}%`, `%${query}%`, `%${query}%`],
     );
 
-    // Parse subCategories JSON string back to array
+    // Parse subCategories and path JSON strings back to arrays
     const processedPlugins = plugins.map((plugin) => ({
       ...plugin,
       subCategories: JSON.parse(plugin.subCategories || "[]"),
+      // Parse path from JSON if it's a string that looks like JSON, otherwise keep as is for backwards compatibility
+      path: (() => {
+        try {
+          if (typeof plugin.path === "string" && plugin.path.startsWith("[")) {
+            const parsed = JSON.parse(plugin.path);
+            // If it's an array with only one element, return just the string for single paths
+            if (Array.isArray(parsed) && parsed.length === 1) {
+              return parsed[0];
+            }
+            return parsed;
+          }
+          return plugin.path;
+        } catch (error) {
+          console.warn(`Failed to parse path JSON for plugin ${plugin.name}:`, error, plugin.path);
+          // If JSON parsing fails, try to extract the path from the malformed JSON string
+          if (typeof plugin.path === "string" && plugin.path.includes('"')) {
+            // Extract the path between quotes as a fallback
+            const match = plugin.path.match(/"([^"]+)"/);
+            return match ? match[1] : plugin.path;
+          }
+          return plugin.path;
+        }
+      })(),
     }));
 
     console.log(`IPC: Found ${processedPlugins.length} plugins matching query`);
