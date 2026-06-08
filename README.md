@@ -1,243 +1,104 @@
 # VST Manager
 
-A modern desktop application for managing VST audio plugins with a beautiful, intuitive interface. Built with Nuxt.js and Electron, VST Manager helps you organize, search, and manage your audio plugin collection.
+Desktop app (Rust + egui) that scans a folder for **WAV** and **MP3** files. Pick or type a directory path, save it between sessions, and list matching audio files recursively.
 
 ## Features
 
-- **Plugin Scanning**: Automatically scan and discover VST plugins from configured directories
-- **Database Management**: Store plugin information, metadata, and license keys
-- **Advanced Filtering**: Search by name, manufacturer, and plugin type
-- **Modern UI**: Beautiful dark theme with responsive design
-- **Cross-Platform**: Works on Windows, macOS, and Linux
-- **Plugin Screenshots**: View plugin interfaces and screenshots
-- **Settings Management**: Configure VST scan paths and application preferences
+- Text field for folder path (typed or pasted)
+- **Browse…** — native folder picker
+- **Scan** — walks all subfolders and finds `.wav` / `.mp3` (case-insensitive)
+- Scrollable list of full file paths
+- Path persisted automatically (on edit, browse, scan, and app exit)
 
-## Screenshots
+## Requirements
 
-*Screenshots coming soon*
+- [Rust](https://rustup.rs/) (stable toolchain via rustup)
+- **Windows:** [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **Desktop development with C++** workload (needed to compile native GUI dependencies on first build)
 
-## Installation
+## Run on Windows
 
-### Prerequisites
+From the project root:
 
-- Node.js 18+ 
-- npm, yarn, pnpm, or bun
-
-### Development Setup
-
-1. Clone the repository:
-```bash
-git clone https://github.com/shekler/vst-manager.git
-cd vst-manager
+```powershell
+cargo run
 ```
 
-2. Install dependencies:
-```bash
-# Using npm
-npm install
+First build downloads dependencies and may take several minutes. Later runs are faster.
 
-# Using bun (recommended)
-bun install
+## Release build
 
-# Using pnpm
-pnpm install
-
-# Using yarn
-yarn install
+```powershell
+cargo build --release
 ```
 
-3. Start the development server:
-```bash
-# Using npm
-npm run dev
+Run the executable:
 
-# Using bun
-bun run dev
-
-# Using pnpm
-pnpm dev
-
-# Using yarn
-yarn dev
+```powershell
+.\target\release\vst-manager.exe
 ```
 
-The application will open in your default browser at `http://localhost:3000`.
-
-### Running as Desktop App (Electron)
-
-To run VST Manager as a desktop application during development:
-
-```bash
-# Using npm
-npm run start
-
-# Using bun
-bun run start
-
-# Using pnpm
-pnpm start
-
-# Using yarn
-yarn start
-```
-
-**Note**: Make sure the development server is running first (`npm run dev`) before starting the Electron app.
-
-### Building for Production
-
-Build the application for production:
-
-```bash
-# Using npm
-npm run build
-
-# Using bun
-bun run build
-
-# Using pnpm
-pnpm build
-
-# Using yarn
-yarn build
-```
-
-### Creating Desktop Application
-
-Package the application as a desktop app:
-
-```bash
-# Using npm
-npm run make
-
-# Using bun
-bun run make
-
-# Using pnpm
-pnpm make
-
-# Using yarn
-yarn make
-```
+In debug builds, a console window may appear for logging. Release builds hide the extra console window on Windows.
 
 ## Usage
 
-### First Time Setup
+1. Enter a folder path (e.g. `C:\Users\You\Music`) or click **Browse…**
+2. Click **Scan**
+3. Matching files appear in the list; the status line shows how many were found
 
-1. Launch VST Manager
-2. Navigate to **Settings** to configure your VST plugin directories
-3. Add the paths where your VST plugins are installed
-4. Return to the main **Library** page
-5. Click **Scan for VST Plugins** to discover your plugins
+If the path is empty, missing, or not a directory, the status line explains the problem.
 
-### Managing Plugins
+## Saved settings
 
-- **View Library**: Browse all discovered plugins with filtering options
-- **Search**: Use the search bar to find specific plugins
-- **Filter**: Filter by manufacturer or plugin type
-- **Plugin Details**: Click on plugins to view detailed information
-- **Database Management**: Import/export plugin data or clear the database
+The last folder path is stored as JSON:
 
-### Settings
+| OS      | Location |
+|---------|----------|
+| Windows | `%APPDATA%\vst-manager\vst-manager\config\config.json` |
+| Linux   | `~/.config/vst-manager/vst-manager/config.json` |
+| macOS   | `~/Library/Application Support/vst-manager/vst-manager/config.json` |
 
-Configure the following in the Settings page:
-- VST plugin scan paths
-- Application preferences
-- Database settings
+Example:
 
-## Development
+```json
+{
+  "scan_path": "C:\\Users\\You\\Music"
+}
+```
 
-### Project Structure
+## Project layout
 
 ```
 vst-manager/
-├── components/          # Vue components
-├── composables/         # Vue composables
-├── pages/              # Application pages
-├── server/             # API endpoints
-├── assets/             # Static assets
-├── public/             # Public files
-├── tools/              # VST scanning tools
-└── main.ts             # Electron main process
+├── Cargo.toml      # Dependencies and package metadata
+├── src/
+│   └── main.rs     # App entry, config, scan logic, UI
+├── README.md       # Install, usage, config paths
+└── CODE.md         # In-depth code and Rust concepts walkthrough
 ```
 
-### Technology Stack
+## Dependencies
 
-- **Frontend**: Nuxt.js 4, Vue 3, Tailwind CSS
-- **Desktop**: Electron
-- **Database**: SQLite3
-- **Build Tool**: Vite
-- **Package Manager**: Bun (recommended)
+| Crate | Role |
+|-------|------|
+| [eframe](https://github.com/emilk/egui) / [egui](https://github.com/emilk/egui) | Native window and immediate-mode UI |
+| [rfd](https://github.com/ryanhaining/rfd) | Native file/folder dialogs |
+| [walkdir](https://github.com/BurntSushi/walkdir) | Recursive directory traversal |
+| [serde](https://serde.rs/) / [serde_json](https://github.com/serde-rs/json) | Load/save `config.json` |
+| [directories](https://github.com/soc/directories-rs) | OS-appropriate config directory paths |
 
-### API Endpoints
+## Development
 
-- `GET /api/plugins` - List all plugins
-- `GET /api/plugins/[id]` - Get specific plugin
-- `PUT /api/plugins/[id]` - Update plugin
-- `DELETE /api/plugins/[id]` - Delete plugin
-- `POST /api/plugins/import` - Import plugins
-- `POST /api/plugins/delete-all` - Clear database
-- `GET /api/plugins/search` - Search plugins
-- `GET /api/plugins/stats` - Get statistics
-- `POST /api/vst/scan` - Scan for VST plugins
-- `GET /api/settings` - Get settings
-- `PUT /api/settings/[key]` - Update setting
+```powershell
+# Format
+cargo fmt
 
-### Development Scripts
+# Check without running
+cargo check
 
-```bash
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start Electron app
-npm run start
-
-# Package application
-npm run package
-
-# Create distributable
-npm run make
+# Run
+cargo run
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow Vue.js and Nuxt.js best practices
-- Use TypeScript for type safety
-- Follow the existing code style and formatting
-- Test your changes thoroughly
-- Update documentation as needed
-
-## Alpha Version Notice
-
-⚠️ **This is currently an alpha version (v0.1.0-alpha).** 
-
-- Bugs and errors may occur
-- Avoid saving sensitive data in the app
-- Report issues on [GitHub](https://github.com/shekler/vst-manager/issues)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Author
-
-**Sven Wolf** - [GitHub](https://github.com/shekler)
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/shekler/vst-manager/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/shekler/vst-manager/discussions)
-
----
-
-Made with ❤️ for the audio production community
+Not specified yet.
