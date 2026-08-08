@@ -1,19 +1,25 @@
 # VST Manager
 
-Desktop app (Rust + egui) that scans a folder for **WAV** and **MP3** files. Pick or type a directory path, save it between sessions, and list matching audio files recursively.
+Desktop app (Rust + egui) that discovers and catalogs **VST / VST3** plugins on disk. Pick common install folders or a custom path, scan in the background, filter by vendor and category, and browse results in a scrollable grid.
+
+Version: **0.3.0** · [vstmanager.com](https://www.vstmanager.com)
 
 ## Features
 
-- Text field for folder path (typed or pasted)
-- **Browse…** — native folder picker
-- **Scan** — walks all subfolders and finds `.wav` / `.mp3` (case-insensitive)
-- Scrollable list of full file paths
-- Path persisted automatically (on edit, browse, scan, and app exit)
+- **Library** — plugin grid with vendor / category filters, status line, and scan log
+- **Settings** — toggle common VST/VST3/CLAP install locations; optional custom folder (typed or **Browse**)
+- Background scan via bundled `vst_scanner.exe` (UI stays responsive)
+- Disk cache of plugin metadata (mtime-aware); startup can reload from cache
+- Per-plugin actions: copy folder path, open folder in Explorer
+- Path + selected folders persisted between sessions
 
 ## Requirements
 
 - [Rust](https://rustup.rs/) (stable toolchain via rustup)
-- **Windows:** [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **Desktop development with C++** workload (needed to compile native GUI dependencies on first build)
+- **Windows** (primary target) — [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **Desktop development with C++** workload
+- `tools/vst_scanner.exe` — native plugin scanner; `build.rs` copies it next to the app binary on build
+
+macOS folder presets exist in Settings, but scanning depends on `vst_scanner.exe` (Windows).
 
 ## Run on Windows
 
@@ -25,31 +31,42 @@ cargo run
 
 First build downloads dependencies and may take several minutes. Later runs are faster.
 
+Optional watch alias (needs `cargo-watch`):
+
+```powershell
+cargo dev
+```
+
 ## Release build
 
 ```powershell
 cargo build --release
 ```
 
-Run the executable:
+Run:
 
 ```powershell
 .\target\release\vst-manager.exe
 ```
 
-In debug builds, a console window may appear for logging. Release builds hide the extra console window on Windows.
+`vst_scanner.exe` is copied beside the binary (`target\debug\` or `target\release\`). Debug builds may show a console for logging; release builds hide it on Windows.
 
 ## Usage
 
-1. Enter a folder path (e.g. `C:\Users\You\Music`) or click **Browse…**
-2. Click **Scan**
-3. Matching files appear in the list; the status line shows how many were found
+1. Open **Settings** — enable common plugin folders that exist on this machine, and/or set a custom folder
+2. Open **Library** — click **Scan plugins**
+3. Results appear in the grid; use sidebar filters (Vendor / Category)
+4. **Clear plugins** wipes the on-disk cache and empties the library
 
-If the path is empty, missing, or not a directory, the status line explains the problem.
+Discovery looks for `.vst3` bundles (file or folder) and `.dll` under selected roots. Metadata (name, vendor, version, categories, etc.) comes from `vst_scanner.exe`.
 
-## Saved settings
+If no valid folders are selected, the status line asks you to configure Settings first.
 
-The last folder path is stored as JSON:
+## Saved data
+
+### Config
+
+Last custom path and selected common folders:
 
 | OS      | Location |
 |---------|----------|
@@ -61,19 +78,38 @@ Example:
 
 ```json
 {
-  "scan_path": "C:\\Users\\You\\Music"
+  "scan_path": "H:\\VSTPlugins",
+  "selected_folders": [
+    "C:\\Program Files\\Common Files\\VST3"
+  ]
 }
 ```
+
+### Plugin cache
+
+Scanned plugin metadata (invalidated when file mtime changes):
+
+| OS      | Location |
+|---------|----------|
+| Windows | `%LOCALAPPDATA%\vst-manager\vst-manager\cache\plugin_cache.json` |
+| Linux   | `~/.cache/vst-manager/vst-manager/plugin_cache.json` |
+| macOS   | `~/Library/Caches/vst-manager/vst-manager/plugin_cache.json` |
 
 ## Project layout
 
 ```
 vst-manager/
-├── Cargo.toml      # Dependencies and package metadata
-├── src/
-│   └── main.rs     # App entry, config, scan logic, UI
-├── README.md       # Install, usage, config paths
-└── CODE.md         # In-depth code and Rust concepts walkthrough
+├── Cargo.toml
+├── build.rs              # Embed icon; copy tools/vst_scanner.exe → target/
+├── tools/
+│   └── vst_scanner.exe   # External plugin scanner (required for Scan)
+├── assets/               # Icon, logo, fonts, UI icons
+└── src/
+    ├── main.rs           # Window bootstrap
+    ├── app.rs            # App state, config, scan orchestration
+    ├── pages/            # Library + Settings UI
+    ├── scanner/          # Discover, cache, invoke vst_scanner
+    └── theme/            # Colors, spacing, widgets
 ```
 
 ## Dependencies
@@ -81,10 +117,15 @@ vst-manager/
 | Crate | Role |
 |-------|------|
 | [eframe](https://github.com/emilk/egui) / [egui](https://github.com/emilk/egui) | Native window and immediate-mode UI |
-| [rfd](https://github.com/ryanhaining/rfd) | Native file/folder dialogs |
-| [walkdir](https://github.com/BurntSushi/walkdir) | Recursive directory traversal |
-| [serde](https://serde.rs/) / [serde_json](https://github.com/serde-rs/json) | Load/save `config.json` |
-| [directories](https://github.com/soc/directories-rs) | OS-appropriate config directory paths |
+| [egui_extras](https://github.com/emilk/egui) | Image loaders |
+| [egui-thematic](https://crates.io/crates/egui-thematic) | Theming helpers |
+| [rfd](https://github.com/ryanhaining/rfd) | Native folder dialog |
+| [walkdir](https://github.com/BurntSushi/walkdir) | Recursive plugin path discovery |
+| [serde](https://serde.rs/) / [serde_json](https://github.com/serde-rs/json) | Config + cache + scanner JSON |
+| [directories](https://github.com/soc/directories-rs) | OS config / cache paths |
+| [open](https://crates.io/crates/open) | Open folders / URLs |
+| [imagesize](https://crates.io/crates/imagesize) | Image dimension helpers |
+| [winresource](https://crates.io/crates/winresource) (build) | Embed Windows `.ico` |
 
 ## Development
 
