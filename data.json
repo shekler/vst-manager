@@ -1,0 +1,59 @@
+{
+  "scanTime": "17801636384008070",
+  "totalPlugins": 4,
+  "validPlugins": 4,
+  "plugins": [
+    {
+      "path": "H:\\VSTPlugins\\Softube\\Amplifiers.vst3",
+      "isValid": true,
+      "scanSource": "factory",
+      "name": "Amplifiers",
+      "vendor": "Softube",
+      "version": "2.6.30",
+      "cid": "3C5238D0D4E14756ACF473222547A44E",
+      "sdkVersion": "VST 3.7.5",
+      "cardinality": 2147483647,
+      "flags": 0,
+      "categories": ["Fx", "Distortion"]
+    },
+    {
+      "path": "H:\\VSTPlugins\\Softube\\Blaze Works Amplification.vst3",
+      "isValid": true,
+      "scanSource": "factory",
+      "name": "Blaze Works Amplification",
+      "vendor": "Softube",
+      "version": "2.6.30",
+      "cid": "96E0BA7217BA435ABE81EF31C71F161E",
+      "sdkVersion": "VST 3.7.5",
+      "cardinality": 2147483647,
+      "flags": 0,
+      "categories": ["Fx", "Distortion"]
+    },
+    {
+      "path": "H:\\VSTPlugins\\Softube\\Clipper.vst3",
+      "isValid": true,
+      "scanSource": "factory",
+      "name": "Clipper",
+      "vendor": "Softube",
+      "version": "2.6.30",
+      "cid": "E34FA6DCE5AA440FA9926C2892586C64",
+      "sdkVersion": "VST 3.7.5",
+      "cardinality": 2147483647,
+      "flags": 0,
+      "categories": ["Fx", "Dynamics", "Tools"]
+    },
+    {
+      "path": "H:\\VSTPlugins\\Softube\\VCA Compressor.vst3",
+      "isValid": true,
+      "scanSource": "factory",
+      "name": "VCA Compressor",
+      "vendor": "Softube",
+      "version": "2.6.30",
+      "cid": "24DCAB96A33C41E5B2C97A9953B51CCD",
+      "sdkVersion": "VST 3.7.5",
+      "cardinality": 2147483647,
+      "flags": 0,
+      "categories": ["Fx", "Dynamics"]
+    }
+  ]
+}

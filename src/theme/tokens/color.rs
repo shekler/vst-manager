@@ -1,10 +1,6 @@
 pub const MINT: egui::Color32 = egui::Color32::from_rgb(0x41, 0xC4, 0x9D); // #41C49D
-pub const GREEN: egui::Color32 = egui::Color32::from_rgb(0x11, 0x7F, 0x54); // #117F54
 pub const SEA: egui::Color32 = egui::Color32::from_rgb(0x20, 0xBF, 0xCF); // #20BFCF
 pub const RED: egui::Color32 = egui::Color32::from_rgb(0xFF, 0x45, 0x45); // #ff4545
-pub const ORANGE: egui::Color32 = egui::Color32::from_rgb(0xFF, 0x5D, 0x00); // #FF5D00
-pub const BRIGHT: egui::Color32 = egui::Color32::from_rgb(0xFF, 0xD5, 0x81); // #FFD581
-pub const GOLD: egui::Color32 = egui::Color32::from_rgb(0xFF, 0xF0, 0xB6); // #FFF0B6
 pub const ONYX: egui::Color32 = egui::Color32::from_rgb(0x1B, 0x1D, 0x20); // #1B1D20
 pub const POWDER: egui::Color32 = egui::Color32::from_rgb(0xF9, 0xF7, 0xF2); // #F9F7F2
 pub const JET: egui::Color32 = egui::Color32::from_rgb(0x10, 0x11, 0x12); // #101112

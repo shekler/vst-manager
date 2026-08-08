@@ -46,82 +46,250 @@ pub mod text {
 }
 
 pub mod button {
-    use super::{color, egui, size};
+    use super::{FontId, TextStyle, color, egui, size};
+
+    const PADDING: egui::Vec2 = egui::vec2(10.0, 6.0);
+    const RADIUS: u8 = 4;
+
+    struct Colors {
+        fill: egui::Color32,
+        stroke: egui::Color32,
+        text: egui::Color32,
+    }
+
+    fn apply_state(visuals: &mut egui::style::WidgetVisuals, colors: Colors) {
+        visuals.weak_bg_fill = colors.fill;
+        visuals.bg_fill = colors.fill;
+        visuals.bg_stroke = egui::Stroke::new(1.0, colors.stroke);
+        visuals.fg_stroke = egui::Stroke::new(1.0, colors.text);
+        visuals.corner_radius = egui::CornerRadius::same(RADIUS);
+        visuals.expansion = 0.0;
+    }
+
+    /// Themed [`egui::Button`] — scope overrides widget visuals, keeps default hover/active.
+    fn styled(
+        ui: &mut egui::Ui,
+        label: &str,
+        idle: Colors,
+        hover: Colors,
+        active: Colors,
+    ) -> egui::Response {
+        ui.scope(|ui| {
+            let style = ui.style_mut();
+            style.spacing.button_padding = PADDING;
+            // Let per-state `fg_stroke` drive text color (global override would pin POWDER).
+            style.visuals.override_text_color = None;
+            style.text_styles.insert(
+                TextStyle::Button,
+                FontId::new(size::BASE, super::font_family()),
+            );
+
+            apply_state(&mut style.visuals.widgets.inactive, idle);
+            apply_state(&mut style.visuals.widgets.hovered, hover);
+            apply_state(&mut style.visuals.widgets.active, active);
+
+            ui.add(egui::Button::new(label))
+        })
+        .inner
+    }
+
     pub fn mint(ui: &mut egui::Ui, label: &str) -> egui::Response {
-        let response = egui::Frame::new()
-            .stroke(egui::Stroke::new(1.0, color::MINT))
-            .fill(color::MINT)
-            .corner_radius(egui::CornerRadius::same(2))
-            .inner_margin(egui::vec2(12.0, 8.0))
-            .show(ui, |ui| {
-                ui.label(
-                    egui::RichText::new(label)
-                        .font(egui::FontId {
-                            size: size::BASE,
-                            family: super::font_family(),
-                        })
-                        .strong()
-                        .color(color::ONYX),
-                );
-            })
-            .response
-            .interact(egui::Sense::click());
-
-        if response.hovered() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-        }
-
-        response
+        styled(
+            ui,
+            label,
+            Colors {
+                fill: color::MINT,
+                stroke: color::MINT,
+                text: color::ONYX,
+            },
+            Colors {
+                fill: color::ONYX,
+                stroke: color::MINT.gamma_multiply(0.3),
+                text: color::MINT,
+            },
+            Colors {
+                fill: color::ONYX,
+                stroke: color::MINT.gamma_multiply(0.3),
+                text: color::MINT,
+            },
+        )
     }
+
     pub fn powder(ui: &mut egui::Ui, label: &str) -> egui::Response {
-        let response = egui::Frame::new()
-            .stroke(egui::Stroke::new(1.0, color::POWDER))
-            .fill(color::POWDER)
-            .corner_radius(egui::CornerRadius::same(2))
-            .inner_margin(egui::vec2(12.0, 8.0))
-            .show(ui, |ui| {
-                ui.label(
-                    egui::RichText::new(label)
-                        .font(egui::FontId {
-                            size: size::BASE,
-                            family: super::font_family(),
-                        })
-                        .strong()
-                        .color(color::ONYX),
-                );
-            })
-            .response
-            .interact(egui::Sense::click());
-
-        if response.hovered() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-        }
-
-        response
+        styled(
+            ui,
+            label,
+            Colors {
+                fill: color::POWDER,
+                stroke: color::POWDER,
+                text: color::ONYX,
+            },
+            Colors {
+                fill: color::ONYX,
+                stroke: color::POWDER.gamma_multiply(0.3),
+                text: color::POWDER,
+            },
+            Colors {
+                fill: color::ONYX,
+                stroke: color::POWDER.gamma_multiply(0.3),
+                text: color::POWDER,
+            },
+        )
     }
+
     pub fn outline(ui: &mut egui::Ui, label: &str) -> egui::Response {
-        let response = egui::Frame::new()
-            .stroke(egui::Stroke::new(1.0, color::POWDER.gamma_multiply(0.5)))
-            .fill(egui::Color32::TRANSPARENT)
-            .corner_radius(egui::CornerRadius::same(2))
-            .inner_margin(egui::vec2(12.0, 8.0))
-            .show(ui, |ui| {
-                ui.label(
-                    egui::RichText::new(label)
-                        .font(egui::FontId {
-                            size: size::BASE,
-                            family: super::font_family(),
-                        })
-                        .strong()
-                        .color(color::POWDER.gamma_multiply(0.5)),
-                );
-            })
-            .response
-            .interact(egui::Sense::click());
-        if response.hovered() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        let muted = color::POWDER.gamma_multiply(0.5);
+        styled(
+            ui,
+            label,
+            Colors {
+                fill: egui::Color32::TRANSPARENT,
+                stroke: muted,
+                text: muted,
+            },
+            Colors {
+                fill: egui::Color32::TRANSPARENT,
+                stroke: color::POWDER,
+                text: color::POWDER,
+            },
+            Colors {
+                fill: color::POWDER.gamma_multiply(0.12),
+                stroke: color::POWDER,
+                text: color::POWDER,
+            },
+        )
+    }
+}
+
+pub mod checkbox {
+    use super::{FontFamily, FontId, TextStyle, color, egui, size};
+
+    const BOX_SIZE: f32 = 14.0;
+    const CHECK_SIZE: f32 = 8.0;
+    const ICON_GAP: f32 = 8.0;
+    const RADIUS: u8 = 2;
+
+    struct Colors {
+        fill: egui::Color32,
+        stroke: egui::Color32,
+        check: egui::Color32,
+        text: egui::Color32,
+    }
+
+    fn apply_state(visuals: &mut egui::style::WidgetVisuals, colors: &Colors) {
+        visuals.bg_fill = colors.fill;
+        visuals.weak_bg_fill = colors.fill;
+        visuals.bg_stroke = egui::Stroke::new(1.0, colors.stroke);
+        visuals.fg_stroke = egui::Stroke::new(1.5, colors.check);
+        visuals.corner_radius = egui::CornerRadius::same(RADIUS);
+        visuals.expansion = 0.0;
+    }
+
+    fn pick_text(
+        state: egui::widget_style::WidgetState,
+        idle: &Colors,
+        hover: &Colors,
+        active: &Colors,
+    ) -> egui::Color32 {
+        match state {
+            egui::widget_style::WidgetState::Active => active.text,
+            egui::widget_style::WidgetState::Hovered => hover.text,
+            _ => idle.text,
         }
-        response
+    }
+
+    fn styled(
+        ui: &mut egui::Ui,
+        checked: &mut bool,
+        label: &str,
+        idle: Colors,
+        hover: Colors,
+        active: Colors,
+    ) -> egui::Response {
+        ui.scope(|ui| {
+            let style = ui.style_mut();
+            style.spacing.icon_width = BOX_SIZE;
+            style.spacing.icon_width_inner = CHECK_SIZE;
+            style.spacing.icon_spacing = ICON_GAP;
+            style.visuals.override_text_color = None;
+            style.text_styles.insert(
+                TextStyle::Body,
+                FontId::new(size::BASE, FontFamily::Proportional),
+            );
+
+            apply_state(&mut style.visuals.widgets.inactive, &idle);
+            apply_state(&mut style.visuals.widgets.hovered, &hover);
+            apply_state(&mut style.visuals.widgets.active, &active);
+
+            // Peek last-frame state so label color can differ from check mark (`fg_stroke`).
+            let state = ui
+                .ctx()
+                .read_response(ui.next_auto_id())
+                .map(|r| r.widget_state())
+                .unwrap_or_default();
+            let text_color = pick_text(state, &idle, &hover, &active);
+
+            let text = egui::RichText::new(label)
+                .font(FontId::new(size::BASE, FontFamily::Proportional))
+                .color(text_color);
+
+            ui.add(egui::Checkbox::new(checked, text))
+        })
+        .inner
+    }
+
+    /// Default filter-style checkbox (powder idle, mint when checked / hovered).
+    pub fn default(ui: &mut egui::Ui, checked: &mut bool, label: &str) -> egui::Response {
+        let muted = color::POWDER.gamma_multiply(0.55);
+        if *checked {
+            styled(
+                ui,
+                checked,
+                label,
+                Colors {
+                    fill: color::MINT,
+                    stroke: color::MINT,
+                    check: color::ONYX,
+                    text: color::POWDER,
+                },
+                Colors {
+                    fill: color::RED,
+                    stroke: color::RED,
+                    check: color::ONYX,
+                    text: color::POWDER,
+                },
+                Colors {
+                    fill: color::RED,
+                    stroke: color::RED,
+                    check: color::ONYX,
+                    text: color::POWDER,
+                },
+            )
+        } else {
+            styled(
+                ui,
+                checked,
+                label,
+                Colors {
+                    fill: egui::Color32::TRANSPARENT,
+                    stroke: muted,
+                    check: muted,
+                    text: muted,
+                },
+                Colors {
+                    fill: color::MINT.gamma_multiply(0.2),
+                    stroke: color::MINT,
+                    check: color::MINT,
+                    text: color::POWDER,
+                },
+                Colors {
+                    fill: color::MINT.gamma_multiply(0.2),
+                    stroke: color::MINT,
+                    check: color::MINT,
+                    text: color::POWDER,
+                },
+            )
+        }
     }
 }
 
@@ -177,61 +345,67 @@ pub mod status {
         }
     }
 
+    fn badge(
+        ui: &mut egui::Ui,
+        text: &str,
+        stroke: egui::Color32,
+        text_color: egui::Color32,
+        background: egui::Color32,
+    ) -> egui::Response {
+        const PAD: egui::Vec2 = egui::vec2(6.0, 3.0);
+
+        let label = egui::RichText::new(text)
+            .font(egui::FontId::new(size::SMALL, super::font_family()))
+            .color(text_color);
+
+        // Exact size up-front — Frame inside horizontal_wrapped alone won't wrap (egui#3054).
+        let text_size = ui.fonts_mut(|f| {
+            f.layout_no_wrap(
+                text.to_owned(),
+                egui::FontId::new(size::SMALL, super::font_family()),
+                text_color,
+            )
+            .size()
+        });
+        let desired = text_size + PAD * 2.0 + egui::vec2(2.0, 2.0);
+
+        ui.allocate_ui(desired, |ui| {
+            egui::Frame::new()
+                .corner_radius(egui::CornerRadius::same(2))
+                .stroke(egui::Stroke::new(1.0, stroke))
+                .inner_margin(PAD)
+                .fill(background)
+                .show(ui, |ui| {
+                    ui.label(label);
+                });
+        })
+        .response
+    }
+
     pub fn default(ui: &mut egui::Ui, text: &str) -> egui::Response {
-        egui::Frame::new()
-            .corner_radius(egui::CornerRadius::same(2))
-            .stroke(egui::Stroke::new(1.0, color::POWDER.gamma_multiply(0.5)))
-            .inner_margin(egui::vec2(6.0, 3.0))
-            .show(ui, |ui| {
-                ui.label(
-                    egui::RichText::new(text)
-                        .color(color::POWDER.gamma_multiply(0.5))
-                        .font(egui::FontId {
-                            size: size::SMALL,
-                            family: super::font_family(),
-                        }),
-                );
-            })
-            .response
+        let color = color::POWDER.gamma_multiply(0.7);
+        badge(ui, text, color, color, egui::Color32::TRANSPARENT)
     }
 
     pub fn mint(ui: &mut egui::Ui, text: &str) -> egui::Response {
-        egui::Frame::new()
-            .corner_radius(egui::CornerRadius::same(2))
-            .stroke(egui::Stroke::new(1.0, color::MINT))
-            .inner_margin(egui::vec2(6.0, 3.0))
-            .show(ui, |ui| {
-                ui.label(
-                    egui::RichText::new(text)
-                        .color(color::MINT)
-                        .font(egui::FontId {
-                            size: size::SMALL,
-                            family: super::font_family(),
-                        }),
-                );
-            })
-            .response
+        badge(
+            ui,
+            text,
+            color::MINT,
+            color::MINT,
+            egui::Color32::TRANSPARENT,
+        )
     }
 
     pub fn category(ui: &mut egui::Ui, text: &str) -> egui::Response {
-        let label_color = label_color(text);
-        let stroke_color = label_color.gamma_multiply(0.75);
-
-        egui::Frame::new()
-            .corner_radius(egui::CornerRadius::same(2))
-            .stroke(egui::Stroke::new(1.0, stroke_color))
-            .inner_margin(egui::vec2(6.0, 3.0))
-            .show(ui, |ui| {
-                ui.label(
-                    egui::RichText::new(text)
-                        .color(label_color)
-                        .font(egui::FontId {
-                            size: size::SMALL,
-                            family: super::font_family(),
-                        }),
-                );
-            })
-            .response
+        let text_color = label_color(text);
+        badge(
+            ui,
+            text,
+            text_color.gamma_multiply(0.75),
+            text_color,
+            text_color.gamma_multiply(0.1),
+        )
     }
 }
 
@@ -245,6 +419,7 @@ pub fn apply(ctx: &egui::Context) {
     visuals.hyperlink_color = tokens::color::MINT;
     visuals.interact_cursor = Some(egui::CursorIcon::PointingHand);
     visuals.override_text_color = Some(tokens::color::POWDER);
+    visuals.popup_shadow = egui::Shadow::NONE;
 
     ctx.all_styles_mut(|style| {
         style.visuals = visuals.clone();
@@ -306,7 +481,6 @@ pub fn nav_tab(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response
     use tokens::{color, size};
 
     const PADDING: egui::Vec2 = egui::vec2(12.0, 6.0);
-    const ACTIVE_RADIUS: u8 = 2;
 
     let font = FontId::new(size::H3, FontFamily::Proportional);
     let measure = ui
@@ -315,15 +489,6 @@ pub fn nav_tab(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response
     let tab_size = measure.size() + PADDING * 2.0;
 
     let (rect, response) = ui.allocate_exact_size(tab_size, egui::Sense::click());
-
-    if selected {
-        ui.painter().rect_stroke(
-            rect,
-            egui::CornerRadius::same(ACTIVE_RADIUS),
-            egui::Stroke::new(1.0, color::MINT),
-            egui::StrokeKind::Middle,
-        );
-    }
 
     let text_color = nav_tab_color(selected, response.hovered());
     let galley = ui
@@ -351,13 +516,16 @@ pub fn card_frame(style: &egui::Style) -> egui::Frame {
     egui::Frame::group(style)
         .inner_margin(16)
         .corner_radius(egui::CornerRadius::same(2))
-        .stroke(egui::Stroke::NONE)
+        .stroke(egui::Stroke::new(
+            1.0,
+            tokens::color::POWDER.gamma_multiply(0.1),
+        ))
         .fill(tokens::color::ONYX.gamma_multiply(0.5))
 }
 
-/// Horizontal + vertical padding inside [`card_frame`].
+/// Horizontal + vertical padding inside [`card_frame`] (margins + stroke).
 pub fn card_inner_margin(style: &egui::Style) -> egui::Vec2 {
-    card_frame(style).inner_margin.sum()
+    card_frame(style).total_margin().sum()
 }
 
 /// Inner content size for a grid cell of `cell_size` (outer card box).

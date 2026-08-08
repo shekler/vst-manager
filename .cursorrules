@@ -1,0 +1,44 @@
+When generating Git commit messages for this repository, follow this format exactly.
+
+## Structure
+
+1. Heading — one short line (max 50 chars). Imperative mood. States what changed, not how.
+2. Blank line.
+3. Bullets (optional) — only when heading alone is insufficient. Max 3 bullets, one line each.
+
+## Rules
+
+- Heading must stand alone; reader gets intent without bullets.
+- Bullets add why or scope, not repeat the heading.
+- No paragraphs, no filler ("also", "just", "updated various").
+- No file lists unless the commit is purely mechanical (rename/move).
+
+## Format
+
+<short imperative heading>
+
+- <reason or context>
+- <notable trade-off or scope limit>
+
+## Good examples
+
+Add theme token module for shared colors and spacing
+
+- Centralizes hardcoded values from main.rs and theme.rs
+- No runtime behavior change
+
+Fix scanner crash on empty plugin paths
+
+- Guard against zero-length path before native call
+
+Refactor sidebar layout into dedicated component
+
+## Bad examples (do not use)
+
+Fixed some stuff and cleaned up code
+
+Add theme tokens
+
+Added a new theme token module that extracts color and size constants from multiple files across the codebase to improve maintainability and reduce duplication going forward.
+
+Update main.rs, theme.rs, scanner/mod.rs, add tokens

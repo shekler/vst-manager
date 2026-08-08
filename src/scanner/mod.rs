@@ -11,12 +11,20 @@ use std::thread;
 
 pub use exe::PluginInfo;
 
-/// Plugins previously scanned under `root`, without running discovery or vst_scanner.
-pub fn load_cached_plugins(root: &Path) -> Vec<PluginInfo> {
-    let mut plugins = PluginCache::load().plugins_under_root(root);
-    for plugin in &mut plugins {
-        plugin.ensure_derived_fields();
+/// Plugins previously scanned under any of `roots`.
+pub fn load_cached_plugins(roots: &[PathBuf]) -> Vec<PluginInfo> {
+    let cache = PluginCache::load();
+    let mut plugins = Vec::new();
+    let mut seen = HashSet::new();
+    for root in roots {
+        for mut plugin in cache.plugins_under_root(root) {
+            if seen.insert(plugin.path.clone()) {
+                plugin.ensure_derived_fields();
+                plugins.push(plugin);
+            }
+        }
     }
+    plugins.sort_by(|a, b| a.path.cmp(&b.path));
     plugins
 }
 
@@ -35,33 +43,57 @@ pub struct ScanReport {
     pub shards_scanned: usize,
 }
 
-pub fn scan_directory_with_sender(
-    root: &Path,
+pub fn scan_directories_with_sender(
+    roots: &[PathBuf],
     log_tx: Sender<String>,
 ) -> Result<ScanReport, String> {
     let log = LogSink::new(log_tx);
-    log.send(format!("Scanning {}", root.display()));
+    let roots: Vec<PathBuf> = roots
+        .iter()
+        .filter(|root| root.is_dir())
+        .cloned()
+        .collect();
+    if roots.is_empty() {
+        return Err("No valid scan folders selected.".into());
+    }
+
+    for root in &roots {
+        log.send(format!("Scanning {}", root.display()));
+    }
 
     let scanner = exe::scanner_exe()
         .ok_or("vst_scanner.exe not found (expected beside app or in tools/vst_scanner.exe)")?;
     log.send(format!("Using scanner: {}", scanner.display()));
 
-    log.send("Discovering plugin paths…".into());
-    let discovered = discover::discover_plugin_paths(root)?;
-    log.send(format!("Found {} plugin path(s)", discovered.len()));
-
     let mut cache = PluginCache::load();
-
     let mut from_cache = 0usize;
     let mut shards_to_scan = HashSet::new();
+    let mut all_discovered = Vec::new();
+    let mut shard_plugin_counts = HashMap::new();
 
-    for plugin_path in &discovered {
-        if cache.get(plugin_path).is_some() {
-            from_cache += 1;
-        } else {
-            shards_to_scan.insert(discover::shard_root(root, plugin_path));
+    for root in &roots {
+        log.send(format!("Discovering plugin paths in {}…", root.display()));
+        let discovered = discover::discover_plugin_paths(root)?;
+        log.send(format!("Found {} plugin path(s)", discovered.len()));
+
+        for plugin_path in &discovered {
+            let shard = discover::shard_root(root, plugin_path);
+            *shard_plugin_counts.entry(shard.clone()).or_insert(0) += 1;
+            if cache.get(plugin_path).is_some() {
+                from_cache += 1;
+            } else {
+                shards_to_scan.insert(shard);
+            }
         }
+        if discovered.is_empty() {
+            shards_to_scan.insert(root.clone());
+        }
+        all_discovered.extend(discovered);
     }
+
+    all_discovered.sort();
+    all_discovered.dedup();
+
     log.send(format!(
         "Cache: {} hit(s), {} shard(s) need scan",
         from_cache,
@@ -69,20 +101,15 @@ pub fn scan_directory_with_sender(
     ));
 
     let mut shards: Vec<PathBuf> = shards_to_scan.into_iter().collect();
-    if discovered.is_empty() {
-        shards.push(root.to_path_buf());
-    }
     shards.sort();
     shards.dedup();
-
-    let shard_plugin_counts = shard_plugin_counts(root, &discovered);
 
     let shards_scanned = if shards.is_empty() {
         log.send("All plugins served from cache".into());
         0
     } else {
         run_parallel_shards(
-            root,
+            &roots,
             &scanner,
             &shards,
             &shard_plugin_counts,
@@ -91,10 +118,10 @@ pub fn scan_directory_with_sender(
         )?
     };
 
-    let mut results = collect_results(&cache, root, &discovered);
+    let mut results = collect_results(&cache, &roots, &all_discovered);
 
     log.send("Pruning cache and saving…".into());
-    cache.prune_missing(&discovered);
+    cache.prune_missing(&all_discovered);
     cache.save()?;
 
     for plugin in &mut results {
@@ -129,22 +156,17 @@ impl LogSink {
     }
 }
 
-fn shard_plugin_counts(root: &Path, discovered: &[PathBuf]) -> HashMap<PathBuf, usize> {
-    let mut counts = HashMap::new();
-    for plugin_path in discovered {
-        let shard = discover::shard_root(root, plugin_path);
-        *counts.entry(shard).or_insert(0) += 1;
+fn display_shard_label(roots: &[PathBuf], shard: &Path) -> String {
+    for root in roots {
+        if let Ok(rel) = shard.strip_prefix(root) {
+            let rel = rel.display().to_string();
+            if rel.is_empty() {
+                return root.display().to_string();
+            }
+            return rel;
+        }
     }
-    counts
-}
-
-fn display_shard_label(root: &Path, shard: &Path) -> String {
-    shard
-        .strip_prefix(root)
-        .ok()
-        .map(|rel| rel.display().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| shard.display().to_string())
+    shard.display().to_string()
 }
 
 struct ShardJob {
@@ -154,14 +176,14 @@ struct ShardJob {
 }
 
 fn shard_jobs(
-    root: &Path,
+    roots: &[PathBuf],
     shards: &[PathBuf],
     shard_plugin_counts: &HashMap<PathBuf, usize>,
 ) -> Vec<ShardJob> {
     shards
         .iter()
         .map(|shard| ShardJob {
-            label: display_shard_label(root, shard),
+            label: display_shard_label(roots, shard),
             plugin_count: shard_plugin_counts.get(shard).copied().unwrap_or(0),
             path: shard.clone(),
         })
@@ -169,14 +191,14 @@ fn shard_jobs(
 }
 
 fn run_parallel_shards(
-    root: &Path,
+    roots: &[PathBuf],
     scanner: &Path,
     shards: &[PathBuf],
     shard_plugin_counts: &HashMap<PathBuf, usize>,
     cache: &mut PluginCache,
     log: &LogSink,
 ) -> Result<usize, String> {
-    let shard_jobs = shard_jobs(root, &shards, &shard_plugin_counts);
+    let shard_jobs = shard_jobs(roots, shards, shard_plugin_counts);
     let shard_count = shard_jobs.len();
     let workers = thread::available_parallelism()
         .map(|n| n.get())
@@ -255,13 +277,25 @@ fn run_parallel_shards(
     Ok(shard_count)
 }
 
-fn collect_results(cache: &PluginCache, root: &Path, discovered: &[PathBuf]) -> Vec<PluginInfo> {
-    if discovered.is_empty() {
-        return cache.plugins_under_root(root);
-    }
-
+fn collect_results(
+    cache: &PluginCache,
+    roots: &[PathBuf],
+    discovered: &[PathBuf],
+) -> Vec<PluginInfo> {
     let mut results = Vec::new();
     let mut seen = HashSet::new();
+
+    if discovered.is_empty() {
+        for root in roots {
+            for plugin in cache.plugins_under_root(root) {
+                if seen.insert(plugin.path.clone()) {
+                    results.push(plugin);
+                }
+            }
+        }
+        return results;
+    }
+
     for plugin_path in discovered {
         let Some(plugin) = cache.get(plugin_path) else {
             continue;
@@ -271,9 +305,11 @@ fn collect_results(cache: &PluginCache, root: &Path, discovered: &[PathBuf]) -> 
         }
     }
 
-    for plugin in cache.plugins_under_root(root) {
-        if seen.insert(plugin.path.clone()) {
-            results.push(plugin);
+    for root in roots {
+        for plugin in cache.plugins_under_root(root) {
+            if seen.insert(plugin.path.clone()) {
+                results.push(plugin);
+            }
         }
     }
 
