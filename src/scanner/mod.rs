@@ -24,6 +24,7 @@ pub fn load_cached_plugins(roots: &[PathBuf]) -> Vec<PluginInfo> {
             }
         }
     }
+    merge_duplicate_plugins(&mut plugins);
     plugins.sort_by(|a, b| a.path.cmp(&b.path));
     plugins
 }
@@ -128,6 +129,7 @@ pub fn scan_directories_with_sender(
         plugin.ensure_derived_fields();
     }
 
+    merge_duplicate_plugins(&mut results);
     results.sort_by(|a, b| a.path.cmp(&b.path));
     let valid = results.iter().filter(|p| p.is_valid).count();
     log.send(format!("Done — {} valid / {} total", valid, results.len()));
@@ -314,4 +316,86 @@ fn collect_results(
     }
 
     results
+}
+
+/// Collapse the same plugin found at multiple install paths into one entry.
+fn merge_duplicate_plugins(plugins: &mut Vec<PluginInfo>) {
+    let mut groups: HashMap<String, PluginInfo> = HashMap::new();
+    let drained: Vec<PluginInfo> = std::mem::take(plugins);
+
+    for plugin in drained {
+        let key = plugin.identity_key();
+        match groups.get_mut(&key) {
+            Some(existing) => {
+                if existing.paths.is_empty() {
+                    existing.paths.push(existing.path.clone());
+                }
+                existing.paths.push(plugin.path);
+            }
+            None => {
+                groups.insert(key, plugin);
+            }
+        }
+    }
+
+    *plugins = groups
+        .into_values()
+        .map(|mut plugin| {
+            if !plugin.paths.is_empty() {
+                plugin.paths.sort();
+                plugin.paths.dedup();
+                if let Some(first) = plugin.paths.first().cloned() {
+                    plugin.path = first;
+                }
+            }
+            plugin
+        })
+        .collect();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample(path: &str, cid: &str) -> PluginInfo {
+        PluginInfo {
+            path: path.into(),
+            paths: Vec::new(),
+            is_valid: true,
+            scan_source: String::new(),
+            name: "Test".into(),
+            vendor: "Vendor".into(),
+            version: "1.0".into(),
+            cid: cid.into(),
+            sdk_version: "VST 3".into(),
+            cardinality: 0,
+            flags: 0,
+            sub_categories: Vec::new(),
+            missing_license: false,
+            load_failed: false,
+            load_timed_out: false,
+            error: String::new(),
+            size: String::new(),
+            format: "vst3".into(),
+        }
+    }
+
+    #[test]
+    fn merge_duplicate_plugins_groups_by_cid() {
+        let mut plugins = vec![
+            sample(r"C:\A\Foo.vst3", "ABC"),
+            sample(r"C:\B\Foo.vst3", "ABC"),
+            sample(r"C:\C\Bar.vst3", "DEF"),
+        ];
+        merge_duplicate_plugins(&mut plugins);
+        plugins.sort_by(|a, b| a.path.cmp(&b.path));
+        assert_eq!(plugins.len(), 2);
+        let foo = plugins.iter().find(|p| p.cid == "ABC").unwrap();
+        assert_eq!(
+            foo.all_paths(),
+            vec![r"C:\A\Foo.vst3", r"C:\B\Foo.vst3"]
+        );
+        let bar = plugins.iter().find(|p| p.cid == "DEF").unwrap();
+        assert_eq!(bar.all_paths(), vec![r"C:\C\Bar.vst3"]);
+    }
 }

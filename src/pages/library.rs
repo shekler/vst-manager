@@ -611,77 +611,83 @@ fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo, invalid: bo
     }
 
     ui.add_space(16.0);
-    ui.horizontal(|ui| {
-        let folder_path = plugin_path_label(&plugin.path);
-        ui.label(
-            egui::RichText::new(&folder_path)
-                .small()
-                .family(egui::FontFamily::Monospace)
-                .weak(),
-        );
+    let install_paths = plugin.all_paths();
+    for (path_idx, install_path) in install_paths.iter().enumerate() {
+        if path_idx > 0 {
+            ui.add_space(6.0);
+        }
+        ui.horizontal(|ui| {
+            let folder_path = plugin_path_label(install_path);
+            ui.label(
+                egui::RichText::new(&folder_path)
+                    .small()
+                    .family(egui::FontFamily::Monospace)
+                    .weak(),
+            );
 
-        let icon = |ui: &mut egui::Ui, image: egui::Image| {
-            ui.add(
-                egui::Button::image(
-                    image
-                        .fit_to_exact_size(egui::vec2(16.0, 16.0))
-                        .tint(theme::color::POWDER.gamma_multiply(0.7)),
+            let icon = |ui: &mut egui::Ui, image: egui::Image| {
+                ui.add(
+                    egui::Button::image(
+                        image
+                            .fit_to_exact_size(egui::vec2(16.0, 16.0))
+                            .tint(theme::color::POWDER.gamma_multiply(0.7)),
+                    )
+                    .frame(false),
                 )
-                .frame(false),
-            )
-        };
+            };
 
-        let copy = icon(
-            ui,
-            egui::Image::new(egui::include_image!("../../assets/copy.svg")),
-        );
-        let feedback_id = copy.id.with("path_copied");
-        let now = ui.input(|i| i.time);
-        if copy.clicked() {
-            ui.ctx().copy_text(folder_path.clone());
-            ui.ctx().data_mut(|d| d.insert_temp(feedback_id, now));
-        }
-        const COPIED_SECS: f64 = 2.0;
-        let copied_at = ui.ctx().data(|d| d.get_temp::<f64>(feedback_id));
-        if let Some(t0) = copied_at.filter(|&t0| now - t0 < COPIED_SECS) {
-            egui::Popup::from_response(&copy)
-                .kind(egui::PopupKind::Tooltip)
-                .align(egui::RectAlign::TOP_START)
-                .gap(4.0)
-                .show(|ui| {
-                    egui::Frame::NONE
-                        .inner_margin(egui::vec2(3.0, 2.0))
-                        .show(ui, |ui| {
-                            ui.label(
-                                egui::RichText::new("File path copied")
-                                    .color(theme::color::POWDER.gamma_multiply(0.7)),
-                            );
-                        });
-                });
-
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_secs_f64(
-                    (COPIED_SECS - (now - t0)).max(0.0),
-                ));
-        } else {
-            if copied_at.is_some() {
-                ui.ctx().data_mut(|d| {
-                    let _: Option<f64> = d.remove_temp(feedback_id);
-                });
+            let copy = icon(
+                ui,
+                egui::Image::new(egui::include_image!("../../assets/copy.svg")),
+            );
+            let feedback_id = copy.id.with(("path_copied", path_idx, *install_path));
+            let now = ui.input(|i| i.time);
+            if copy.clicked() {
+                ui.ctx().copy_text(folder_path.clone());
+                ui.ctx().data_mut(|d| d.insert_temp(feedback_id, now));
             }
-            copy.on_hover_text("Copy folder path");
-        }
+            const COPIED_SECS: f64 = 2.0;
+            let copied_at = ui.ctx().data(|d| d.get_temp::<f64>(feedback_id));
+            if let Some(t0) = copied_at.filter(|&t0| now - t0 < COPIED_SECS) {
+                egui::Popup::from_response(&copy)
+                    .kind(egui::PopupKind::Tooltip)
+                    .align(egui::RectAlign::TOP_START)
+                    .gap(4.0)
+                    .show(|ui| {
+                        egui::Frame::NONE
+                            .inner_margin(egui::vec2(3.0, 2.0))
+                            .show(ui, |ui| {
+                                ui.label(
+                                    egui::RichText::new("File path copied")
+                                        .color(theme::color::POWDER.gamma_multiply(0.7)),
+                                );
+                            });
+                    });
 
-        if icon(
-            ui,
-            egui::Image::new(egui::include_image!("../../assets/folder.svg")),
-        )
-        .on_hover_text("Open folder")
-        .clicked()
-        {
-            let _ = open::that(&folder_path);
-        }
-    });
+                ui.ctx()
+                    .request_repaint_after(std::time::Duration::from_secs_f64(
+                        (COPIED_SECS - (now - t0)).max(0.0),
+                    ));
+            } else {
+                if copied_at.is_some() {
+                    ui.ctx().data_mut(|d| {
+                        let _: Option<f64> = d.remove_temp(feedback_id);
+                    });
+                }
+                copy.on_hover_text("Copy folder path");
+            }
+
+            if icon(
+                ui,
+                egui::Image::new(egui::include_image!("../../assets/folder.svg")),
+            )
+            .on_hover_text("Open folder")
+            .clicked()
+            {
+                let _ = open::that(&folder_path);
+            }
+        });
+    }
 
     if !plugin.error.is_empty() {
         ui.add_space(16.0);

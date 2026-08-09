@@ -27,7 +27,11 @@ pub struct ScanOutput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginInfo {
+    /// Primary install path (first of [`Self::paths`] after merge).
     pub path: String,
+    /// All discovered install paths for this plugin identity. Empty = only [`Self::path`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub paths: Vec<String>,
     #[serde(default)]
     pub is_valid: bool,
     #[serde(default)]
@@ -109,6 +113,34 @@ impl PluginInfo {
                 self.fill_size_from_path(Path::new(&path));
             }
         }
+    }
+
+    /// Install paths to show in the UI (merged duplicates or the single `path`).
+    pub fn all_paths(&self) -> Vec<&str> {
+        if !self.paths.is_empty() {
+            self.paths.iter().map(String::as_str).collect()
+        } else if self.path.is_empty() {
+            Vec::new()
+        } else {
+            vec![self.path.as_str()]
+        }
+    }
+
+    /// Key used to collapse the same plugin found at multiple filesystem locations.
+    pub fn identity_key(&self) -> String {
+        if !self.cid.is_empty() {
+            return format!("cid:{}", self.cid.to_ascii_uppercase());
+        }
+        if self.is_valid {
+            return format!(
+                "name:{}|{}|{}|{}",
+                self.vendor.to_ascii_lowercase(),
+                self.name.to_ascii_lowercase(),
+                self.version.to_ascii_lowercase(),
+                self.format_label().to_ascii_lowercase()
+            );
+        }
+        format!("path:{}", self.path)
     }
 
     /// Drops redundant top-level `Fx` and duplicate tags (case-insensitive).
@@ -285,6 +317,7 @@ mod tests {
     fn clean_sub_categories_strips_fx_and_dedupes() {
         let mut p = PluginInfo {
             path: String::new(),
+            paths: Vec::new(),
             is_valid: false,
             scan_source: String::new(),
             name: String::new(),
