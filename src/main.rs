@@ -17,7 +17,6 @@ fn main() -> eframe::Result<()> {
             .with_min_inner_size(egui::Vec2::new(1024.0, 768.0))
             // Remove position for production build
             .with_position(egui::Pos2::new(-1080.0, 320.0))
-            .with_active(false)
             .with_title("VST Manager")
             .with_icon(
                 eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon.png"))
