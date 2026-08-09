@@ -373,11 +373,8 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
 }
 
 fn show_invalid_plugins_section(app: &mut App, ui: &mut egui::Ui) {
-    let invalid_plugins: Vec<&scanner::PluginInfo> = app
-        .scan_results
-        .iter()
-        .filter(|p| !p.is_valid)
-        .collect();
+    let invalid_plugins: Vec<&scanner::PluginInfo> =
+        app.scan_results.iter().filter(|p| !p.is_valid).collect();
 
     ui.label(
         egui::RichText::new(format!("Invalid plugins ({})", invalid_plugins.len()))
