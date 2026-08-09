@@ -562,12 +562,15 @@ fn effective_grid_row_height(measured: f32) -> f32 {
 fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo, invalid: bool) {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| {
-            ui.label(
-                egui::RichText::new(plugin.vendor())
-                    .strong()
-                    .color(theme::color::POWDER.gamma_multiply(0.5))
-                    .text_style(egui::TextStyle::Name("base".into())),
-            );
+            let show_vendor = !invalid || !plugin.vendor.is_empty();
+            if show_vendor {
+                ui.label(
+                    egui::RichText::new(plugin.vendor())
+                        .strong()
+                        .color(theme::color::POWDER.gamma_multiply(0.5))
+                        .text_style(egui::TextStyle::Name("base".into())),
+                );
+            }
             let title = if invalid {
                 plugin_file_name(&plugin.path)
             } else {
@@ -595,18 +598,20 @@ fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo, invalid: bo
         });
     });
 
-    ui.add_space(16.0);
+    if !invalid {
+        ui.add_space(16.0);
 
-    ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing.y = 6.0;
-        if plugin.sub_categories.is_empty() {
-            theme::status::default(ui, "Undefined");
-        } else {
-            for category in &plugin.sub_categories {
-                theme::status::category(ui, category);
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.y = 6.0;
+            if plugin.sub_categories.is_empty() {
+                theme::status::default(ui, "Undefined");
+            } else {
+                for category in &plugin.sub_categories {
+                    theme::status::category(ui, category);
+                }
             }
-        }
-    });
+        });
+    }
 
     ui.add_space(16.0);
     ui.horizontal(|ui| {
