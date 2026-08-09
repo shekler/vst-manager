@@ -299,9 +299,12 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
                     } else {
                         "Show invalid plugins"
                     };
-                    if ui.link(label).clicked() {
-                        app.show_invalid_plugins = !app.show_invalid_plugins;
-                    }
+                    ui.scope(|ui| {
+                        ui.visuals_mut().hyperlink_color = theme::color::RED;
+                        if ui.link(label).clicked() {
+                            app.show_invalid_plugins = !app.show_invalid_plugins;
+                        }
+                    });
                 });
             }
         });
