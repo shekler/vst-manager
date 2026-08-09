@@ -69,6 +69,10 @@ pub struct App {
     pub(crate) scan_results: Vec<scanner::PluginInfo>,
     /// Measured grid-row heights for virtual scrolling (`0` = not measured yet).
     pub(crate) plugin_row_heights: Vec<f32>,
+    /// Measured grid-row heights for the invalid-plugins section.
+    pub(crate) invalid_plugin_row_heights: Vec<f32>,
+    /// Whether the invalid-plugins section is visible.
+    pub(crate) show_invalid_plugins: bool,
     /// Selected vendor names; empty = no vendor filter.
     pub(crate) filter_vendors: HashSet<String>,
     /// Selected category names; empty = no category filter.
@@ -150,6 +154,8 @@ impl App {
             selected_folders,
             scan_results,
             plugin_row_heights: Vec::new(),
+            invalid_plugin_row_heights: Vec::new(),
+            show_invalid_plugins: false,
             filter_vendors: HashSet::new(),
             filter_categories: HashSet::new(),
             status,
@@ -189,6 +195,7 @@ impl App {
                         Ok(report) => {
                             self.scan_results = report.plugins;
                             self.plugin_row_heights.clear();
+                            self.invalid_plugin_row_heights.clear();
                             prune_vendor_filter(
                                 &mut self.filter_vendors,
                                 &self.scan_results,
@@ -226,6 +233,8 @@ impl App {
             Ok(()) => {
                 self.scan_results.clear();
                 self.plugin_row_heights.clear();
+                self.invalid_plugin_row_heights.clear();
+                self.show_invalid_plugins = false;
                 self.filter_vendors.clear();
                 self.filter_categories.clear();
                 self.scan_log.clear();

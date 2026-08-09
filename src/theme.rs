@@ -523,6 +523,20 @@ pub fn card_frame(style: &egui::Style) -> egui::Frame {
         .fill(tokens::color::ONYX.gamma_multiply(0.5))
 }
 
+pub fn invalid_card_frame(style: &egui::Style) -> egui::Frame {
+    let red = tokens::color::RED;
+    egui::Frame::group(style)
+        .inner_margin(16)
+        .corner_radius(egui::CornerRadius::same(2))
+        .stroke(egui::Stroke::new(1.0, red))
+        .fill(egui::Color32::from_rgba_unmultiplied(
+            red.r(),
+            red.g(),
+            red.b(),
+            26, // ~10% alpha
+        ))
+}
+
 /// Horizontal + vertical padding inside [`card_frame`] (margins + stroke).
 pub fn card_inner_margin(style: &egui::Style) -> egui::Vec2 {
     card_frame(style).total_margin().sum()

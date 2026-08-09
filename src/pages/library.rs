@@ -281,6 +281,8 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
         }
     });
 
+    let invalid_count = app.scan_results.iter().filter(|p| !p.is_valid).count();
+
     if !app.status.is_empty() {
         ui.add_space(24.0);
         ui.horizontal(|ui| {
@@ -290,9 +292,21 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
                     .color(theme::color::POWDER.gamma_multiply(0.8))
                     .text_style(theme::text::base_style()),
             );
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::BOTTOM), |ui| {
-                ui.link("Show invalid plugins")
-            });
+            if invalid_count > 0 {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::BOTTOM), |ui| {
+                    let label = if app.show_invalid_plugins {
+                        "Hide invalid plugins"
+                    } else {
+                        "Show invalid plugins"
+                    };
+                    ui.scope(|ui| {
+                        ui.visuals_mut().hyperlink_color = theme::color::RED;
+                        if ui.link(label).clicked() {
+                            app.show_invalid_plugins = !app.show_invalid_plugins;
+                        }
+                    });
+                });
+            }
         });
         ui.add_space(24.0);
     }
@@ -326,6 +340,10 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
         return;
     }
 
+    if app.show_invalid_plugins && invalid_count > 0 {
+        show_invalid_plugins_section(app, ui);
+    }
+
     let valid_plugins: Vec<&scanner::PluginInfo> = app
         .scan_results
         .iter()
@@ -350,8 +368,36 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
         .id_salt("plugin_list")
         .auto_shrink([false, false])
         .show_viewport(ui, |ui, viewport| {
-            show_plugins_viewport(ui, &valid_plugins, heights, viewport);
+            show_plugins_viewport(ui, &valid_plugins, heights, viewport, false);
         });
+}
+
+fn show_invalid_plugins_section(app: &mut App, ui: &mut egui::Ui) {
+    let invalid_plugins: Vec<&scanner::PluginInfo> =
+        app.scan_results.iter().filter(|p| !p.is_valid).collect();
+
+    ui.label(
+        egui::RichText::new(format!("Invalid plugins ({})", invalid_plugins.len()))
+            .text_style(theme::text::h3_style())
+            .color(theme::color::POWDER),
+    );
+    ui.add_space(16.0);
+
+    let grid_row_count = invalid_plugins.len().div_ceil(GRID_COLUMNS);
+    let heights = &mut app.invalid_plugin_row_heights;
+    if heights.len() != grid_row_count {
+        heights.resize(grid_row_count, 0.0);
+    }
+
+    egui::ScrollArea::vertical()
+        .id_salt("invalid_plugin_list")
+        .max_height(320.0)
+        .auto_shrink([false, false])
+        .show_viewport(ui, |ui, viewport| {
+            show_plugins_viewport(ui, &invalid_plugins, heights, viewport, true);
+        });
+
+    ui.add_space(24.0);
 }
 
 fn vendor_counts(plugins: &[scanner::PluginInfo]) -> BTreeMap<String, usize> {
@@ -394,6 +440,7 @@ fn show_plugins_viewport(
     plugins: &[&scanner::PluginInfo],
     heights: &mut [f32],
     viewport: Rect,
+    invalid: bool,
 ) {
     let count = plugins.len();
     if count == 0 {
@@ -426,7 +473,11 @@ fn show_plugins_viewport(
     let content_top = ui.max_rect().top();
     let content_width = ui.max_rect().width();
     let col_width = (content_width - gap_x * (GRID_COLUMNS - 1) as f32) / GRID_COLUMNS as f32;
-    let card_frame = theme::card_frame(ui.style());
+    let card_frame = if invalid {
+        theme::invalid_card_frame(ui.style())
+    } else {
+        theme::card_frame(ui.style())
+    };
 
     let mut layout_changed = false;
     for grid_row in range {
@@ -454,7 +505,7 @@ fn show_plugins_viewport(
                 .scope_builder(UiBuilder::new().max_rect(rect), |ui| {
                     let response = card_frame.show(ui, |ui| {
                         ui.set_width(content_width);
-                        show_plugin_card(ui, plugins[index]);
+                        show_plugin_card(ui, plugins[index], invalid);
                     });
                     response.response.rect.height()
                 })
@@ -505,17 +556,25 @@ fn effective_grid_row_height(measured: f32) -> f32 {
     }
 }
 
-fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo) {
+fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo, invalid: bool) {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| {
+            let show_vendor = !invalid || !plugin.vendor.is_empty();
+            if show_vendor {
+                ui.label(
+                    egui::RichText::new(plugin.vendor())
+                        .strong()
+                        .color(theme::color::POWDER.gamma_multiply(0.5))
+                        .text_style(egui::TextStyle::Name("base".into())),
+                );
+            }
+            let title = if invalid {
+                plugin_file_name(&plugin.path)
+            } else {
+                plugin.name()
+            };
             ui.label(
-                egui::RichText::new(plugin.vendor())
-                    .strong()
-                    .color(theme::color::POWDER.gamma_multiply(0.5))
-                    .text_style(egui::TextStyle::Name("base".into())),
-            );
-            ui.label(
-                egui::RichText::new(plugin.name())
+                egui::RichText::new(title)
                     .strong()
                     .color(theme::color::POWDER)
                     .text_style(egui::TextStyle::Name("h3".into())),
@@ -536,18 +595,20 @@ fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo) {
         });
     });
 
-    ui.add_space(16.0);
+    if !invalid {
+        ui.add_space(16.0);
 
-    ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing.y = 6.0;
-        if plugin.sub_categories.is_empty() {
-            theme::status::default(ui, "Undefined");
-        } else {
-            for category in &plugin.sub_categories {
-                theme::status::category(ui, category);
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.y = 6.0;
+            if plugin.sub_categories.is_empty() {
+                theme::status::default(ui, "Undefined");
+            } else {
+                for category in &plugin.sub_categories {
+                    theme::status::category(ui, category);
+                }
             }
-        }
-    });
+        });
+    }
 
     ui.add_space(16.0);
     ui.horizontal(|ui| {
@@ -630,6 +691,14 @@ fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo) {
                 .color(theme::color::RED),
         );
     }
+}
+
+fn plugin_file_name(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| path.to_owned())
 }
 
 fn plugin_path_label(path: &str) -> String {
