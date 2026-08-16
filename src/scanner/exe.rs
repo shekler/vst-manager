@@ -238,6 +238,7 @@ pub fn run_scanner(
         .arg(dir)
         .arg("-o")
         .arg(&json_path)
+        .arg("--try-license-load")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -272,18 +273,73 @@ pub fn run_scanner(
         let _ = fs::remove_file(&json_path);
     };
 
+    let mut read_output = |partial: bool| -> Result<ScanOutput, String> {
+        let json = fs::read_to_string(&json_path).map_err(|e| {
+            format!("Scanner wrote no JSON at {}: {e}", json_path.display())
+        })?;
+        let output: ScanOutput = serde_json::from_str(&json)
+            .map_err(|e| format!("Invalid scanner JSON: {e}\n{json}"))?;
+        if partial {
+            on_progress(&format!(
+                "Scanner exited with {status}; kept {} plugin(s) from output",
+                output.plugins.len()
+            ));
+        }
+        Ok(output)
+    };
+
     if !status.success() {
-        cleanup();
-        return Err(format!("Scanner failed on {} ({status}).", dir.display()));
+        match read_output(true) {
+            Ok(output) => {
+                cleanup();
+                return Ok(output);
+            }
+            Err(_) => {
+                cleanup();
+                return Err(format!("Scanner failed on {} ({status}).", dir.display()));
+            }
+        }
     }
 
-    let json = fs::read_to_string(&json_path).map_err(|e| {
+    let output = read_output(false).map_err(|e| {
         cleanup();
-        format!("Scanner wrote no JSON at {}: {e}", json_path.display())
+        e
     })?;
     cleanup();
+    Ok(output)
+}
 
-    serde_json::from_str(&json).map_err(|e| format!("Invalid scanner JSON: {e}\n{json}"))
+/// Placeholder for a plugin path that crashed the native scanner process.
+pub fn crash_stub(path: &Path, error: &str) -> PluginInfo {
+    let path_str = path.to_string_lossy().into_owned();
+    let format = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .filter(|e| e == "vst3" || e == "dll")
+        .map(|e| if e == "dll" { "vst2".into() } else { e });
+    let mut plugin = PluginInfo {
+        path: path_str,
+        paths: Vec::new(),
+        is_valid: false,
+        scan_source: String::new(),
+        name: String::new(),
+        vendor: String::new(),
+        version: String::new(),
+        cid: String::new(),
+        sdk_version: String::new(),
+        cardinality: 0,
+        flags: 0,
+        sub_categories: Vec::new(),
+        missing_license: false,
+        load_failed: true,
+        load_timed_out: false,
+        error: error.to_owned(),
+        size: String::new(),
+        format: format.unwrap_or_default(),
+    };
+    plugin.fill_size_from_path(path);
+    plugin
 }
 
 fn scanner_json_path() -> PathBuf {

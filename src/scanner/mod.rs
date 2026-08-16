@@ -71,6 +71,7 @@ pub fn scan_directories_with_sender(
     let mut shards_to_scan = HashSet::new();
     let mut all_discovered = Vec::new();
     let mut shard_plugin_counts = HashMap::new();
+    let mut shard_plugins: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
 
     for root in &roots {
         log.send(format!("Discovering plugin paths in {}…", root.display()));
@@ -83,7 +84,11 @@ pub fn scan_directories_with_sender(
             if cache.get(plugin_path).is_some() {
                 from_cache += 1;
             } else {
-                shards_to_scan.insert(shard);
+                shards_to_scan.insert(shard.clone());
+                shard_plugins
+                    .entry(shard)
+                    .or_default()
+                    .push(plugin_path.clone());
             }
         }
         if discovered.is_empty() {
@@ -114,6 +119,7 @@ pub fn scan_directories_with_sender(
             &scanner,
             &shards,
             &shard_plugin_counts,
+            &shard_plugins,
             &mut cache,
             &log,
         )?
@@ -197,6 +203,7 @@ fn run_parallel_shards(
     scanner: &Path,
     shards: &[PathBuf],
     shard_plugin_counts: &HashMap<PathBuf, usize>,
+    shard_plugins: &HashMap<PathBuf, Vec<PathBuf>>,
     cache: &mut PluginCache,
     log: &LogSink,
 ) -> Result<usize, String> {
@@ -214,6 +221,7 @@ fn run_parallel_shards(
 
     let scanner = Arc::new(scanner.to_path_buf());
     let shard_jobs = Arc::new(shard_jobs);
+    let shard_plugins = Arc::new(shard_plugins.clone());
     let progress = Arc::new(log.tx.clone());
     let chunk = shard_count.div_ceil(workers);
 
@@ -226,6 +234,7 @@ fn run_parallel_shards(
         let end = (start + chunk).min(shard_count);
         let scanner = Arc::clone(&scanner);
         let shard_jobs = Arc::clone(&shard_jobs);
+        let shard_plugins = Arc::clone(&shard_plugins);
         let progress = Arc::clone(&progress);
         handles.push(thread::spawn(move || {
             let mut outputs = Vec::new();
@@ -237,23 +246,20 @@ fn run_parallel_shards(
                 ));
                 let _ = progress.send(format!("  → {}", job.path.display()));
                 let log_progress = Arc::clone(&progress);
-                let result = exe::run_scanner(&scanner, &job.path, |line| {
+                let plugins = shard_plugins
+                    .get(&job.path)
+                    .cloned()
+                    .unwrap_or_default();
+                let output = scan_shard_resilient(&scanner, job, &plugins, |line| {
                     let _ = log_progress.send(format!("  {line}"));
                 });
-                match &result {
-                    Ok(out) => {
-                        let valid = out.plugins.iter().filter(|p| p.is_valid).count();
-                        let _ = progress.send(format!(
-                            "  ✓ {} — {valid}/{} valid",
-                            job.label,
-                            out.plugins.len()
-                        ));
-                    }
-                    Err(e) => {
-                        let _ = progress.send(format!("  ✗ {} — {e}", job.label));
-                    }
-                }
-                outputs.push((job.path.clone(), result));
+                let valid = output.plugins.iter().filter(|p| p.is_valid).count();
+                let _ = progress.send(format!(
+                    "  ✓ {} — {valid}/{} valid",
+                    job.label,
+                    output.plugins.len()
+                ));
+                outputs.push(output);
             }
             outputs
         }));
@@ -263,8 +269,7 @@ fn run_parallel_shards(
         let outputs = handle
             .join()
             .map_err(|_| "Scanner worker thread panicked".to_string())?;
-        for (_shard, result) in outputs {
-            let output = result?;
+        for output in outputs {
             for mut plugin in output.plugins {
                 let path = PathBuf::from(&plugin.path);
                 let bundle = discover::bundle_root(&path);
@@ -277,6 +282,64 @@ fn run_parallel_shards(
     }
 
     Ok(shard_count)
+}
+
+/// Scan a shard; on process crash, retry each plugin path so one bad DLL cannot abort the scan.
+fn scan_shard_resilient(
+    scanner: &Path,
+    job: &ShardJob,
+    plugins: &[PathBuf],
+    mut on_progress: impl FnMut(&str),
+) -> exe::ScanOutput {
+    match exe::run_scanner(scanner, &job.path, &mut on_progress) {
+        Ok(output) => output,
+        Err(err) => {
+            on_progress(&format!("✗ {} — {err}", job.label));
+            if plugins.is_empty() {
+                return exe::ScanOutput {
+                    scan_time: String::new(),
+                    total_plugins: 0,
+                    valid_plugins: 0,
+                    plugins: Vec::new(),
+                };
+            }
+            if plugins.len() == 1 {
+                on_progress(&format!(
+                    "Recording crash stub for {}",
+                    plugins[0].display()
+                ));
+                return exe::ScanOutput {
+                    scan_time: String::new(),
+                    total_plugins: 1,
+                    valid_plugins: 0,
+                    plugins: vec![exe::crash_stub(&plugins[0], &err)],
+                };
+            }
+
+            on_progress(&format!(
+                "Retrying {} plugin(s) individually after shard crash…",
+                plugins.len()
+            ));
+            let mut recovered = Vec::new();
+            for plugin_path in plugins {
+                on_progress(&format!("  → {}", plugin_path.display()));
+                match exe::run_scanner(scanner, plugin_path, &mut on_progress) {
+                    Ok(mut output) => recovered.append(&mut output.plugins),
+                    Err(plugin_err) => {
+                        on_progress(&format!("  ✗ {plugin_err}"));
+                        recovered.push(exe::crash_stub(plugin_path, &plugin_err));
+                    }
+                }
+            }
+            let valid_plugins = recovered.iter().filter(|p| p.is_valid).count() as u32;
+            exe::ScanOutput {
+                scan_time: String::new(),
+                total_plugins: recovered.len() as u32,
+                valid_plugins,
+                plugins: recovered,
+            }
+        }
+    }
 }
 
 fn collect_results(
