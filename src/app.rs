@@ -51,6 +51,8 @@ impl Config {
 
 enum ScanMsg {
     Log(String),
+    Error(String),
+    Progress { done: usize, total: usize },
     Done(Result<scanner::ScanReport, String>),
 }
 
@@ -79,7 +81,10 @@ pub struct App {
     pub(crate) filter_categories: HashSet<String>,
     pub(crate) status: String,
     pub(crate) scan_log: Vec<String>,
+    pub(crate) scan_error_log: Vec<String>,
     pub(crate) scanning: bool,
+    /// `(done, total)` discovered plugins while a scan runs.
+    pub(crate) scan_progress: Option<(usize, usize)>,
     scan_rx: Option<mpsc::Receiver<ScanMsg>>,
 }
 
@@ -160,7 +165,9 @@ impl App {
             filter_categories: HashSet::new(),
             status,
             scan_log: Vec::new(),
+            scan_error_log: Vec::new(),
             scanning: false,
+            scan_progress: None,
             scan_rx: None,
         }
     }
@@ -188,9 +195,17 @@ impl App {
         while let Ok(msg) = rx.try_recv() {
             match msg {
                 ScanMsg::Log(line) => self.scan_log.push(line),
+                ScanMsg::Error(line) => self.scan_error_log.push(line),
+                ScanMsg::Progress { done, total } => {
+                    self.scan_progress = Some((done, total));
+                    if total > 0 {
+                        self.status = format!("Scanning plugins… {done}/{total}");
+                    }
+                }
                 ScanMsg::Done(result) => {
                     finished = true;
                     self.scanning = false;
+                    self.scan_progress = None;
                     match result {
                         Ok(report) => {
                             self.scan_results = report.plugins;
@@ -212,7 +227,10 @@ impl App {
                                 report.shards_scanned
                             );
                         }
-                        Err(err) => self.status = err,
+                        Err(err) => {
+                            self.scan_error_log.push(err.clone());
+                            self.status = err;
+                        }
                     }
                 }
             }
@@ -238,6 +256,8 @@ impl App {
                 self.filter_vendors.clear();
                 self.filter_categories.clear();
                 self.scan_log.clear();
+                self.scan_error_log.clear();
+                self.scan_progress = None;
                 self.status = "Plugin cache cleared.".into();
             }
             Err(err) => self.status = err,
@@ -251,6 +271,8 @@ impl App {
 
         self.persist_path();
         self.scan_log.clear();
+        self.scan_error_log.clear();
+        self.scan_progress = None;
 
         let roots: Vec<PathBuf> = self
             .scan_roots()
@@ -267,18 +289,27 @@ impl App {
         self.scan_rx = Some(rx);
         self.scanning = true;
         let folder_count = roots.len();
-        self.status = format!("Scanning {folder_count} folder(s)…");
+        self.status = format!("Discovering plugins in {folder_count} folder(s)…");
 
         thread::spawn(move || {
-            let (log_tx, log_rx) = mpsc::channel();
+            let (event_tx, event_rx) = mpsc::channel();
             let ui_tx = tx.clone();
-            let _log_forwarder = thread::spawn(move || {
-                while let Ok(line) = log_rx.recv() {
-                    let _ = ui_tx.send(ScanMsg::Log(line));
+            let _event_forwarder = thread::spawn(move || {
+                while let Ok(event) = event_rx.recv() {
+                    let msg = match event {
+                        scanner::ScanEvent::Log(line) => ScanMsg::Log(line),
+                        scanner::ScanEvent::Error(line) => ScanMsg::Error(line),
+                        scanner::ScanEvent::Progress { done, total } => {
+                            ScanMsg::Progress { done, total }
+                        }
+                    };
+                    if ui_tx.send(msg).is_err() {
+                        break;
+                    }
                 }
             });
 
-            let result = scanner::scan_directories_with_sender(&roots, log_tx);
+            let result = scanner::scan_directories_with_sender(&roots, event_tx);
             let _ = tx.send(ScanMsg::Done(result));
         });
     }

@@ -232,6 +232,7 @@ pub fn run_scanner(
     scanner: &Path,
     dir: &Path,
     mut on_progress: impl FnMut(&str),
+    mut on_error: impl FnMut(&str),
 ) -> Result<ScanOutput, String> {
     let json_path = scanner_json_path();
     let mut child = Command::new(scanner)
@@ -245,11 +246,16 @@ pub fn run_scanner(
         .map_err(|e| format!("Failed to run {}: {e}", scanner.display()))?;
 
     let stderr_handle = child.stderr.take().map(|stderr| {
-        thread::spawn(
-            move || {
-                for _ in BufReader::new(stderr).lines().map_while(Result::ok) {}
-            },
-        )
+        thread::spawn(move || {
+            let mut lines = Vec::new();
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                let line = line.trim().to_string();
+                if !line.is_empty() {
+                    lines.push(line);
+                }
+            }
+            lines
+        })
     });
 
     if let Some(stdout) = child.stdout.take() {
@@ -261,8 +267,13 @@ pub fn run_scanner(
         }
     }
 
-    if let Some(handle) = stderr_handle {
-        let _ = handle.join();
+    let stderr_lines = if let Some(handle) = stderr_handle {
+        handle.join().unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    for line in &stderr_lines {
+        on_error(line);
     }
 
     let status = child
@@ -280,8 +291,9 @@ pub fn run_scanner(
         let output: ScanOutput = serde_json::from_str(&json)
             .map_err(|e| format!("Invalid scanner JSON: {e}\n{json}"))?;
         if partial {
-            on_progress(&format!(
-                "Scanner exited with {status}; kept {} plugin(s) from output",
+            on_error(&format!(
+                "Scanner exited with {status} on {}; kept {} plugin(s) from output",
+                dir.display(),
                 output.plugins.len()
             ));
         }
