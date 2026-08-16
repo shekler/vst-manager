@@ -27,7 +27,11 @@ pub struct ScanOutput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginInfo {
+    /// Primary install path (first of [`Self::paths`] after merge).
     pub path: String,
+    /// All discovered install paths for this plugin identity. Empty = only [`Self::path`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub paths: Vec<String>,
     #[serde(default)]
     pub is_valid: bool,
     #[serde(default)]
@@ -109,6 +113,34 @@ impl PluginInfo {
                 self.fill_size_from_path(Path::new(&path));
             }
         }
+    }
+
+    /// Install paths to show in the UI (merged duplicates or the single `path`).
+    pub fn all_paths(&self) -> Vec<&str> {
+        if !self.paths.is_empty() {
+            self.paths.iter().map(String::as_str).collect()
+        } else if self.path.is_empty() {
+            Vec::new()
+        } else {
+            vec![self.path.as_str()]
+        }
+    }
+
+    /// Key used to collapse the same plugin found at multiple filesystem locations.
+    pub fn identity_key(&self) -> String {
+        if !self.cid.is_empty() {
+            return format!("cid:{}", self.cid.to_ascii_uppercase());
+        }
+        if self.is_valid {
+            return format!(
+                "name:{}|{}|{}|{}",
+                self.vendor.to_ascii_lowercase(),
+                self.name.to_ascii_lowercase(),
+                self.version.to_ascii_lowercase(),
+                self.format_label().to_ascii_lowercase()
+            );
+        }
+        format!("path:{}", self.path)
     }
 
     /// Drops redundant top-level `Fx` and duplicate tags (case-insensitive).
@@ -200,23 +232,30 @@ pub fn run_scanner(
     scanner: &Path,
     dir: &Path,
     mut on_progress: impl FnMut(&str),
+    mut on_error: impl FnMut(&str),
 ) -> Result<ScanOutput, String> {
     let json_path = scanner_json_path();
     let mut child = Command::new(scanner)
         .arg(dir)
         .arg("-o")
         .arg(&json_path)
+        .arg("--try-license-load")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to run {}: {e}", scanner.display()))?;
 
     let stderr_handle = child.stderr.take().map(|stderr| {
-        thread::spawn(
-            move || {
-                for _ in BufReader::new(stderr).lines().map_while(Result::ok) {}
-            },
-        )
+        thread::spawn(move || {
+            let mut lines = Vec::new();
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                let line = line.trim().to_string();
+                if !line.is_empty() {
+                    lines.push(line);
+                }
+            }
+            lines
+        })
     });
 
     if let Some(stdout) = child.stdout.take() {
@@ -228,8 +267,13 @@ pub fn run_scanner(
         }
     }
 
-    if let Some(handle) = stderr_handle {
-        let _ = handle.join();
+    let stderr_lines = if let Some(handle) = stderr_handle {
+        handle.join().unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    for line in &stderr_lines {
+        on_error(line);
     }
 
     let status = child
@@ -240,18 +284,74 @@ pub fn run_scanner(
         let _ = fs::remove_file(&json_path);
     };
 
+    let mut read_output = |partial: bool| -> Result<ScanOutput, String> {
+        let json = fs::read_to_string(&json_path).map_err(|e| {
+            format!("Scanner wrote no JSON at {}: {e}", json_path.display())
+        })?;
+        let output: ScanOutput = serde_json::from_str(&json)
+            .map_err(|e| format!("Invalid scanner JSON: {e}\n{json}"))?;
+        if partial {
+            on_error(&format!(
+                "Scanner exited with {status} on {}; kept {} plugin(s) from output",
+                dir.display(),
+                output.plugins.len()
+            ));
+        }
+        Ok(output)
+    };
+
     if !status.success() {
-        cleanup();
-        return Err(format!("Scanner failed on {} ({status}).", dir.display()));
+        match read_output(true) {
+            Ok(output) => {
+                cleanup();
+                return Ok(output);
+            }
+            Err(_) => {
+                cleanup();
+                return Err(format!("Scanner failed on {} ({status}).", dir.display()));
+            }
+        }
     }
 
-    let json = fs::read_to_string(&json_path).map_err(|e| {
+    let output = read_output(false).map_err(|e| {
         cleanup();
-        format!("Scanner wrote no JSON at {}: {e}", json_path.display())
+        e
     })?;
     cleanup();
+    Ok(output)
+}
 
-    serde_json::from_str(&json).map_err(|e| format!("Invalid scanner JSON: {e}\n{json}"))
+/// Placeholder for a plugin path that crashed the native scanner process.
+pub fn crash_stub(path: &Path, error: &str) -> PluginInfo {
+    let path_str = path.to_string_lossy().into_owned();
+    let format = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .filter(|e| e == "vst3" || e == "dll")
+        .map(|e| if e == "dll" { "vst2".into() } else { e });
+    let mut plugin = PluginInfo {
+        path: path_str,
+        paths: Vec::new(),
+        is_valid: false,
+        scan_source: String::new(),
+        name: String::new(),
+        vendor: String::new(),
+        version: String::new(),
+        cid: String::new(),
+        sdk_version: String::new(),
+        cardinality: 0,
+        flags: 0,
+        sub_categories: Vec::new(),
+        missing_license: false,
+        load_failed: true,
+        load_timed_out: false,
+        error: error.to_owned(),
+        size: String::new(),
+        format: format.unwrap_or_default(),
+    };
+    plugin.fill_size_from_path(path);
+    plugin
 }
 
 fn scanner_json_path() -> PathBuf {
@@ -285,6 +385,7 @@ mod tests {
     fn clean_sub_categories_strips_fx_and_dedupes() {
         let mut p = PluginInfo {
             path: String::new(),
+            paths: Vec::new(),
             is_valid: false,
             scan_source: String::new(),
             name: String::new(),

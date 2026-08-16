@@ -12,6 +12,15 @@ const ESTIMATED_GRID_ROW_HEIGHT: f32 = 80.0;
 const SIDEBAR_WIDTH: f32 = 360.0;
 
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
+    let empty_library = app.scan_results.is_empty();
+
+    if empty_library {
+        egui::CentralPanel::default()
+            .frame(theme::group_frame(ui.style()))
+            .show_inside(ui, |ui| show_empty_library(app, ui));
+        return;
+    }
+
     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
         // Fixed column — avoid `Panel::left` (defaults resizable + clips right stroke).
         ui.allocate_ui_with_layout(
@@ -38,6 +47,225 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             .frame(theme::group_frame(ui.style()))
             .show_inside(ui, |ui| show_content(app, ui));
     });
+}
+
+const EMPTY_PANEL_MAX_WIDTH: f32 = 520.0;
+const EMPTY_PANEL_PADDING: f32 = 48.0;
+
+fn show_empty_library(app: &mut App, ui: &mut egui::Ui) {
+    let available = ui.available_rect_before_wrap();
+    ui.allocate_rect(available, egui::Sense::hover());
+
+    let max_content_width = (available.width() - 2.0 * EMPTY_PANEL_PADDING)
+        .min(EMPTY_PANEL_MAX_WIDTH)
+        .max(0.0);
+
+    let size_id = ui.id().with("empty_library_panel_size");
+    let last_size = ui.ctx().data(|d| d.get_temp::<egui::Vec2>(size_id)).unwrap_or(egui::vec2(
+        max_content_width + 2.0 * EMPTY_PANEL_PADDING,
+        200.0,
+    ));
+
+    let panel_rect = ui
+        .scope_builder(
+            UiBuilder::new()
+                .id_salt("empty_library_panel")
+                .max_rect(available)
+                .layout(egui::Layout::top_down(egui::Align::Center)),
+            |ui| {
+                ui.add_space(((available.height() - last_size.y) * 0.5).max(0.0));
+
+                let frame = egui::Frame::NONE
+                    .inner_margin(EMPTY_PANEL_PADDING)
+                    .stroke(egui::Stroke::new(
+                        1.0,
+                        theme::color::POWDER.gamma_multiply(0.28),
+                    ))
+                    .show(ui, |ui| {
+                        ui.set_max_width(max_content_width);
+
+                        ui.label(
+                            egui::RichText::new("Welcome to VST Manager")
+                                .text_style(theme::text::h2_style())
+                                .color(theme::color::POWDER),
+                        );
+                        ui.add_space(12.0);
+                        ui.label(
+                            egui::RichText::new(
+                                "Catalog VST / VST3 plugins on this machine. Scan folders once, then filter by vendor and category.",
+                            )
+                            .color(theme::color::POWDER.gamma_multiply(0.75))
+                            .text_style(theme::text::base_style()),
+                        );
+                        ui.add_space(20.0);
+
+                        ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                            for line in [
+                                "1. Open Settings and enable common plugin folders (or set a custom path).",
+                                "2. Come back here and run Scan plugins.",
+                                "3. Filter the library by vendor or category once results appear.",
+                            ] {
+                                ui.label(
+                                    egui::RichText::new(line)
+                                        .color(theme::color::POWDER.gamma_multiply(0.65))
+                                        .text_style(theme::text::base_style()),
+                                );
+                                ui.add_space(6.0);
+                            }
+                        });
+
+                        ui.add_space(28.0);
+
+                        if app.scanning {
+                            show_scan_progress(app, ui);
+                        } else if theme::button::mint(ui, "Scan plugins").clicked() {
+                            app.start_scan();
+                        }
+
+                        if !app.status.is_empty() && !app.scanning {
+                            ui.add_space(16.0);
+                            ui.label(
+                                egui::RichText::new(&app.status)
+                                    .small()
+                                    .color(theme::color::POWDER.gamma_multiply(0.7)),
+                            );
+                        }
+                    });
+
+                let size = frame.response.rect.size();
+                ui.ctx().data_mut(|d| d.insert_temp(size_id, size));
+                frame.response.rect
+            },
+        )
+        .inner;
+
+    if !app.scan_log.is_empty() || !app.scan_error_log.is_empty() {
+        let log_top = panel_rect.bottom() + 24.0;
+        let log_rect = egui::Rect::from_min_max(
+            egui::pos2(available.left(), log_top),
+            egui::pos2(available.right(), available.bottom().max(log_top + 80.0)),
+        );
+        ui.scope_builder(
+            UiBuilder::new()
+                .max_rect(log_rect)
+                .layout(egui::Layout::top_down(egui::Align::Min)),
+            |ui| {
+                show_scan_log_panels(app, ui);
+            },
+        );
+    }
+}
+
+fn show_scan_progress(app: &App, ui: &mut egui::Ui) {
+    let (done, total) = app.scan_progress.unwrap_or((0, 0));
+    let fraction = if total > 0 {
+        done as f32 / total as f32
+    } else {
+        0.0
+    };
+
+    ui.label(
+        egui::RichText::new(if total > 0 {
+            format!("Scanning plugins… {done}/{total}")
+        } else {
+            "Discovering plugins…".into()
+        })
+        .color(theme::color::POWDER.gamma_multiply(0.8))
+        .text_style(theme::text::base_style()),
+    );
+    ui.add_space(10.0);
+
+    let bar_width = ui.available_width().min(360.0);
+    let desired = egui::vec2(bar_width, 12.0);
+    let (rect, _) = ui.allocate_exact_size(desired, egui::Sense::hover());
+    let rounding = egui::CornerRadius::same(24);
+    ui.painter().rect(
+        rect,
+        rounding,
+        theme::color::MINT.gamma_multiply(0.1),
+        egui::Stroke::new(1.0, theme::color::MINT.gamma_multiply(0.5)),
+        egui::StrokeKind::Inside,
+    );
+    if fraction > 0.0 {
+        let mut fill = rect;
+        fill.set_width((rect.width() * fraction.clamp(0.0, 1.0)).max(2.0));
+        ui.painter()
+            .rect_filled(fill, rounding, theme::color::MINT);
+    }
+}
+
+fn show_scan_log_panels(app: &App, ui: &mut egui::Ui) {
+    const GAP: f32 = 48.0;
+    let has_scan = !app.scan_log.is_empty();
+    let has_error = !app.scan_error_log.is_empty();
+    if !has_scan && !has_error {
+        return;
+    }
+
+    let available = ui.available_width();
+    let col_width = if has_scan && has_error {
+        ((available - GAP) * 0.5).max(0.0)
+    } else {
+        available
+    };
+
+    ui.horizontal(|ui| {
+        if has_scan {
+            ui.allocate_ui_with_layout(
+                egui::vec2(col_width, ui.available_height()),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    ui.set_min_width(col_width);
+                    ui.set_max_width(col_width);
+                    ui.collapsing("Scan log", |ui| {
+                        show_log_scroll(
+                            ui,
+                            &app.scan_log,
+                            theme::color::POWDER.gamma_multiply(0.85),
+                        );
+                    });
+                },
+            );
+        }
+
+        if has_scan && has_error {
+            ui.add_space(GAP);
+        }
+
+        if has_error {
+            ui.allocate_ui_with_layout(
+                egui::vec2(col_width, ui.available_height()),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    ui.set_min_width(col_width);
+                    ui.set_max_width(col_width);
+                    let title = format!("Error log ({})", app.scan_error_log.len());
+                    ui.collapsing(title, |ui| {
+                        show_log_scroll(ui, &app.scan_error_log, theme::color::RED);
+                    });
+                },
+            );
+        }
+    });
+
+    ui.add_space(12.0);
+}
+
+fn show_log_scroll(ui: &mut egui::Ui, lines: &[String], color: egui::Color32) {
+    egui::ScrollArea::vertical()
+        .max_height(240.0)
+        .auto_shrink([false, false])
+        .stick_to_bottom(true)
+        .show(ui, |ui| {
+            for line in lines {
+                ui.label(
+                    egui::RichText::new(line)
+                        .small()
+                        .color(color)
+                        .family(egui::FontFamily::Monospace),
+                );
+            }
+        });
 }
 
 fn show_sidebar(app: &mut App, ui: &mut egui::Ui) {
@@ -281,6 +509,12 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
         }
     });
 
+    if app.scanning {
+        ui.add_space(16.0);
+        show_scan_progress(app, ui);
+        ui.add_space(8.0);
+    }
+
     let invalid_count = app.scan_results.iter().filter(|p| !p.is_valid).count();
 
     if !app.status.is_empty() {
@@ -311,33 +545,8 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
         ui.add_space(24.0);
     }
 
-    if !app.scan_log.is_empty() {
-        ui.collapsing("Scan log", |ui| {
-            egui::ScrollArea::vertical()
-                .max_height(240.0)
-                .auto_shrink([false, false])
-                .stick_to_bottom(true)
-                .show(ui, |ui| {
-                    for line in &app.scan_log {
-                        ui.label(
-                            egui::RichText::new(line)
-                                .small()
-                                .family(egui::FontFamily::Monospace),
-                        );
-                    }
-                });
-        });
-        ui.add_space(24.0);
-    }
-
-    if app.scan_results.is_empty() {
-        let hint = if app.scanning {
-            "Scan in progress…"
-        } else {
-            "No plugins yet. Set default scan folder in Settings, then Scan."
-        };
-        ui.label(hint);
-        return;
+    if !app.scan_log.is_empty() || !app.scan_error_log.is_empty() {
+        show_scan_log_panels(app, ui);
     }
 
     if app.show_invalid_plugins && invalid_count > 0 {
@@ -611,77 +820,83 @@ fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo, invalid: bo
     }
 
     ui.add_space(16.0);
-    ui.horizontal(|ui| {
-        let folder_path = plugin_path_label(&plugin.path);
-        ui.label(
-            egui::RichText::new(&folder_path)
-                .small()
-                .family(egui::FontFamily::Monospace)
-                .weak(),
-        );
+    let install_paths = plugin.all_paths();
+    for (path_idx, install_path) in install_paths.iter().enumerate() {
+        if path_idx > 0 {
+            ui.add_space(6.0);
+        }
+        ui.horizontal(|ui| {
+            let folder_path = plugin_path_label(install_path);
+            ui.label(
+                egui::RichText::new(&folder_path)
+                    .small()
+                    .family(egui::FontFamily::Monospace)
+                    .weak(),
+            );
 
-        let icon = |ui: &mut egui::Ui, image: egui::Image| {
-            ui.add(
-                egui::Button::image(
-                    image
-                        .fit_to_exact_size(egui::vec2(16.0, 16.0))
-                        .tint(theme::color::POWDER.gamma_multiply(0.7)),
+            let icon = |ui: &mut egui::Ui, image: egui::Image| {
+                ui.add(
+                    egui::Button::image(
+                        image
+                            .fit_to_exact_size(egui::vec2(16.0, 16.0))
+                            .tint(theme::color::POWDER.gamma_multiply(0.7)),
+                    )
+                    .frame(false),
                 )
-                .frame(false),
-            )
-        };
+            };
 
-        let copy = icon(
-            ui,
-            egui::Image::new(egui::include_image!("../../assets/copy.svg")),
-        );
-        let feedback_id = copy.id.with("path_copied");
-        let now = ui.input(|i| i.time);
-        if copy.clicked() {
-            ui.ctx().copy_text(folder_path.clone());
-            ui.ctx().data_mut(|d| d.insert_temp(feedback_id, now));
-        }
-        const COPIED_SECS: f64 = 2.0;
-        let copied_at = ui.ctx().data(|d| d.get_temp::<f64>(feedback_id));
-        if let Some(t0) = copied_at.filter(|&t0| now - t0 < COPIED_SECS) {
-            egui::Popup::from_response(&copy)
-                .kind(egui::PopupKind::Tooltip)
-                .align(egui::RectAlign::TOP_START)
-                .gap(4.0)
-                .show(|ui| {
-                    egui::Frame::NONE
-                        .inner_margin(egui::vec2(3.0, 2.0))
-                        .show(ui, |ui| {
-                            ui.label(
-                                egui::RichText::new("File path copied")
-                                    .color(theme::color::POWDER.gamma_multiply(0.7)),
-                            );
-                        });
-                });
-
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_secs_f64(
-                    (COPIED_SECS - (now - t0)).max(0.0),
-                ));
-        } else {
-            if copied_at.is_some() {
-                ui.ctx().data_mut(|d| {
-                    let _: Option<f64> = d.remove_temp(feedback_id);
-                });
+            let copy = icon(
+                ui,
+                egui::Image::new(egui::include_image!("../../assets/copy.svg")),
+            );
+            let feedback_id = copy.id.with(("path_copied", path_idx, *install_path));
+            let now = ui.input(|i| i.time);
+            if copy.clicked() {
+                ui.ctx().copy_text(folder_path.clone());
+                ui.ctx().data_mut(|d| d.insert_temp(feedback_id, now));
             }
-            copy.on_hover_text("Copy folder path");
-        }
+            const COPIED_SECS: f64 = 2.0;
+            let copied_at = ui.ctx().data(|d| d.get_temp::<f64>(feedback_id));
+            if let Some(t0) = copied_at.filter(|&t0| now - t0 < COPIED_SECS) {
+                egui::Popup::from_response(&copy)
+                    .kind(egui::PopupKind::Tooltip)
+                    .align(egui::RectAlign::TOP_START)
+                    .gap(4.0)
+                    .show(|ui| {
+                        egui::Frame::NONE
+                            .inner_margin(egui::vec2(3.0, 2.0))
+                            .show(ui, |ui| {
+                                ui.label(
+                                    egui::RichText::new("File path copied")
+                                        .color(theme::color::POWDER.gamma_multiply(0.7)),
+                                );
+                            });
+                    });
 
-        if icon(
-            ui,
-            egui::Image::new(egui::include_image!("../../assets/folder.svg")),
-        )
-        .on_hover_text("Open folder")
-        .clicked()
-        {
-            let _ = open::that(&folder_path);
-        }
-    });
+                ui.ctx()
+                    .request_repaint_after(std::time::Duration::from_secs_f64(
+                        (COPIED_SECS - (now - t0)).max(0.0),
+                    ));
+            } else {
+                if copied_at.is_some() {
+                    ui.ctx().data_mut(|d| {
+                        let _: Option<f64> = d.remove_temp(feedback_id);
+                    });
+                }
+                copy.on_hover_text("Copy folder path");
+            }
+
+            if icon(
+                ui,
+                egui::Image::new(egui::include_image!("../../assets/folder.svg")),
+            )
+            .on_hover_text("Open folder")
+            .clicked()
+            {
+                let _ = open::that(&folder_path);
+            }
+        });
+    }
 
     if !plugin.error.is_empty() {
         ui.add_space(16.0);
