@@ -4,7 +4,9 @@ use crate::theme;
 use eframe::egui::{self, Rect, UiBuilder};
 use std::collections::{BTreeMap, HashSet};
 
-const GRID_COLUMNS: usize = 3;
+const GRID_COLUMNS_MAX: usize = 3;
+/// Drop a column when a cell would be narrower than this (gap included in the fit check).
+const GRID_MIN_COL_WIDTH: f32 = 320.0;
 const GRID_GAP: f32 = 16.0;
 /// Extra pixels above/below viewport to pre-render while scrolling.
 const VIEWPORT_BUFFER: f32 = 120.0;
@@ -566,12 +568,7 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
         return;
     }
 
-    let plugin_count = valid_plugins.len();
-    let grid_row_count = plugin_count.div_ceil(GRID_COLUMNS);
     let heights = &mut app.plugin_row_heights;
-    if heights.len() != grid_row_count {
-        heights.resize(grid_row_count, 0.0);
-    }
 
     egui::ScrollArea::vertical()
         .id_salt("plugin_list")
@@ -592,11 +589,7 @@ fn show_invalid_plugins_section(app: &mut App, ui: &mut egui::Ui) {
     );
     ui.add_space(16.0);
 
-    let grid_row_count = invalid_plugins.len().div_ceil(GRID_COLUMNS);
     let heights = &mut app.invalid_plugin_row_heights;
-    if heights.len() != grid_row_count {
-        heights.resize(grid_row_count, 0.0);
-    }
 
     egui::ScrollArea::vertical()
         .id_salt("invalid_plugin_list")
@@ -644,10 +637,28 @@ fn matches_category_filter(plugin: &scanner::PluginInfo, selected: &HashSet<Stri
         .any(|category| selected.contains(category))
 }
 
+fn grid_columns(available_width: f32) -> usize {
+    let cols = ((available_width + GRID_GAP) / (GRID_MIN_COL_WIDTH + GRID_GAP)).floor() as usize;
+    cols.clamp(1, GRID_COLUMNS_MAX)
+}
+
+fn sync_grid_row_heights(ui: &mut egui::Ui, heights: &mut Vec<f32>, count: usize, columns: usize) {
+    let cols_id = ui.id().with("grid_columns");
+    let prev_columns = ui.ctx().data(|d| d.get_temp::<usize>(cols_id)).unwrap_or(0);
+    let grid_row_count = count.div_ceil(columns.max(1));
+    if prev_columns != columns {
+        heights.clear();
+        ui.ctx().data_mut(|d| d.insert_temp(cols_id, columns));
+    }
+    if heights.len() != grid_row_count {
+        heights.resize(grid_row_count, 0.0);
+    }
+}
+
 fn show_plugins_viewport(
     ui: &mut egui::Ui,
     plugins: &[&scanner::PluginInfo],
-    heights: &mut [f32],
+    heights: &mut Vec<f32>,
     viewport: Rect,
     invalid: bool,
 ) {
@@ -656,7 +667,13 @@ fn show_plugins_viewport(
         return;
     }
 
-    let grid_row_count = count.div_ceil(GRID_COLUMNS);
+    let content_left = ui.max_rect().left();
+    let content_top = ui.max_rect().top();
+    let content_width = ui.max_rect().width();
+    let columns = grid_columns(content_width);
+    sync_grid_row_heights(ui, heights, count, columns);
+
+    let grid_row_count = count.div_ceil(columns);
     let row_heights: Vec<f32> = (0..grid_row_count)
         .map(|row| effective_grid_row_height(heights.get(row).copied().unwrap_or(0.0)))
         .collect();
@@ -678,10 +695,7 @@ fn show_plugins_viewport(
     let view_max = viewport.max.y + VIEWPORT_BUFFER;
     let range = visible_row_range(grid_row_count, &offsets, &row_heights, view_min, view_max);
 
-    let content_left = ui.max_rect().left();
-    let content_top = ui.max_rect().top();
-    let content_width = ui.max_rect().width();
-    let col_width = (content_width - gap_x * (GRID_COLUMNS - 1) as f32) / GRID_COLUMNS as f32;
+    let col_width = (content_width - gap_x * (columns - 1) as f32) / columns as f32;
     let card_frame = if invalid {
         theme::invalid_card_frame(ui.style())
     } else {
@@ -696,8 +710,8 @@ fn show_plugins_viewport(
         let content_width =
             theme::card_content_size(egui::vec2(col_width, row_height), ui.style()).x;
 
-        for col in 0..GRID_COLUMNS {
-            let index = grid_row * GRID_COLUMNS + col;
+        for col in 0..columns {
+            let index = grid_row * columns + col;
             if index >= count {
                 break;
             }
@@ -766,7 +780,7 @@ fn effective_grid_row_height(measured: f32) -> f32 {
 }
 
 fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo, invalid: bool) {
-    ui.horizontal_top(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.vertical(|ui| {
             let show_vendor = !invalid || !plugin.vendor.is_empty();
             if show_vendor {
@@ -825,7 +839,7 @@ fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo, invalid: bo
         if path_idx > 0 {
             ui.add_space(6.0);
         }
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let folder_path = plugin_path_label(install_path);
             ui.label(
                 egui::RichText::new(&folder_path)
