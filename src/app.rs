@@ -13,11 +13,27 @@ const APP_QUALIFIER: &str = "com";
 const APP_ORGANIZATION: &str = "vst-manager";
 const APP_NAME: &str = "vst-manager";
 
-#[derive(Default, Serialize, Deserialize)]
+fn default_scan_license_protected() -> bool {
+    true
+}
+
+#[derive(Serialize, Deserialize)]
 struct Config {
     scan_path: String,
     #[serde(default)]
     selected_folders: Vec<String>,
+    #[serde(default = "default_scan_license_protected")]
+    scan_license_protected: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            scan_path: String::new(),
+            selected_folders: Vec::new(),
+            scan_license_protected: true,
+        }
+    }
 }
 
 impl Config {
@@ -51,6 +67,7 @@ impl Config {
 
 enum ScanMsg {
     Log(String),
+    Warning(String),
     Error(String),
     Progress { done: usize, total: usize },
     Done(Result<scanner::ScanReport, String>),
@@ -68,6 +85,8 @@ pub struct App {
     pub(crate) path_input: String,
     /// Checked common default plugin folders (absolute paths).
     pub(crate) selected_folders: HashSet<String>,
+    /// When true, attempt factory load for PACE/iLok-style plugins (Settings).
+    pub(crate) scan_license_protected: bool,
     pub(crate) scan_results: Vec<scanner::PluginInfo>,
     /// Measured grid-row heights for virtual scrolling (`0` = not measured yet).
     pub(crate) plugin_row_heights: Vec<f32>,
@@ -81,6 +100,7 @@ pub struct App {
     pub(crate) filter_categories: HashSet<String>,
     pub(crate) status: String,
     pub(crate) scan_log: Vec<String>,
+    pub(crate) scan_warning_log: Vec<String>,
     pub(crate) scan_error_log: Vec<String>,
     pub(crate) scanning: bool,
     /// `(done, total)` discovered plugins while a scan runs.
@@ -157,6 +177,7 @@ impl App {
             current_page: Page::default(),
             path_input,
             selected_folders,
+            scan_license_protected: config.scan_license_protected,
             scan_results,
             plugin_row_heights: Vec::new(),
             invalid_plugin_row_heights: Vec::new(),
@@ -165,6 +186,7 @@ impl App {
             filter_categories: HashSet::new(),
             status,
             scan_log: Vec::new(),
+            scan_warning_log: Vec::new(),
             scan_error_log: Vec::new(),
             scanning: false,
             scan_progress: None,
@@ -178,6 +200,7 @@ impl App {
         Config {
             scan_path: self.path_input.clone(),
             selected_folders,
+            scan_license_protected: self.scan_license_protected,
         }
         .save();
     }
@@ -195,6 +218,7 @@ impl App {
         while let Ok(msg) = rx.try_recv() {
             match msg {
                 ScanMsg::Log(line) => self.scan_log.push(line),
+                ScanMsg::Warning(line) => self.scan_warning_log.push(line),
                 ScanMsg::Error(line) => self.scan_error_log.push(line),
                 ScanMsg::Progress { done, total } => {
                     self.scan_progress = Some((done, total));
@@ -211,21 +235,24 @@ impl App {
                             self.scan_results = report.plugins;
                             self.plugin_row_heights.clear();
                             self.invalid_plugin_row_heights.clear();
-                            prune_vendor_filter(
-                                &mut self.filter_vendors,
-                                &self.scan_results,
-                            );
-                            prune_category_filter(
-                                &mut self.filter_categories,
-                                &self.scan_results,
-                            );
-                            self.status = format!(
-                                "Scanned — {} valid / {} total ({} cached, {} shard(s))",
-                                report.valid,
-                                report.total,
-                                report.from_cache,
-                                report.shards_scanned
-                            );
+                            prune_vendor_filter(&mut self.filter_vendors, &self.scan_results);
+                            prune_category_filter(&mut self.filter_categories, &self.scan_results);
+                            self.status = if let Some(path) = &report.report_path {
+                                format!(
+                                    "Scanned — {} valid / {} total · report: {}",
+                                    report.valid,
+                                    report.total,
+                                    path.display()
+                                )
+                            } else {
+                                format!(
+                                    "Scanned — {} valid / {} total ({} cached, {} shard(s))",
+                                    report.valid,
+                                    report.total,
+                                    report.from_cache,
+                                    report.shards_scanned
+                                )
+                            };
                         }
                         Err(err) => {
                             self.scan_error_log.push(err.clone());
@@ -256,6 +283,7 @@ impl App {
                 self.filter_vendors.clear();
                 self.filter_categories.clear();
                 self.scan_log.clear();
+                self.scan_warning_log.clear();
                 self.scan_error_log.clear();
                 self.scan_progress = None;
                 self.status = "Plugin cache cleared.".into();
@@ -271,6 +299,7 @@ impl App {
 
         self.persist_path();
         self.scan_log.clear();
+        self.scan_warning_log.clear();
         self.scan_error_log.clear();
         self.scan_progress = None;
 
@@ -291,6 +320,7 @@ impl App {
         let folder_count = roots.len();
         self.status = format!("Discovering plugins in {folder_count} folder(s)…");
 
+        let scan_license_protected = self.scan_license_protected;
         thread::spawn(move || {
             let (event_tx, event_rx) = mpsc::channel();
             let ui_tx = tx.clone();
@@ -298,7 +328,14 @@ impl App {
                 while let Ok(event) = event_rx.recv() {
                     let msg = match event {
                         scanner::ScanEvent::Log(line) => ScanMsg::Log(line),
-                        scanner::ScanEvent::Error(line) => ScanMsg::Error(line),
+                        scanner::ScanEvent::Notice {
+                            level,
+                            message,
+                            ..
+                        } => match level {
+                            scanner::ScanNoticeLevel::Warning => ScanMsg::Warning(message),
+                            scanner::ScanNoticeLevel::Error => ScanMsg::Error(message),
+                        },
                         scanner::ScanEvent::Progress { done, total } => {
                             ScanMsg::Progress { done, total }
                         }
@@ -309,7 +346,8 @@ impl App {
                 }
             });
 
-            let result = scanner::scan_directories_with_sender(&roots, event_tx);
+            let result =
+                scanner::scan_directories_with_sender(&roots, scan_license_protected, event_tx);
             let _ = tx.send(ScanMsg::Done(result));
         });
     }

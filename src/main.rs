@@ -9,6 +9,10 @@ use app::App;
 use eframe::egui;
 
 fn main() -> eframe::Result<()> {
+    if let Some(code) = vst_scanner::try_run_worker_from_args() {
+        std::process::exit(code);
+    }
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_maximized(true)

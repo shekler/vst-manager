@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "crates/scanner/types", "crates/scanner/vst3"]
+resolver = "2"
+
 [package]
 name = "vst-manager"
 version = "0.4.0"
@@ -12,8 +16,10 @@ egui_extras = { version = "0.34.3", features = ["all_loaders"] }
 imagesize = "0.14.0"
 open = "5.3.5"
 rfd = "0.15"
+scanner-types = { path = "crates/scanner/types" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+vst_scanner = { path = "crates/scanner/vst3" }
 walkdir = "2"
 
 [build-dependencies]

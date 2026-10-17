@@ -63,10 +63,13 @@ fn show_empty_library(app: &mut App, ui: &mut egui::Ui) {
         .max(0.0);
 
     let size_id = ui.id().with("empty_library_panel_size");
-    let last_size = ui.ctx().data(|d| d.get_temp::<egui::Vec2>(size_id)).unwrap_or(egui::vec2(
-        max_content_width + 2.0 * EMPTY_PANEL_PADDING,
-        200.0,
-    ));
+    let last_size = ui
+        .ctx()
+        .data(|d| d.get_temp::<egui::Vec2>(size_id))
+        .unwrap_or(egui::vec2(
+            max_content_width + 2.0 * EMPTY_PANEL_PADDING,
+            200.0,
+        ));
 
     let panel_rect = ui
         .scope_builder(
@@ -141,7 +144,10 @@ fn show_empty_library(app: &mut App, ui: &mut egui::Ui) {
         )
         .inner;
 
-    if !app.scan_log.is_empty() || !app.scan_error_log.is_empty() {
+    if !app.scan_log.is_empty()
+        || !app.scan_warning_log.is_empty()
+        || !app.scan_error_log.is_empty()
+    {
         let log_top = panel_rect.bottom() + 24.0;
         let log_rect = egui::Rect::from_min_max(
             egui::pos2(available.left(), log_top),
@@ -191,66 +197,91 @@ fn show_scan_progress(app: &App, ui: &mut egui::Ui) {
     if fraction > 0.0 {
         let mut fill = rect;
         fill.set_width((rect.width() * fraction.clamp(0.0, 1.0)).max(2.0));
-        ui.painter()
-            .rect_filled(fill, rounding, theme::color::MINT);
+        ui.painter().rect_filled(fill, rounding, theme::color::MINT);
     }
 }
 
 fn show_scan_log_panels(app: &App, ui: &mut egui::Ui) {
-    const GAP: f32 = 48.0;
+    const GAP: f32 = 24.0;
     let has_scan = !app.scan_log.is_empty();
+    let has_warning = !app.scan_warning_log.is_empty();
     let has_error = !app.scan_error_log.is_empty();
-    if !has_scan && !has_error {
+    if !has_scan && !has_warning && !has_error {
         return;
     }
 
+    let cols = [has_scan, has_warning, has_error]
+        .into_iter()
+        .filter(|b| *b)
+        .count()
+        .max(1);
     let available = ui.available_width();
-    let col_width = if has_scan && has_error {
-        ((available - GAP) * 0.5).max(0.0)
-    } else {
-        available
-    };
+    let col_width = ((available - GAP * (cols.saturating_sub(1) as f32)) / cols as f32).max(0.0);
 
     ui.horizontal(|ui| {
+        let mut first = true;
         if has_scan {
-            ui.allocate_ui_with_layout(
-                egui::vec2(col_width, ui.available_height()),
-                egui::Layout::top_down(egui::Align::Min),
-                |ui| {
-                    ui.set_min_width(col_width);
-                    ui.set_max_width(col_width);
-                    ui.collapsing("Scan log", |ui| {
-                        show_log_scroll(
-                            ui,
-                            &app.scan_log,
-                            theme::color::POWDER.gamma_multiply(0.85),
-                        );
-                    });
-                },
+            log_column(
+                ui,
+                col_width,
+                "Scan log",
+                &app.scan_log,
+                theme::color::POWDER.gamma_multiply(0.85),
+                &mut first,
+                GAP,
             );
         }
-
-        if has_scan && has_error {
-            ui.add_space(GAP);
+        if has_warning {
+            log_column(
+                ui,
+                col_width,
+                &format!("Warnings ({})", app.scan_warning_log.len()),
+                &app.scan_warning_log,
+                theme::color::MINT.gamma_multiply(0.85),
+                &mut first,
+                GAP,
+            );
         }
-
         if has_error {
-            ui.allocate_ui_with_layout(
-                egui::vec2(col_width, ui.available_height()),
-                egui::Layout::top_down(egui::Align::Min),
-                |ui| {
-                    ui.set_min_width(col_width);
-                    ui.set_max_width(col_width);
-                    let title = format!("Error log ({})", app.scan_error_log.len());
-                    ui.collapsing(title, |ui| {
-                        show_log_scroll(ui, &app.scan_error_log, theme::color::RED);
-                    });
-                },
+            log_column(
+                ui,
+                col_width,
+                &format!("Errors ({})", app.scan_error_log.len()),
+                &app.scan_error_log,
+                theme::color::RED,
+                &mut first,
+                GAP,
             );
         }
     });
 
     ui.add_space(12.0);
+}
+
+fn log_column(
+    ui: &mut egui::Ui,
+    col_width: f32,
+    title: &str,
+    lines: &[String],
+    color: egui::Color32,
+    first: &mut bool,
+    gap: f32,
+) {
+    if !*first {
+        ui.add_space(gap);
+    }
+    *first = false;
+    ui.allocate_ui_with_layout(
+        egui::vec2(col_width, ui.available_height()),
+        egui::Layout::top_down(egui::Align::Min),
+        |ui| {
+            ui.set_min_width(col_width);
+            ui.set_max_width(col_width);
+            ui.collapsing(title, |ui| {
+                show_log_scroll(ui, lines, color);
+            });
+        },
+    );
 }
 
 fn show_log_scroll(ui: &mut egui::Ui, lines: &[String], color: egui::Color32) {
@@ -547,7 +578,10 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
         ui.add_space(24.0);
     }
 
-    if !app.scan_log.is_empty() || !app.scan_error_log.is_empty() {
+    if !app.scan_log.is_empty()
+        || !app.scan_warning_log.is_empty()
+        || !app.scan_error_log.is_empty()
+    {
         show_scan_log_panels(app, ui);
     }
 
@@ -863,7 +897,9 @@ fn show_plugin_card(ui: &mut egui::Ui, plugin: &scanner::PluginInfo, invalid: bo
                 ui,
                 egui::Image::new(egui::include_image!("../../assets/copy.svg")),
             );
-            let feedback_id = copy.id.with(("path_copied", path_idx, *install_path));
+            let feedback_id = copy
+                .id
+                .with(("path_copied", path_idx, install_path.to_string()));
             let now = ui.input(|i| i.time);
             if copy.clicked() {
                 ui.ctx().copy_text(folder_path.clone());
