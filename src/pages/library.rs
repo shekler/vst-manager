@@ -29,15 +29,24 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             egui::vec2(SIDEBAR_WIDTH, ui.available_height()),
             egui::Layout::top_down(egui::Align::Min),
             |ui| {
+                // Frame outer width is content + padding + stroke. Pin both
+                // boxes to this column width so the paddings cannot diverge.
+                let outer_w = ui.available_width();
+                show_plugin_search(app, ui, outer_w);
+                ui.add_space(16.0);
+
+                const FILTER_PAD: f32 = 24.0;
+                const FILTER_STROKE: f32 = 1.0;
                 egui::Frame::new()
                     .stroke(egui::Stroke::new(
-                        1.0,
+                        FILTER_STROKE,
                         theme::color::POWDER.gamma_multiply(0.2),
                     ))
-                    .inner_margin(24)
+                    .inner_margin(FILTER_PAD)
                     .corner_radius(4)
                     .show(ui, |ui| {
-                        ui.set_min_height(ui.max_rect().height());
+                        ui.set_width(framed_inner_width(outer_w, FILTER_PAD, FILTER_STROKE));
+                        ui.set_min_height(ui.available_height());
                         show_sidebar(app, ui);
                     });
             },
@@ -301,6 +310,80 @@ fn show_log_scroll(ui: &mut egui::Ui, lines: &[String], color: egui::Color32) {
         });
 }
 
+/// Content width for a frame whose outer width must be `outer`.
+fn framed_inner_width(outer: f32, pad_x: f32, stroke: f32) -> f32 {
+    (outer - pad_x * 2.0 - stroke * 2.0).max(0.0)
+}
+
+fn show_plugin_search(app: &mut App, ui: &mut egui::Ui, outer_w: f32) {
+    const ICON: f32 = 16.0;
+    const ICON_GAP: f32 = 8.0;
+    const PAD_X: f32 = 10.0;
+    const PAD_Y: f32 = 6.0;
+    const STROKE: f32 = 1.0;
+
+    let mut edited = false;
+    let mut clear = false;
+    let inner_w = framed_inner_width(outer_w, PAD_X, STROKE);
+
+    egui::Frame::NONE
+        .inner_margin(egui::vec2(PAD_X, PAD_Y))
+        .corner_radius(4)
+        .stroke(egui::Stroke::new(
+            STROKE,
+            theme::color::POWDER.gamma_multiply(0.3),
+        ))
+        .show(ui, |ui| {
+            ui.set_width(inner_w);
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.horizontal(|ui| {
+                let field_width = (inner_w - ICON - ICON_GAP).max(0.0);
+                edited = ui
+                    .add(
+                        egui::TextEdit::singleline(&mut app.plugin_search)
+                            .frame(egui::Frame::NONE)
+                            .desired_width(field_width)
+                            .hint_text("Search"),
+                    )
+                    .changed();
+
+                ui.add_space(ICON_GAP);
+
+                let has_query = !app.plugin_search.is_empty();
+                let tint = if has_query {
+                    theme::color::POWDER.gamma_multiply(0.7)
+                } else {
+                    egui::Color32::TRANSPARENT
+                };
+                let button = ui.add(
+                    egui::Image::new(egui::include_image!("../../assets/close.svg"))
+                        .fit_to_exact_size(egui::vec2(ICON, ICON))
+                        .tint(tint)
+                        .sense(if has_query {
+                            egui::Sense::click()
+                        } else {
+                            egui::Sense::hover()
+                        }),
+                );
+                if has_query && button.clicked() {
+                    clear = true;
+                }
+                if has_query && button.hovered() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+            });
+        });
+
+    if clear {
+        app.plugin_search.clear();
+    }
+    if edited || clear {
+        app.plugin_row_heights.clear();
+        let flag = egui::Id::new("plugin_search_reset_scroll");
+        ui.ctx().data_mut(|d| d.insert_temp(flag, true));
+    }
+}
+
 fn show_sidebar(app: &mut App, ui: &mut egui::Ui) {
     ui.label(
         egui::RichText::new("Filters")
@@ -388,6 +471,9 @@ fn show_filter_group(
     let arrow_rail_w = ARROW_SIZE.x;
 
     ui.horizontal(|ui| {
+        // Default item spacing would add extra width on top of `ARROW_GAP` and
+        // push the filter frame past the search bar.
+        ui.spacing_mut().item_spacing.x = 0.0;
         let scroll_width = (ui.available_width() - arrow_rail_w - ARROW_GAP).max(0.0);
         let scroll = ui
             .allocate_ui_with_layout(
@@ -593,14 +679,22 @@ fn show_content(app: &mut App, ui: &mut egui::Ui) {
         .scan_results
         .iter()
         .filter(|p| p.is_valid)
+        .filter(|p| matches_plugin_search(p, &app.plugin_search))
         .filter(|p| app.filter_vendors.is_empty() || app.filter_vendors.contains(&p.vendor()))
         .filter(|p| matches_category_filter(p, &app.filter_categories))
         .collect();
 
     if valid_plugins.is_empty() {
-        ui.label("No plugins match the current filters.");
+        let message = if app.plugin_search.trim().is_empty() {
+            "No plugins match the current filters."
+        } else {
+            "No plugins match the current search or filters."
+        };
+        ui.label(message);
         return;
     }
+
+    reset_plugin_list_scroll(ui);
 
     let heights = &mut app.plugin_row_heights;
 
@@ -656,6 +750,29 @@ fn category_counts(plugins: &[scanner::PluginInfo]) -> BTreeMap<String, usize> {
         }
     }
     counts
+}
+
+fn matches_plugin_search(plugin: &scanner::PluginInfo, query: &str) -> bool {
+    let query = query.trim();
+    if query.is_empty() {
+        return true;
+    }
+    let query = query.to_lowercase();
+    plugin.name().to_lowercase().contains(&query) || plugin.vendor().to_lowercase().contains(&query)
+}
+
+fn reset_plugin_list_scroll(ui: &mut egui::Ui) {
+    let flag = egui::Id::new("plugin_search_reset_scroll");
+    let reset = ui.ctx().data(|d| d.get_temp::<bool>(flag).unwrap_or(false));
+    if !reset {
+        return;
+    }
+    ui.ctx().data_mut(|d| d.remove_temp::<bool>(flag));
+    let scroll_id = ui.make_persistent_id(egui::Id::new("plugin_list"));
+    if let Some(mut state) = egui::scroll_area::State::load(ui.ctx(), scroll_id) {
+        state.offset.y = 0.0;
+        state.store(ui.ctx(), scroll_id);
+    }
 }
 
 fn matches_category_filter(plugin: &scanner::PluginInfo, selected: &HashSet<String>) -> bool {

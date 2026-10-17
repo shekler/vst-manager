@@ -110,6 +110,8 @@ pub struct App {
     pub(crate) filter_vendors: HashSet<String>,
     /// Selected category names; empty = no category filter.
     pub(crate) filter_categories: HashSet<String>,
+    /// Substring matched against plugin name and vendor; empty = no search.
+    pub(crate) plugin_search: String,
     pub(crate) status: String,
     pub(crate) scan_log: Vec<String>,
     pub(crate) scan_warning_log: Vec<String>,
@@ -202,6 +204,7 @@ impl App {
             show_invalid_plugins: false,
             filter_vendors: HashSet::new(),
             filter_categories: HashSet::new(),
+            plugin_search: String::new(),
             status,
             scan_log: Vec::new(),
             scan_warning_log: Vec::new(),
@@ -319,6 +322,7 @@ impl App {
                 self.show_invalid_plugins = false;
                 self.filter_vendors.clear();
                 self.filter_categories.clear();
+                self.plugin_search.clear();
                 self.scan_log.clear();
                 self.scan_warning_log.clear();
                 self.scan_error_log.clear();
