@@ -203,14 +203,7 @@ pub fn scan_directories_with_sender(
     let diag = diagnostics
         .lock()
         .map_err(|_| "Scan diagnostics lock poisoned".to_string())?;
-    match report::write_scan_report(
-        &roots,
-        &report,
-        &scan_stats,
-        &diag,
-        elapsed,
-        &fresh_scanned,
-    ) {
+    match report::write_scan_report(&roots, &report, &scan_stats, &diag, elapsed, &fresh_scanned) {
         Ok(path) => {
             events.log(format!("Scan report: {}", path.display()));
             Ok(ScanReport {
@@ -268,7 +261,10 @@ struct EventSink {
 }
 
 impl EventSink {
-    fn new(tx: Sender<ScanEvent>, diagnostics: Arc<std::sync::Mutex<report::ScanDiagnostics>>) -> Self {
+    fn new(
+        tx: Sender<ScanEvent>,
+        diagnostics: Arc<std::sync::Mutex<report::ScanDiagnostics>>,
+    ) -> Self {
         Self { tx, diagnostics }
     }
 
@@ -438,10 +434,7 @@ fn scan_shard(
         on_progress(&format!("  → {}", job.path.display()));
         vst3::scan_vst3_directory(&job.path, scan_options, &mut on_progress, &mut on_notice)
     } else {
-        on_progress(&format!(
-            "  → {} path(s) (cache miss only)",
-            plugins.len()
-        ));
+        on_progress(&format!("  → {} path(s) (cache miss only)", plugins.len()));
         vst3::scan_vst3_paths(plugins, scan_options, &mut on_progress, &mut on_notice)
     };
 
@@ -497,38 +490,90 @@ fn collect_results(
 }
 
 /// Collapse the same plugin found at multiple install paths into one entry.
+/// Latest version is kept as the card; older versions go to `older_installs`.
 fn merge_duplicate_plugins(plugins: &mut Vec<PluginInfo>) {
-    let mut groups: HashMap<String, PluginInfo> = HashMap::new();
-    let drained: Vec<PluginInfo> = std::mem::take(plugins);
-
-    for plugin in drained {
-        let key = plugin.identity_key();
-        match groups.get_mut(&key) {
-            Some(existing) => {
-                if existing.paths.is_empty() {
-                    existing.paths.push(existing.path.clone());
-                }
-                existing.paths.push(plugin.path);
-            }
-            None => {
-                groups.insert(key, plugin);
-            }
-        }
+    let mut groups: HashMap<String, Vec<PluginInfo>> = HashMap::new();
+    for plugin in std::mem::take(plugins) {
+        groups
+            .entry(plugin.identity_key())
+            .or_default()
+            .push(plugin);
     }
 
-    *plugins = groups
-        .into_values()
-        .map(|mut plugin| {
-            if !plugin.paths.is_empty() {
-                plugin.paths.sort();
-                plugin.paths.dedup();
-                if let Some(first) = plugin.paths.first().cloned() {
-                    plugin.path = first;
-                }
+    *plugins = groups.into_values().map(collapse_duplicate_group).collect();
+}
+
+fn collapse_duplicate_group(mut group: Vec<PluginInfo>) -> PluginInfo {
+    debug_assert!(!group.is_empty());
+    group.sort_by(cmp_install_priority);
+    let mut primary = group.remove(0);
+
+    let mut same_paths = collect_install_paths(&primary);
+    let mut older = std::mem::take(&mut primary.older_installs);
+
+    for other in group {
+        let other_older = other.older_installs.clone();
+        let other_paths = collect_install_paths(&other);
+        let same_version = other.is_valid == primary.is_valid
+            && scanner_types::compare_plugin_versions(&other.version, &primary.version)
+                == std::cmp::Ordering::Equal;
+
+        if same_version {
+            same_paths.extend(other_paths);
+        } else {
+            for path in other_paths {
+                older.push(scanner_types::OlderInstall {
+                    path,
+                    version: other.version.clone(),
+                });
             }
-            plugin
-        })
-        .collect();
+        }
+        older.extend(other_older);
+    }
+
+    same_paths.sort();
+    same_paths.dedup();
+    older.sort_by(|a, b| {
+        scanner_types::compare_plugin_versions(&b.version, &a.version)
+            .then_with(|| a.path.cmp(&b.path))
+    });
+    older.dedup_by(|a, b| a.path == b.path);
+    older.retain(|install| !same_paths.contains(&install.path));
+
+    if let Some(first) = same_paths.first() {
+        primary.path = first.clone();
+    }
+    primary.paths = if same_paths.len() > 1 {
+        same_paths
+    } else {
+        Vec::new()
+    };
+    primary.older_installs = older;
+    primary
+}
+
+/// Valid first, then newer version, then path (stable).
+fn cmp_install_priority(a: &PluginInfo, b: &PluginInfo) -> std::cmp::Ordering {
+    match (a.is_valid, b.is_valid) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => scanner_types::compare_plugin_versions(&b.version, &a.version)
+            .then_with(|| a.path.cmp(&b.path)),
+    }
+}
+
+fn collect_install_paths(plugin: &PluginInfo) -> Vec<String> {
+    if !plugin.paths.is_empty() {
+        let mut paths = plugin.paths.clone();
+        if !plugin.path.is_empty() && !paths.contains(&plugin.path) {
+            paths.insert(0, plugin.path.clone());
+        }
+        paths
+    } else if plugin.path.is_empty() {
+        Vec::new()
+    } else {
+        vec![plugin.path.clone()]
+    }
 }
 
 #[cfg(test)]
@@ -536,14 +581,19 @@ mod tests {
     use super::*;
 
     fn sample(path: &str, cid: &str) -> PluginInfo {
+        sample_version(path, cid, "1.0")
+    }
+
+    fn sample_version(path: &str, cid: &str, version: &str) -> PluginInfo {
         PluginInfo {
             path: path.into(),
             paths: Vec::new(),
+            older_installs: Vec::new(),
             is_valid: true,
             scan_source: String::new(),
             name: "Test".into(),
             vendor: "Vendor".into(),
-            version: "1.0".into(),
+            version: version.into(),
             cid: cid.into(),
             sdk_version: "VST 3".into(),
             cardinality: 0,
@@ -573,5 +623,36 @@ mod tests {
         assert_eq!(foo.all_paths(), vec![r"C:\A\Foo.vst3", r"C:\B\Foo.vst3"]);
         let bar = plugins.iter().find(|p| p.cid == "DEF").unwrap();
         assert_eq!(bar.all_paths(), vec![r"C:\C\Bar.vst3"]);
+    }
+
+    #[test]
+    fn merge_keeps_latest_version_and_records_older() {
+        let mut plugins = vec![
+            sample_version(
+                r"H:\VSTPlugins\Slate Digital\VM The Monster.vst3",
+                "ABC",
+                "1.0.6.0",
+            ),
+            sample_version(
+                r"C:\Program Files\Common Files\VST3\Slate Digital\VM The Monster.vst3",
+                "ABC",
+                "1.0.7.1",
+            ),
+        ];
+        merge_duplicate_plugins(&mut plugins);
+        assert_eq!(plugins.len(), 1);
+        let plugin = &plugins[0];
+        assert_eq!(plugin.version, "1.0.7.1");
+        assert_eq!(
+            plugin.path,
+            r"C:\Program Files\Common Files\VST3\Slate Digital\VM The Monster.vst3"
+        );
+        assert!(plugin.paths.is_empty());
+        assert_eq!(plugin.older_installs.len(), 1);
+        assert_eq!(
+            plugin.older_installs[0].path,
+            r"H:\VSTPlugins\Slate Digital\VM The Monster.vst3"
+        );
+        assert_eq!(plugin.older_installs[0].version, "1.0.6.0");
     }
 }

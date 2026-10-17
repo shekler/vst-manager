@@ -1,6 +1,6 @@
 use super::{ScanReport, ScanStats};
 use directories::ProjectDirs;
-use scanner_types::{format_scan_duration_ms, PluginInfo, ScanOutcome};
+use scanner_types::{PluginInfo, ScanOutcome, format_scan_duration_ms};
 use std::collections::HashSet;
 use std::fmt::Write as _;
 use std::path::PathBuf;
@@ -117,7 +117,11 @@ fn render_markdown(
     let _ = writeln!(out, "| Vendor skip | {skipped_vendor} |");
     let _ = writeln!(out, "| Timed out | {timed_out} |");
     let _ = writeln!(out, "| Load failed | {load_failed} |");
-    let _ = writeln!(out, "| Warnings (events) | {} |", diagnostics.warnings.len());
+    let _ = writeln!(
+        out,
+        "| Warnings (events) | {} |",
+        diagnostics.warnings.len()
+    );
     let _ = writeln!(out, "| Errors (events) | {} |", diagnostics.errors.len());
     let detail_scan_ms: u64 = report
         .plugins
@@ -153,7 +157,11 @@ fn render_markdown(
     out
 }
 
-fn write_slowest_section(out: &mut String, plugins: &[PluginInfo], fresh_scanned: &HashSet<String>) {
+fn write_slowest_section(
+    out: &mut String,
+    plugins: &[PluginInfo],
+    fresh_scanned: &HashSet<String>,
+) {
     let mut ranked: Vec<&PluginInfo> = plugins
         .iter()
         .filter(|p| p.scan_duration_ms > 0 && plugin_scanned_this_run(p, fresh_scanned))
@@ -184,11 +192,7 @@ fn write_slowest_section(out: &mut String, plugins: &[PluginInfo], fresh_scanned
     let _ = writeln!(out);
 }
 
-fn write_plugin_table(
-    out: &mut String,
-    plugins: &[PluginInfo],
-    fresh_scanned: &HashSet<String>,
-) {
+fn write_plugin_table(out: &mut String, plugins: &[PluginInfo], fresh_scanned: &HashSet<String>) {
     let _ = writeln!(out, "## Plugins");
     let _ = writeln!(out);
     if plugins.is_empty() {
@@ -197,14 +201,8 @@ fn write_plugin_table(
         return;
     }
 
-    let _ = writeln!(
-        out,
-        "| Outcome | Time | Path | Name | Vendor | Detail |"
-    );
-    let _ = writeln!(
-        out,
-        "|---------|------|------|------|--------|--------|"
-    );
+    let _ = writeln!(out, "| Outcome | Time | Path | Name | Vendor | Detail |");
+    let _ = writeln!(out, "|---------|------|------|------|--------|--------|");
 
     for p in plugins {
         let outcome = outcome_label(p);
@@ -240,6 +238,9 @@ fn plugin_scanned_this_run(p: &PluginInfo, fresh_scanned: &HashSet<String>) -> b
         return true;
     }
     p.paths.iter().any(|path| fresh_scanned.contains(path))
+        || p.older_installs
+            .iter()
+            .any(|install| fresh_scanned.contains(&install.path))
 }
 
 fn plugin_time_cell(p: &PluginInfo, fresh_scanned: &HashSet<String>) -> String {

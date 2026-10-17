@@ -32,7 +32,7 @@ impl Default for ScanOptions {
     fn default() -> Self {
         Self {
             quiet: false,
-            factory_load_timeout_sec: 5,
+            factory_load_timeout_sec: 10,
             protected_plugin_timeout_sec: 2,
             skip_factory_load: false,
             fast_license_skip: true,
@@ -69,7 +69,14 @@ fn scan_paths_sequential(
     let mut plugins = Vec::with_capacity(paths.len());
     let total = paths.len();
     for (i, module_path) in paths.iter().enumerate() {
-        scan_one_module(module_path, i + 1, total, options, &mut plugins, &mut on_progress);
+        scan_one_module(
+            module_path,
+            i + 1,
+            total,
+            options,
+            &mut plugins,
+            &mut on_progress,
+        );
     }
     ScanOutput::from_plugins(plugins)
 }
@@ -106,14 +113,9 @@ fn scan_paths_parallel(
             let mut lines = Vec::new();
             for (j, module_path) in paths.iter().enumerate() {
                 let idx = offset + j + 1;
-                scan_one_module(
-                    module_path,
-                    idx,
-                    total,
-                    &options,
-                    &mut local,
-                    &mut |line| lines.push(line.to_owned()),
-                );
+                scan_one_module(module_path, idx, total, &options, &mut local, &mut |line| {
+                    lines.push(line.to_owned())
+                });
             }
             (offset, local, lines)
         }));
@@ -250,9 +252,7 @@ fn load_plugin_via_factory(path: &Path, options: &ScanOptions) -> PluginInfo {
         return info;
     }
 
-    if fast_license_skip
-        && !skip_unlicensed
-        && license::path_suggests_headless_unsafe_vendor(path)
+    if fast_license_skip && !skip_unlicensed && license::path_suggests_headless_unsafe_vendor(path)
     {
         let mut info = invalid_stub(
             &path_str,
@@ -275,7 +275,7 @@ fn load_plugin_via_factory(path: &Path, options: &ScanOptions) -> PluginInfo {
             if let Some(worker) = isolated_worker_exe() {
                 scan_isolated(path, timeout, &worker)
             } else {
-                // Spawning the GUI binary per plugin usually exceeds the 5s parent timeout.
+                // Spawning the GUI binary per plugin usually exceeds the parent timeout.
                 scan_in_process_with_timeout(path, timeout)
             }
         }
@@ -464,11 +464,11 @@ fn wait_timeout(child: &mut std::process::Child, timeout: Duration) -> bool {
     }
 }
 
-
 fn invalid_stub(path: &str, error: &str) -> PluginInfo {
     PluginInfo {
         path: path.into(),
         paths: Vec::new(),
+        older_installs: Vec::new(),
         is_valid: false,
         scan_source: String::new(),
         name: String::new(),

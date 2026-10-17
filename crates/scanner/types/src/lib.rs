@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -39,6 +40,9 @@ pub struct PluginInfo {
     pub path: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
+    /// Older version of the same plugin (same CID) at another install path.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub older_installs: Vec<OlderInstall>,
     #[serde(default)]
     pub is_valid: bool,
     #[serde(default)]
@@ -74,6 +78,15 @@ pub struct PluginInfo {
     /// Wall time for the most recent scan of this module (milliseconds).
     #[serde(default)]
     pub scan_duration_ms: u64,
+}
+
+/// A previous install of the same plugin (same CID, older version).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct OlderInstall {
+    pub path: String,
+    #[serde(default)]
+    pub version: String,
 }
 
 /// Human-readable duration for reports and logs.
@@ -214,6 +227,40 @@ impl PluginInfo {
     }
 }
 
+/// Numeric plugin version compare. `"1.0.7.1" > "1.0.6.0"`, `"v1.1" == "1.1.0"`.
+/// Empty / unparsable versions sort lowest.
+pub fn compare_plugin_versions(a: &str, b: &str) -> Ordering {
+    cmp_version_parts(&parse_version_parts(a), &parse_version_parts(b))
+}
+
+fn parse_version_parts(raw: &str) -> Vec<u64> {
+    raw.trim()
+        .trim_start_matches(['v', 'V'])
+        .split(|c: char| !c.is_ascii_digit())
+        .filter(|part| !part.is_empty())
+        .filter_map(|part| part.parse().ok())
+        .collect()
+}
+
+fn cmp_version_parts(a: &[u64], b: &[u64]) -> Ordering {
+    match (a.is_empty(), b.is_empty()) {
+        (true, true) => return Ordering::Equal,
+        (true, false) => return Ordering::Less,
+        (false, true) => return Ordering::Greater,
+        _ => {}
+    }
+    let n = a.len().max(b.len());
+    for i in 0..n {
+        let left = a.get(i).copied().unwrap_or(0);
+        let right = b.get(i).copied().unwrap_or(0);
+        match left.cmp(&right) {
+            Ordering::Equal => {}
+            other => return other,
+        }
+    }
+    Ordering::Equal
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanNoticeLevel {
     Warning,
@@ -240,6 +287,7 @@ pub fn crash_stub(path: &Path, error: &str) -> PluginInfo {
     let mut plugin = PluginInfo {
         path: path_str,
         paths: Vec::new(),
+        older_installs: Vec::new(),
         is_valid: false,
         scan_source: String::new(),
         name: String::new(),
@@ -337,6 +385,7 @@ mod tests {
         PluginInfo {
             path: r"C:\X\P.vst3".into(),
             paths: Vec::new(),
+            older_installs: Vec::new(),
             is_valid: false,
             scan_source: String::new(),
             name: String::new(),
@@ -386,6 +435,7 @@ mod tests {
         let mut p = PluginInfo {
             path: String::new(),
             paths: Vec::new(),
+            older_installs: Vec::new(),
             is_valid: false,
             scan_source: String::new(),
             name: String::new(),
@@ -412,5 +462,17 @@ mod tests {
         };
         p.clean_sub_categories();
         assert_eq!(p.sub_categories, ["Distortion", "Dynamics"]);
+    }
+
+    #[test]
+    fn compare_plugin_versions_numeric() {
+        use std::cmp::Ordering;
+        assert_eq!(
+            compare_plugin_versions("1.0.7.1", "1.0.6.0"),
+            Ordering::Greater
+        );
+        assert_eq!(compare_plugin_versions("v1.1.0", "1.1"), Ordering::Equal);
+        assert_eq!(compare_plugin_versions("1.0.2", "v1.1.0"), Ordering::Less);
+        assert_eq!(compare_plugin_versions("", "1.0"), Ordering::Less);
     }
 }

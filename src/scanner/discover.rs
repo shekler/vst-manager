@@ -130,7 +130,10 @@ mod tests {
         let junk = Path::new(
             r"H:\VSTPlugins\Drumforge\Kickforge\installerResources\com.kickforge.plugin.x64.VST3",
         );
-        assert_eq!(discover_skip_reason(junk), Some("installer or metadata path"));
+        assert_eq!(
+            discover_skip_reason(junk),
+            Some("installer or metadata path")
+        );
 
         let dll = Path::new(r"C:\VSTPlugins\WaveShell1-VST 14.17_x64.dll");
         assert!(!path_has_vst3_extension(dll));
@@ -138,9 +141,7 @@ mod tests {
 
     #[test]
     fn skips_x86_program_files_on_64bit_windows() {
-        let path = Path::new(
-            r"C:\Program Files (x86)\Common Files\VST3\WaveShell1-VST3 10.0.vst3",
-        );
+        let path = Path::new(r"C:\Program Files (x86)\Common Files\VST3\WaveShell1-VST3 10.0.vst3");
         #[cfg(all(windows, target_pointer_width = "64"))]
         assert_eq!(
             discover_skip_reason(path),

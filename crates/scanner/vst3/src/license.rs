@@ -154,7 +154,13 @@ fn monolithic_module_has_license_markers_cached(path: &Path) -> bool {
     let likely = monolithic_module_has_license_markers(path);
     if let Ok(mut guard) = MONOLITHIC_HINTS.write() {
         let map = guard.get_or_insert_with(HashMap::new);
-        map.insert(key, MonolithicHint { mtime_secs: mtime, likely });
+        map.insert(
+            key,
+            MonolithicHint {
+                mtime_secs: mtime,
+                likely,
+            },
+        );
     }
     likely
 }

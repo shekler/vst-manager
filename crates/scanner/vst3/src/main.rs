@@ -38,7 +38,7 @@ fn run() -> Result<(), i32> {
             }
             "--timeout" if i + 1 < args.len() => {
                 i += 1;
-                scan_options.factory_load_timeout_sec = args[i].parse().unwrap_or(5);
+                scan_options.factory_load_timeout_sec = args[i].parse().unwrap_or(10);
             }
             "--no-isolate" => {
                 scan_options.isolate_factory_load = false;
@@ -124,7 +124,7 @@ fn print_usage(argv0: &str) {
     eprintln!("       {argv0} --worker <plugin_path> -o <file.json>");
     eprintln!("Options:");
     eprintln!("  -o <output_file.json>     Output to file (default: stdout)");
-    eprintln!("  --timeout <seconds>       Per-plugin factory load timeout (default: 5)");
+    eprintln!("  --timeout <seconds>       Per-plugin factory load timeout (default: 10)");
     eprintln!("  --try-license-load        Attempt DLL load for PACE/iLok bundles (slower)");
     eprintln!("  --no-isolate              Load plugins in-process (Windows only, risky)");
     eprintln!("  --no-factory              List paths only; never load plugin DLLs");

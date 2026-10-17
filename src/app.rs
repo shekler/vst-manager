@@ -328,11 +328,7 @@ impl App {
                 while let Ok(event) = event_rx.recv() {
                     let msg = match event {
                         scanner::ScanEvent::Log(line) => ScanMsg::Log(line),
-                        scanner::ScanEvent::Notice {
-                            level,
-                            message,
-                            ..
-                        } => match level {
+                        scanner::ScanEvent::Notice { level, message, .. } => match level {
                             scanner::ScanNoticeLevel::Warning => ScanMsg::Warning(message),
                             scanner::ScanNoticeLevel::Error => ScanMsg::Error(message),
                         },

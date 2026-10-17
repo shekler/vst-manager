@@ -28,8 +28,7 @@ pub fn scan_vst3_paths(
     mut on_progress: impl FnMut(&str),
     mut on_notice: impl FnMut(ScanNoticeLevel, &str, &str),
 ) -> ScanOutput {
-    let output =
-        vst_scanner::scan_paths(paths, options, 4, move |line| on_progress(line));
+    let output = vst_scanner::scan_paths(paths, options, 4, move |line| on_progress(line));
     for plugin in &output.plugins {
         emit_plugin_notice(plugin, &mut on_notice);
     }

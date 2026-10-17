@@ -40,6 +40,7 @@ pub fn map_detailed(path: &Path, detailed: DetailedPluginInfo) -> PluginInfo {
     PluginInfo {
         path: path_str,
         paths: Vec::new(),
+        older_installs: Vec::new(),
         is_valid: true,
         scan_source: "factory".into(),
         name,

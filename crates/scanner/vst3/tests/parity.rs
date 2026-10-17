@@ -17,6 +17,7 @@ fn serializes_invalid_plugin_like_cpp_scanner() {
     let plugin = PluginInfo {
         path: r"H:\VSTPlugins\Bad.vst3".into(),
         paths: vec![],
+        older_installs: vec![],
         is_valid: false,
         scan_source: "skipped".into(),
         name: String::new(),
@@ -89,6 +90,7 @@ fn failure_taxonomy_timeout_and_license() {
     let mut timed = PluginInfo {
         path: "A.vst3".into(),
         paths: vec![],
+        older_installs: vec![],
         is_valid: false,
         scan_source: String::new(),
         name: String::new(),
