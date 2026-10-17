@@ -8,7 +8,7 @@ Version: **0.3.0** · [vstmanager.com](https://www.vstmanager.com)
 
 - **Library** — plugin grid with vendor / category filters, status line, and scan log
 - **Settings** — toggle common VST/VST3/CLAP install locations; optional custom folder (typed or **Browse**)
-- Background scan via bundled `vst_scanner.exe` (UI stays responsive)
+- Background VST3 scan in Rust (`vst3-host`, isolated worker per plugin on Windows)
 - Disk cache of plugin metadata (mtime-aware); startup can reload from cache
 - Per-plugin actions: copy folder path, open folder in Explorer
 - Path + selected folders persisted between sessions
@@ -17,9 +17,9 @@ Version: **0.3.0** · [vstmanager.com](https://www.vstmanager.com)
 
 - [Rust](https://rustup.rs/) (stable toolchain via rustup)
 - **Windows** (primary target) — [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **Desktop development with C++** workload
-- `tools/vst_scanner.exe` — native plugin scanner; `build.rs` copies it next to the app binary on build
+- VST3 scanning lives under [`crates/scanner/vst3`](crates/scanner/vst3) (parity with [G:\\vst-scanner](G:/vst-scanner) C++ tool)
 
-macOS folder presets exist in Settings, but scanning depends on `vst_scanner.exe` (Windows).
+macOS folder presets exist in Settings; VST3 scan is exercised on Windows first.
 
 ## Run on Windows
 
@@ -49,7 +49,14 @@ Run:
 .\target\release\vst-manager.exe
 ```
 
-`vst_scanner.exe` is copied beside the binary (`target\debug\` or `target\release\`). Debug builds may show a console for logging; release builds hide it on Windows.
+For Windows scans, build the slim worker beside the app:
+
+```powershell
+cargo build -p vst_scanner
+cargo build
+```
+
+Release builds should ship `vst_scanner.exe` next to `vst-manager.exe` (same folder). The GUI uses it for isolated per-plugin loads; without it, scans fall back to in-process timeouts.
 
 ## Usage
 
@@ -58,7 +65,7 @@ Run:
 3. Results appear in the grid; use sidebar filters (Vendor / Category)
 4. **Clear plugins** wipes the on-disk cache and empties the library
 
-Discovery looks for `.vst3` bundles (file or folder) and `.dll` under selected roots. Metadata (name, vendor, version, categories, etc.) comes from `vst_scanner.exe`.
+Discovery walks `.vst3` bundles only (VST2 `.dll` deferred until a VST2 scanner exists). Junk paths such as `installerResources` and 32-bit `(x86)` VST3 on 64-bit Windows are skipped. VST3 metadata loads in-process via the Rust scanner (optional CLI: `vst_scanner.exe`).
 
 If no valid folders are selected, the status line asks you to configure Settings first.
 
@@ -95,20 +102,36 @@ Scanned plugin metadata (invalidated when file mtime changes):
 | Linux   | `~/.cache/vst-manager/vst-manager/plugin_cache.json` |
 | macOS   | `~/Library/Caches/vst-manager/vst-manager/plugin_cache.json` |
 
+### Scan reports (Markdown)
+
+After each finished scan, the app writes a Markdown report (all plugins, warnings, errors):
+
+| OS      | Location |
+|---------|----------|
+| Windows | `%LOCALAPPDATA%\vst-manager\vst-manager\cache\scan_reports\` |
+| Linux   | `~/.cache/vst-manager/vst-manager/scan_reports/` |
+| macOS   | `~/Library/Caches/vst-manager/vst-manager/scan_reports/` |
+
+- `latest_scan_report.md` — overwritten each scan  
+- `scan_<unix_ts>.md` — timestamped copy  
+
+The scan log line `Scan report: …` shows the path; status bar after scan too.
+
 ## Project layout
 
 ```
 vst-manager/
 ├── Cargo.toml
-├── build.rs              # Embed icon; copy tools/vst_scanner.exe → target/
-├── tools/
-│   └── vst_scanner.exe   # External plugin scanner (required for Scan)
+├── build.rs              # Embed Windows icon; rerun on scanner crates
+├── crates/scanner/
+│   ├── types/            # Shared ScanOutput / PluginInfo JSON types
+│   └── vst3/             # VST3 scanner library + CLI (`vst_scanner.exe`)
 ├── assets/               # Icon, logo, fonts, UI icons
 └── src/
     ├── main.rs           # Window bootstrap
     ├── app.rs            # App state, config, scan orchestration
     ├── pages/            # Library + Settings UI
-    ├── scanner/          # Discover, cache, invoke vst_scanner
+    ├── scanner/          # Discover, cache, in-process VST3 scan
     └── theme/            # Colors, spacing, widgets
 ```
 

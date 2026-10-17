@@ -1,10 +1,12 @@
-use super::exe::PluginInfo;
 use directories::ProjectDirs;
+use scanner_types::PluginInfo;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
+/// Bump when on-disk cache shape changes. `missing_license` / `scan_source: skipped`
+/// entries are cached until the plugin bundle mtime changes (no reload retry each scan).
 const CACHE_VERSION: u32 = 1;
 
 const APP_QUALIFIER: &str = "com";

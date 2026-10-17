@@ -1,14 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
-use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::thread;
+use std::path::Path;
 use walkdir::WalkDir;
-
-static SCAN_OUTPUT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,13 +17,26 @@ pub struct ScanOutput {
     pub plugins: Vec<PluginInfo>,
 }
 
+impl ScanOutput {
+    pub fn from_plugins(plugins: Vec<PluginInfo>) -> Self {
+        let valid_plugins = plugins.iter().filter(|p| p.is_valid).count() as u32;
+        Self {
+            scan_time: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos().to_string())
+                .unwrap_or_default(),
+            total_plugins: plugins.len() as u32,
+            valid_plugins,
+            plugins,
+        }
+    }
+}
+
 /// Mirrors `vst_scanner` plugin JSON (`data.json`), plus app-derived `size` / `format`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginInfo {
-    /// Primary install path (first of [`Self::paths`] after merge).
     pub path: String,
-    /// All discovered install paths for this plugin identity. Empty = only [`Self::path`].
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
     #[serde(default)]
@@ -60,12 +67,27 @@ pub struct PluginInfo {
     pub load_timed_out: bool,
     #[serde(default)]
     pub error: String,
-    /// Human-readable on-disk bundle size; set by the app after scan, not vst_scanner.
     #[serde(default)]
     pub size: String,
-    /// Container label (e.g. vst3); derived from `sdk_version` when absent in cache.
     #[serde(default)]
     pub format: String,
+    /// Wall time for the most recent scan of this module (milliseconds).
+    #[serde(default)]
+    pub scan_duration_ms: u64,
+}
+
+/// Human-readable duration for reports and logs.
+pub fn format_scan_duration_ms(ms: u64) -> String {
+    if ms == 0 {
+        return "—".into();
+    }
+    if ms >= 10_000 {
+        format!("{:.1}s", ms as f64 / 1000.0)
+    } else if ms >= 1000 {
+        format!("{:.2}s", ms as f64 / 1000.0)
+    } else {
+        format!("{ms}ms")
+    }
 }
 
 impl PluginInfo {
@@ -115,7 +137,6 @@ impl PluginInfo {
         }
     }
 
-    /// Install paths to show in the UI (merged duplicates or the single `path`).
     pub fn all_paths(&self) -> Vec<&str> {
         if !self.paths.is_empty() {
             self.paths.iter().map(String::as_str).collect()
@@ -126,7 +147,6 @@ impl PluginInfo {
         }
     }
 
-    /// Key used to collapse the same plugin found at multiple filesystem locations.
     pub fn identity_key(&self) -> String {
         if !self.cid.is_empty() {
             return format!("cid:{}", self.cid.to_ascii_uppercase());
@@ -143,7 +163,6 @@ impl PluginInfo {
         format!("path:{}", self.path)
     }
 
-    /// Drops redundant top-level `Fx` and duplicate tags (case-insensitive).
     pub fn clean_sub_categories(&mut self) {
         let mut seen = HashSet::new();
         self.sub_categories.retain(|cat| {
@@ -154,12 +173,93 @@ impl PluginInfo {
         });
     }
 
-    /// Backfills app-only fields for cache rows missing `size` / `format`.
     pub fn ensure_derived_fields(&mut self) {
         self.ensure_size();
         self.ensure_format();
         self.clean_sub_categories();
     }
+
+    /// High-level scan result for UI and logging.
+    pub fn scan_outcome(&self) -> ScanOutcome {
+        if self.is_valid {
+            return ScanOutcome::Valid;
+        }
+        if self.missing_license {
+            return ScanOutcome::MissingLicense;
+        }
+        if self.load_timed_out {
+            return ScanOutcome::TimedOut;
+        }
+        if self.load_failed && self.scan_source == "skipped" {
+            return ScanOutcome::SkippedVendor;
+        }
+        ScanOutcome::LoadFailed
+    }
+
+    /// One-line failure description; empty when valid.
+    pub fn failure_line(&self) -> Option<String> {
+        if self.is_valid {
+            return None;
+        }
+        let detail = if !self.error.is_empty() {
+            self.error.clone()
+        } else if self.load_timed_out {
+            "Timed out loading plugin (hung initializer or modal UI)".into()
+        } else if self.missing_license {
+            "Missing or invalid license (iLok/PACE)".into()
+        } else {
+            "Load failed".into()
+        };
+        Some(format!("{} — {}", self.path, detail))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScanNoticeLevel {
+    Warning,
+    Error,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScanOutcome {
+    Valid,
+    MissingLicense,
+    TimedOut,
+    SkippedVendor,
+    LoadFailed,
+}
+
+pub fn crash_stub(path: &Path, error: &str) -> PluginInfo {
+    let path_str = path.to_string_lossy().into_owned();
+    let format = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .filter(|e| e == "vst3" || e == "dll")
+        .map(|e| if e == "dll" { "vst2".into() } else { e });
+    let mut plugin = PluginInfo {
+        path: path_str,
+        paths: Vec::new(),
+        is_valid: false,
+        scan_source: String::new(),
+        name: String::new(),
+        vendor: String::new(),
+        version: String::new(),
+        cid: String::new(),
+        sdk_version: String::new(),
+        cardinality: 0,
+        flags: 0,
+        sub_categories: Vec::new(),
+        missing_license: false,
+        load_failed: true,
+        load_timed_out: false,
+        error: error.to_owned(),
+        size: String::new(),
+        format: format.unwrap_or_default(),
+        scan_duration_ms: 0,
+    };
+    plugin.fill_size_from_path(path);
+    plugin
 }
 
 fn format_from_sdk_version(sdk_version: &str) -> Option<String> {
@@ -215,161 +315,13 @@ fn format_disk_size(bytes: u64) -> String {
     }
 }
 
-pub fn scanner_exe() -> Option<PathBuf> {
-    if let Ok(exe) = std::env::current_exe() {
-        let beside = exe.parent()?.join("vst_scanner.exe");
-        if beside.is_file() {
-            return Some(beside);
-        }
-    }
-
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let tools = manifest.join("tools").join("vst_scanner.exe");
-    tools.is_file().then_some(tools)
-}
-
-pub fn run_scanner(
-    scanner: &Path,
-    dir: &Path,
-    mut on_progress: impl FnMut(&str),
-    mut on_error: impl FnMut(&str),
-) -> Result<ScanOutput, String> {
-    let json_path = scanner_json_path();
-    let mut child = Command::new(scanner)
-        .arg(dir)
-        .arg("-o")
-        .arg(&json_path)
-        .arg("--try-license-load")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to run {}: {e}", scanner.display()))?;
-
-    let stderr_handle = child.stderr.take().map(|stderr| {
-        thread::spawn(move || {
-            let mut lines = Vec::new();
-            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                let line = line.trim().to_string();
-                if !line.is_empty() {
-                    lines.push(line);
-                }
-            }
-            lines
-        })
-    });
-
-    if let Some(stdout) = child.stdout.take() {
-        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            let line = line.trim();
-            if !line.is_empty() {
-                on_progress(line);
-            }
-        }
-    }
-
-    let stderr_lines = if let Some(handle) = stderr_handle {
-        handle.join().unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    for line in &stderr_lines {
-        on_error(line);
-    }
-
-    let status = child
-        .wait()
-        .map_err(|e| format!("Failed to wait for {}: {e}", scanner.display()))?;
-
-    let cleanup = || {
-        let _ = fs::remove_file(&json_path);
-    };
-
-    let mut read_output = |partial: bool| -> Result<ScanOutput, String> {
-        let json = fs::read_to_string(&json_path).map_err(|e| {
-            format!("Scanner wrote no JSON at {}: {e}", json_path.display())
-        })?;
-        let output: ScanOutput = serde_json::from_str(&json)
-            .map_err(|e| format!("Invalid scanner JSON: {e}\n{json}"))?;
-        if partial {
-            on_error(&format!(
-                "Scanner exited with {status} on {}; kept {} plugin(s) from output",
-                dir.display(),
-                output.plugins.len()
-            ));
-        }
-        Ok(output)
-    };
-
-    if !status.success() {
-        match read_output(true) {
-            Ok(output) => {
-                cleanup();
-                return Ok(output);
-            }
-            Err(_) => {
-                cleanup();
-                return Err(format!("Scanner failed on {} ({status}).", dir.display()));
-            }
-        }
-    }
-
-    let output = read_output(false).map_err(|e| {
-        cleanup();
-        e
-    })?;
-    cleanup();
-    Ok(output)
-}
-
-/// Placeholder for a plugin path that crashed the native scanner process.
-pub fn crash_stub(path: &Path, error: &str) -> PluginInfo {
-    let path_str = path.to_string_lossy().into_owned();
-    let format = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .map(|e| e.to_ascii_lowercase())
-        .filter(|e| e == "vst3" || e == "dll")
-        .map(|e| if e == "dll" { "vst2".into() } else { e });
-    let mut plugin = PluginInfo {
-        path: path_str,
-        paths: Vec::new(),
-        is_valid: false,
-        scan_source: String::new(),
-        name: String::new(),
-        vendor: String::new(),
-        version: String::new(),
-        cid: String::new(),
-        sdk_version: String::new(),
-        cardinality: 0,
-        flags: 0,
-        sub_categories: Vec::new(),
-        missing_license: false,
-        load_failed: true,
-        load_timed_out: false,
-        error: error.to_owned(),
-        size: String::new(),
-        format: format.unwrap_or_default(),
-    };
-    plugin.fill_size_from_path(path);
-    plugin
-}
-
-fn scanner_json_path() -> PathBuf {
-    let n = SCAN_OUTPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!(
-        "vst-manager-scan-{}-{}.json",
-        std::process::id(),
-        n
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn deserializes_scanner_plugin_json() {
-        let json = include_str!("../../data.json");
+        let json = include_str!("../../../../data.json");
         let output: ScanOutput = serde_json::from_str(json).expect("parse data.json");
         assert_eq!(output.plugins.len(), 4);
         let p = &output.plugins[0];
@@ -379,6 +331,54 @@ mod tests {
         assert_eq!(p.sdk_version, "VST 3.7.5");
         assert_eq!(p.sub_categories, ["Fx", "Distortion"]);
         assert_eq!(p.format_label(), "vst3");
+    }
+
+    fn sample_plugin() -> PluginInfo {
+        PluginInfo {
+            path: r"C:\X\P.vst3".into(),
+            paths: Vec::new(),
+            is_valid: false,
+            scan_source: String::new(),
+            name: String::new(),
+            vendor: String::new(),
+            version: String::new(),
+            cid: String::new(),
+            sdk_version: String::new(),
+            cardinality: 0,
+            flags: 0,
+            sub_categories: Vec::new(),
+            missing_license: false,
+            load_failed: false,
+            load_timed_out: false,
+            error: String::new(),
+            size: String::new(),
+            format: String::new(),
+            scan_duration_ms: 0,
+        }
+    }
+
+    #[test]
+    fn scan_outcome_missing_license() {
+        let mut p = sample_plugin();
+        p.missing_license = true;
+        assert_eq!(p.scan_outcome(), ScanOutcome::MissingLicense);
+        assert!(p.failure_line().is_some());
+    }
+
+    #[test]
+    fn scan_outcome_timed_out_is_warning_class() {
+        let mut p = sample_plugin();
+        p.load_timed_out = true;
+        p.load_failed = true;
+        assert_eq!(p.scan_outcome(), ScanOutcome::TimedOut);
+    }
+
+    #[test]
+    fn scan_outcome_skipped_vendor() {
+        let mut p = sample_plugin();
+        p.load_failed = true;
+        p.scan_source = "skipped".into();
+        assert_eq!(p.scan_outcome(), ScanOutcome::SkippedVendor);
     }
 
     #[test]
@@ -408,6 +408,7 @@ mod tests {
             error: String::new(),
             size: String::new(),
             format: String::new(),
+            scan_duration_ms: 0,
         };
         p.clean_sub_categories();
         assert_eq!(p.sub_categories, ["Distortion", "Dynamics"]);

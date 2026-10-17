@@ -51,6 +51,7 @@ impl Config {
 
 enum ScanMsg {
     Log(String),
+    Warning(String),
     Error(String),
     Progress { done: usize, total: usize },
     Done(Result<scanner::ScanReport, String>),
@@ -81,6 +82,7 @@ pub struct App {
     pub(crate) filter_categories: HashSet<String>,
     pub(crate) status: String,
     pub(crate) scan_log: Vec<String>,
+    pub(crate) scan_warning_log: Vec<String>,
     pub(crate) scan_error_log: Vec<String>,
     pub(crate) scanning: bool,
     /// `(done, total)` discovered plugins while a scan runs.
@@ -165,6 +167,7 @@ impl App {
             filter_categories: HashSet::new(),
             status,
             scan_log: Vec::new(),
+            scan_warning_log: Vec::new(),
             scan_error_log: Vec::new(),
             scanning: false,
             scan_progress: None,
@@ -195,6 +198,7 @@ impl App {
         while let Ok(msg) = rx.try_recv() {
             match msg {
                 ScanMsg::Log(line) => self.scan_log.push(line),
+                ScanMsg::Warning(line) => self.scan_warning_log.push(line),
                 ScanMsg::Error(line) => self.scan_error_log.push(line),
                 ScanMsg::Progress { done, total } => {
                     self.scan_progress = Some((done, total));
@@ -211,21 +215,24 @@ impl App {
                             self.scan_results = report.plugins;
                             self.plugin_row_heights.clear();
                             self.invalid_plugin_row_heights.clear();
-                            prune_vendor_filter(
-                                &mut self.filter_vendors,
-                                &self.scan_results,
-                            );
-                            prune_category_filter(
-                                &mut self.filter_categories,
-                                &self.scan_results,
-                            );
-                            self.status = format!(
-                                "Scanned — {} valid / {} total ({} cached, {} shard(s))",
-                                report.valid,
-                                report.total,
-                                report.from_cache,
-                                report.shards_scanned
-                            );
+                            prune_vendor_filter(&mut self.filter_vendors, &self.scan_results);
+                            prune_category_filter(&mut self.filter_categories, &self.scan_results);
+                            self.status = if let Some(path) = &report.report_path {
+                                format!(
+                                    "Scanned — {} valid / {} total · report: {}",
+                                    report.valid,
+                                    report.total,
+                                    path.display()
+                                )
+                            } else {
+                                format!(
+                                    "Scanned — {} valid / {} total ({} cached, {} shard(s))",
+                                    report.valid,
+                                    report.total,
+                                    report.from_cache,
+                                    report.shards_scanned
+                                )
+                            };
                         }
                         Err(err) => {
                             self.scan_error_log.push(err.clone());
@@ -256,6 +263,7 @@ impl App {
                 self.filter_vendors.clear();
                 self.filter_categories.clear();
                 self.scan_log.clear();
+                self.scan_warning_log.clear();
                 self.scan_error_log.clear();
                 self.scan_progress = None;
                 self.status = "Plugin cache cleared.".into();
@@ -271,6 +279,7 @@ impl App {
 
         self.persist_path();
         self.scan_log.clear();
+        self.scan_warning_log.clear();
         self.scan_error_log.clear();
         self.scan_progress = None;
 
@@ -298,7 +307,14 @@ impl App {
                 while let Ok(event) = event_rx.recv() {
                     let msg = match event {
                         scanner::ScanEvent::Log(line) => ScanMsg::Log(line),
-                        scanner::ScanEvent::Error(line) => ScanMsg::Error(line),
+                        scanner::ScanEvent::Notice {
+                            level,
+                            message,
+                            ..
+                        } => match level {
+                            scanner::ScanNoticeLevel::Warning => ScanMsg::Warning(message),
+                            scanner::ScanNoticeLevel::Error => ScanMsg::Error(message),
+                        },
                         scanner::ScanEvent::Progress { done, total } => {
                             ScanMsg::Progress { done, total }
                         }

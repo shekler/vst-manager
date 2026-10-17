@@ -1,2 +1,3 @@
 [alias]
-dev = "watch -w src -x run"
+# Avoid nested shell quotes (breaks on Windows). `build` pulls in vst_scanner via path dep.
+dev = "watch -w src -w crates/scanner -x build -x run"

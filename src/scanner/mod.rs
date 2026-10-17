@@ -1,24 +1,31 @@
 mod cache;
 mod discover;
-mod exe;
+mod report;
+mod vst3;
 
 use cache::PluginCache;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::Sender;
 use std::thread;
+use std::time::Instant;
 
-pub use exe::PluginInfo;
+pub use scanner_types::{PluginInfo, ScanNoticeLevel, ScanOutput};
 
 /// Events streamed to the UI while a scan runs.
 #[derive(Debug, Clone)]
 pub enum ScanEvent {
     Log(String),
-    Error(String),
-    /// `done` plugins finished (cache hits + detail-scanned); `total` discovered paths.
-    Progress { done: usize, total: usize },
+    Notice {
+        level: ScanNoticeLevel,
+        message: String,
+    },
+    Progress {
+        done: usize,
+        total: usize,
+    },
 }
 
 /// Plugins previously scanned under any of `roots`.
@@ -52,18 +59,21 @@ pub struct ScanReport {
     pub valid: usize,
     pub from_cache: usize,
     pub shards_scanned: usize,
+    /// Markdown scan report written under app cache (`scan_reports/`).
+    pub report_path: Option<PathBuf>,
 }
 
 pub fn scan_directories_with_sender(
     roots: &[PathBuf],
     event_tx: Sender<ScanEvent>,
 ) -> Result<ScanReport, String> {
-    let events = EventSink::new(event_tx);
-    let roots: Vec<PathBuf> = roots
-        .iter()
-        .filter(|root| root.is_dir())
-        .cloned()
-        .collect();
+    let started = Instant::now();
+    let diagnostics = Arc::new(std::sync::Mutex::new(report::ScanDiagnostics {
+        warnings: Vec::new(),
+        errors: Vec::new(),
+    }));
+    let events = EventSink::new(event_tx, Arc::clone(&diagnostics));
+    let roots: Vec<PathBuf> = roots.iter().filter(|root| root.is_dir()).cloned().collect();
     if roots.is_empty() {
         return Err("No valid scan folders selected.".into());
     }
@@ -72,9 +82,8 @@ pub fn scan_directories_with_sender(
         events.log(format!("Scanning {}", root.display()));
     }
 
-    let scanner = exe::scanner_exe()
-        .ok_or("vst_scanner.exe not found (expected beside app or in tools/vst_scanner.exe)")?;
-    events.log(format!("Using scanner: {}", scanner.display()));
+    events.log("Using in-process Rust VST3 scanner".into());
+    log_worker_exe_hint(&events);
 
     let mut cache = PluginCache::load();
     let mut shards_to_scan = HashSet::new();
@@ -124,6 +133,8 @@ pub fn scan_directories_with_sender(
     shards.dedup();
 
     let progress_done = Arc::new(AtomicUsize::new(from_cache));
+    let mut scan_stats = ScanStats::default();
+    let mut fresh_scanned = HashSet::new();
 
     let shards_scanned = if shards.is_empty() {
         events.log("All plugins served from cache".into());
@@ -132,7 +143,6 @@ pub fn scan_directories_with_sender(
     } else {
         run_parallel_shards(
             &roots,
-            &scanner,
             &shards,
             &shard_plugin_counts,
             &shard_plugins,
@@ -140,6 +150,8 @@ pub fn scan_directories_with_sender(
             &events,
             &progress_done,
             total,
+            &mut scan_stats,
+            &mut fresh_scanned,
         )?
     };
 
@@ -157,33 +169,107 @@ pub fn scan_directories_with_sender(
     results.sort_by(|a, b| a.path.cmp(&b.path));
     let valid = results.iter().filter(|p| p.is_valid).count();
     events.progress(total, total);
-    events.log(format!("Done — {} valid / {} total", valid, results.len()));
+    let elapsed = started.elapsed().as_secs_f64();
+    events.log(format!(
+        "Done — {valid} valid / {} total · {} license skip · {} vendor skip · {} timeout · {} fail · {:.1}s",
+        results.len(),
+        scan_stats.missing_license,
+        scan_stats.skipped_vendor,
+        scan_stats.timed_out,
+        scan_stats.load_failed,
+        elapsed
+    ));
 
-    Ok(ScanReport {
+    let report = ScanReport {
         total: results.len(),
         valid,
         from_cache,
         shards_scanned,
         plugins: results,
-    })
+        report_path: None,
+    };
+
+    let diag = diagnostics
+        .lock()
+        .map_err(|_| "Scan diagnostics lock poisoned".to_string())?;
+    match report::write_scan_report(
+        &roots,
+        &report,
+        &scan_stats,
+        &diag,
+        elapsed,
+        &fresh_scanned,
+    ) {
+        Ok(path) => {
+            events.log(format!("Scan report: {}", path.display()));
+            Ok(ScanReport {
+                report_path: Some(path),
+                ..report
+            })
+        }
+        Err(err) => {
+            events.log(format!("Could not write scan report: {err}"));
+            Ok(report)
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct ScanStats {
+    missing_license: usize,
+    skipped_vendor: usize,
+    timed_out: usize,
+    load_failed: usize,
+}
+
+impl ScanStats {
+    fn record(&mut self, plugin: &PluginInfo) {
+        use scanner_types::ScanOutcome;
+        match plugin.scan_outcome() {
+            ScanOutcome::Valid => {}
+            ScanOutcome::MissingLicense => self.missing_license += 1,
+            ScanOutcome::TimedOut => self.timed_out += 1,
+            ScanOutcome::SkippedVendor => self.skipped_vendor += 1,
+            ScanOutcome::LoadFailed => self.load_failed += 1,
+        }
+    }
+}
+
+static WORKER_HINT: AtomicBool = AtomicBool::new(false);
+
+fn log_worker_exe_hint(events: &EventSink) {
+    if WORKER_HINT.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    #[cfg(windows)]
+    if vst_scanner::resolve_isolated_worker_exe().is_none() {
+        events.log(
+            "Note: build vst_scanner.exe beside this app for faster isolated scans (cargo build -p vst_scanner)"
+                .into(),
+        );
+    }
 }
 
 #[derive(Clone)]
 struct EventSink {
     tx: Sender<ScanEvent>,
+    diagnostics: Arc<std::sync::Mutex<report::ScanDiagnostics>>,
 }
 
 impl EventSink {
-    fn new(tx: Sender<ScanEvent>) -> Self {
-        Self { tx }
+    fn new(tx: Sender<ScanEvent>, diagnostics: Arc<std::sync::Mutex<report::ScanDiagnostics>>) -> Self {
+        Self { tx, diagnostics }
     }
 
     fn log(&self, msg: String) {
         let _ = self.tx.send(ScanEvent::Log(msg));
     }
 
-    fn error(&self, msg: String) {
-        let _ = self.tx.send(ScanEvent::Error(msg));
+    fn notice(&self, level: ScanNoticeLevel, message: String) {
+        if let Ok(mut diag) = self.diagnostics.lock() {
+            diag.push_notice(level, message.clone());
+        }
+        let _ = self.tx.send(ScanEvent::Notice { level, message });
     }
 
     fn progress(&self, done: usize, total: usize) {
@@ -227,7 +313,6 @@ fn shard_jobs(
 
 fn run_parallel_shards(
     roots: &[PathBuf],
-    scanner: &Path,
     shards: &[PathBuf],
     shard_plugin_counts: &HashMap<PathBuf, usize>,
     shard_plugins: &HashMap<PathBuf, Vec<PathBuf>>,
@@ -235,6 +320,8 @@ fn run_parallel_shards(
     events: &EventSink,
     progress_done: &Arc<AtomicUsize>,
     total: usize,
+    scan_stats: &mut ScanStats,
+    fresh_scanned: &mut HashSet<String>,
 ) -> Result<usize, String> {
     let shard_jobs = shard_jobs(roots, shards, shard_plugin_counts);
     let shard_count = shard_jobs.len();
@@ -245,10 +332,9 @@ fn run_parallel_shards(
         .max(1);
 
     events.log(format!(
-        "Running vst_scanner on {shard_count} shard(s) with {workers} worker(s)"
+        "Scanning {shard_count} shard(s) with {workers} worker(s)"
     ));
 
-    let scanner = Arc::new(scanner.to_path_buf());
     let shard_jobs = Arc::new(shard_jobs);
     let shard_plugins = Arc::new(shard_plugins.clone());
     let events = Arc::new(events.clone());
@@ -262,7 +348,6 @@ fn run_parallel_shards(
             break;
         }
         let end = (start + chunk).min(shard_count);
-        let scanner = Arc::clone(&scanner);
         let shard_jobs = Arc::clone(&shard_jobs);
         let shard_plugins = Arc::clone(&shard_plugins);
         let events = Arc::clone(&events);
@@ -275,22 +360,17 @@ fn run_parallel_shards(
                     "Shard {shard_num}/{shard_count}: {} — {} plugin(s)",
                     job.label, job.plugin_count
                 ));
-                events.log(format!("  → {}", job.path.display()));
                 let events_progress = Arc::clone(&events);
-                let plugins = shard_plugins
-                    .get(&job.path)
-                    .cloned()
-                    .unwrap_or_default();
+                let plugins = shard_plugins.get(&job.path).cloned().unwrap_or_default();
                 let progress_done = Arc::clone(&progress_done);
-                let output = scan_shard_resilient(
-                    &scanner,
+                let output = scan_shard(
                     job,
                     &plugins,
                     |line| {
                         events_progress.log(format!("  {line}"));
                     },
-                    |line| {
-                        events_progress.error(line.to_owned());
+                    |level, _path, message| {
+                        events_progress.notice(level, message.to_owned());
                     },
                     |n| {
                         let done = progress_done.fetch_add(n, Ordering::Relaxed) + n;
@@ -303,11 +383,6 @@ fn run_parallel_shards(
                     job.label,
                     output.plugins.len()
                 ));
-                for plugin in &output.plugins {
-                    if let Some(msg) = plugin_error_message(plugin) {
-                        events.error(msg);
-                    }
-                }
                 outputs.push(output);
             }
             outputs
@@ -320,11 +395,14 @@ fn run_parallel_shards(
             .map_err(|_| "Scanner worker thread panicked".to_string())?;
         for output in outputs {
             for mut plugin in output.plugins {
+                scan_stats.record(&plugin);
                 let path = PathBuf::from(&plugin.path);
                 let bundle = discover::bundle_root(&path);
                 plugin.path = bundle.to_string_lossy().into_owned();
                 plugin.fill_size_from_path(&bundle);
                 plugin.ensure_format();
+                let bundle_key = bundle.to_string_lossy().into_owned();
+                fresh_scanned.insert(bundle_key);
                 cache.insert(&bundle, plugin);
             }
         }
@@ -333,91 +411,34 @@ fn run_parallel_shards(
     Ok(shard_count)
 }
 
-/// Scan a shard; on process crash, retry each plugin path so one bad DLL cannot abort the scan.
-/// `on_plugins_done` is called with how many plugins just finished detail-scanning.
-fn scan_shard_resilient(
-    scanner: &Path,
+fn scan_shard(
     job: &ShardJob,
     plugins: &[PathBuf],
     mut on_progress: impl FnMut(&str),
-    mut on_error: impl FnMut(&str),
+    mut on_notice: impl FnMut(ScanNoticeLevel, &str, &str),
     mut on_plugins_done: impl FnMut(usize),
-) -> exe::ScanOutput {
-    match exe::run_scanner(scanner, &job.path, &mut on_progress, &mut on_error) {
-        Ok(output) => {
-            // Whole-shard scan finished — count expected plugins for this shard.
-            let n = if plugins.is_empty() {
-                output.plugins.len()
-            } else {
-                plugins.len()
-            };
-            if n > 0 {
-                on_plugins_done(n);
-            }
-            output
-        }
-        Err(err) => {
-            on_error(&format!("✗ {} — {err}", job.label));
-            if plugins.is_empty() {
-                return exe::ScanOutput {
-                    scan_time: String::new(),
-                    total_plugins: 0,
-                    valid_plugins: 0,
-                    plugins: Vec::new(),
-                };
-            }
-            if plugins.len() == 1 {
-                on_error(&format!(
-                    "Recording crash stub for {}",
-                    plugins[0].display()
-                ));
-                on_plugins_done(1);
-                return exe::ScanOutput {
-                    scan_time: String::new(),
-                    total_plugins: 1,
-                    valid_plugins: 0,
-                    plugins: vec![exe::crash_stub(&plugins[0], &err)],
-                };
-            }
+) -> ScanOutput {
+    let output = if plugins.is_empty() {
+        on_progress(&format!("  → {}", job.path.display()));
+        vst3::scan_vst3_directory(&job.path, &mut on_progress, &mut on_notice)
+    } else {
+        on_progress(&format!(
+            "  → {} path(s) (cache miss only)",
+            plugins.len()
+        ));
+        vst3::scan_vst3_paths(plugins, &mut on_progress, &mut on_notice)
+    };
 
-            on_progress(&format!(
-                "Retrying {} plugin(s) individually after shard crash…",
-                plugins.len()
-            ));
-            let mut recovered = Vec::new();
-            for plugin_path in plugins {
-                on_progress(&format!("  → {}", plugin_path.display()));
-                match exe::run_scanner(scanner, plugin_path, &mut on_progress, &mut on_error) {
-                    Ok(mut output) => recovered.append(&mut output.plugins),
-                    Err(plugin_err) => {
-                        on_error(&format!("  ✗ {} — {plugin_err}", plugin_path.display()));
-                        recovered.push(exe::crash_stub(plugin_path, &plugin_err));
-                    }
-                }
-                on_plugins_done(1);
-            }
-            let valid_plugins = recovered.iter().filter(|p| p.is_valid).count() as u32;
-            exe::ScanOutput {
-                scan_time: String::new(),
-                total_plugins: recovered.len() as u32,
-                valid_plugins,
-                plugins: recovered,
-            }
-        }
+    let n = if plugins.is_empty() {
+        output.plugins.len()
+    } else {
+        plugins.len()
+    };
+    if n > 0 {
+        on_plugins_done(n);
     }
-}
 
-fn plugin_error_message(plugin: &PluginInfo) -> Option<String> {
-    if !plugin.error.is_empty() {
-        return Some(format!("{} — {}", plugin.path, plugin.error));
-    }
-    if plugin.load_failed {
-        return Some(format!("{} — load failed", plugin.path));
-    }
-    if plugin.load_timed_out {
-        return Some(format!("{} — load timed out", plugin.path));
-    }
-    None
+    output
 }
 
 fn collect_results(
@@ -518,6 +539,7 @@ mod tests {
             error: String::new(),
             size: String::new(),
             format: "vst3".into(),
+            scan_duration_ms: 0,
         }
     }
 
@@ -532,10 +554,7 @@ mod tests {
         plugins.sort_by(|a, b| a.path.cmp(&b.path));
         assert_eq!(plugins.len(), 2);
         let foo = plugins.iter().find(|p| p.cid == "ABC").unwrap();
-        assert_eq!(
-            foo.all_paths(),
-            vec![r"C:\A\Foo.vst3", r"C:\B\Foo.vst3"]
-        );
+        assert_eq!(foo.all_paths(), vec![r"C:\A\Foo.vst3", r"C:\B\Foo.vst3"]);
         let bar = plugins.iter().find(|p| p.cid == "DEF").unwrap();
         assert_eq!(bar.all_paths(), vec![r"C:\C\Bar.vst3"]);
     }

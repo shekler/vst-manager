@@ -1,0 +1,21 @@
+[package]
+name = "vst_scanner"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "vst_scanner"
+path = "src/main.rs"
+
+[lib]
+name = "vst_scanner"
+path = "src/lib.rs"
+
+[dependencies]
+scanner-types = { path = "../types" }
+serde_json = "1"
+vst3-host = { version = "0.10", default-features = false, features = ["process-isolation"] }
+walkdir = "2"
+
+[dev-dependencies]
+serde_json = "1"
