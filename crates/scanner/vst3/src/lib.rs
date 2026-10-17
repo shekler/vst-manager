@@ -264,7 +264,7 @@ fn load_plugin_via_factory(path: &Path, options: &ScanOptions) -> PluginInfo {
     }
 
     let mut timeout_sec = options.factory_load_timeout_sec;
-    if license::factory_load_may_need_protection(path) {
+    if !options.try_license_load && license::factory_load_may_need_protection(path) {
         timeout_sec = timeout_sec.min(options.protected_plugin_timeout_sec);
     }
 

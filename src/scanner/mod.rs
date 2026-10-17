@@ -65,6 +65,7 @@ pub struct ScanReport {
 
 pub fn scan_directories_with_sender(
     roots: &[PathBuf],
+    scan_license_protected: bool,
     event_tx: Sender<ScanEvent>,
 ) -> Result<ScanReport, String> {
     let started = Instant::now();
@@ -83,6 +84,15 @@ pub fn scan_directories_with_sender(
     }
 
     events.log("Using in-process Rust VST3 scanner".into());
+    let scan_options = vst3::app_scan_options(scan_license_protected);
+    if scan_license_protected {
+        events.log(
+            "License-protected plugins: attempting factory load (iLok/PACE should be running)"
+                .into(),
+        );
+    } else {
+        events.log("License-protected plugins: skipped (fast scan — enable in Settings)".into());
+    }
     log_worker_exe_hint(&events);
 
     let mut cache = PluginCache::load();
@@ -146,6 +156,7 @@ pub fn scan_directories_with_sender(
             &shards,
             &shard_plugin_counts,
             &shard_plugins,
+            &scan_options,
             &mut cache,
             &events,
             &progress_done,
@@ -316,6 +327,7 @@ fn run_parallel_shards(
     shards: &[PathBuf],
     shard_plugin_counts: &HashMap<PathBuf, usize>,
     shard_plugins: &HashMap<PathBuf, Vec<PathBuf>>,
+    scan_options: &vst_scanner::ScanOptions,
     cache: &mut PluginCache,
     events: &EventSink,
     progress_done: &Arc<AtomicUsize>,
@@ -337,6 +349,7 @@ fn run_parallel_shards(
 
     let shard_jobs = Arc::new(shard_jobs);
     let shard_plugins = Arc::new(shard_plugins.clone());
+    let scan_options = Arc::new(*scan_options);
     let events = Arc::new(events.clone());
     let progress_done = Arc::clone(progress_done);
     let chunk = shard_count.div_ceil(workers);
@@ -350,6 +363,7 @@ fn run_parallel_shards(
         let end = (start + chunk).min(shard_count);
         let shard_jobs = Arc::clone(&shard_jobs);
         let shard_plugins = Arc::clone(&shard_plugins);
+        let scan_options = Arc::clone(&scan_options);
         let events = Arc::clone(&events);
         let progress_done = Arc::clone(&progress_done);
         handles.push(thread::spawn(move || {
@@ -366,6 +380,7 @@ fn run_parallel_shards(
                 let output = scan_shard(
                     job,
                     &plugins,
+                    &scan_options,
                     |line| {
                         events_progress.log(format!("  {line}"));
                     },
@@ -414,19 +429,20 @@ fn run_parallel_shards(
 fn scan_shard(
     job: &ShardJob,
     plugins: &[PathBuf],
+    scan_options: &vst_scanner::ScanOptions,
     mut on_progress: impl FnMut(&str),
     mut on_notice: impl FnMut(ScanNoticeLevel, &str, &str),
     mut on_plugins_done: impl FnMut(usize),
 ) -> ScanOutput {
     let output = if plugins.is_empty() {
         on_progress(&format!("  → {}", job.path.display()));
-        vst3::scan_vst3_directory(&job.path, &mut on_progress, &mut on_notice)
+        vst3::scan_vst3_directory(&job.path, scan_options, &mut on_progress, &mut on_notice)
     } else {
         on_progress(&format!(
             "  → {} path(s) (cache miss only)",
             plugins.len()
         ));
-        vst3::scan_vst3_paths(plugins, &mut on_progress, &mut on_notice)
+        vst3::scan_vst3_paths(plugins, scan_options, &mut on_progress, &mut on_notice)
     };
 
     let n = if plugins.is_empty() {

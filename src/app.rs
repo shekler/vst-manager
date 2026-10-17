@@ -13,11 +13,27 @@ const APP_QUALIFIER: &str = "com";
 const APP_ORGANIZATION: &str = "vst-manager";
 const APP_NAME: &str = "vst-manager";
 
-#[derive(Default, Serialize, Deserialize)]
+fn default_scan_license_protected() -> bool {
+    true
+}
+
+#[derive(Serialize, Deserialize)]
 struct Config {
     scan_path: String,
     #[serde(default)]
     selected_folders: Vec<String>,
+    #[serde(default = "default_scan_license_protected")]
+    scan_license_protected: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            scan_path: String::new(),
+            selected_folders: Vec::new(),
+            scan_license_protected: true,
+        }
+    }
 }
 
 impl Config {
@@ -69,6 +85,8 @@ pub struct App {
     pub(crate) path_input: String,
     /// Checked common default plugin folders (absolute paths).
     pub(crate) selected_folders: HashSet<String>,
+    /// When true, attempt factory load for PACE/iLok-style plugins (Settings).
+    pub(crate) scan_license_protected: bool,
     pub(crate) scan_results: Vec<scanner::PluginInfo>,
     /// Measured grid-row heights for virtual scrolling (`0` = not measured yet).
     pub(crate) plugin_row_heights: Vec<f32>,
@@ -159,6 +177,7 @@ impl App {
             current_page: Page::default(),
             path_input,
             selected_folders,
+            scan_license_protected: config.scan_license_protected,
             scan_results,
             plugin_row_heights: Vec::new(),
             invalid_plugin_row_heights: Vec::new(),
@@ -181,6 +200,7 @@ impl App {
         Config {
             scan_path: self.path_input.clone(),
             selected_folders,
+            scan_license_protected: self.scan_license_protected,
         }
         .save();
     }
@@ -300,6 +320,7 @@ impl App {
         let folder_count = roots.len();
         self.status = format!("Discovering plugins in {folder_count} folder(s)…");
 
+        let scan_license_protected = self.scan_license_protected;
         thread::spawn(move || {
             let (event_tx, event_rx) = mpsc::channel();
             let ui_tx = tx.clone();
@@ -325,7 +346,8 @@ impl App {
                 }
             });
 
-            let result = scanner::scan_directories_with_sender(&roots, event_tx);
+            let result =
+                scanner::scan_directories_with_sender(&roots, scan_license_protected, event_tx);
             let _ = tx.send(ScanMsg::Done(result));
         });
     }

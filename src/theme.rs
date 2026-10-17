@@ -462,6 +462,9 @@ fn apply_text_styles(style: &mut egui::Style) {
     style
         .text_styles
         .insert(text::base_style(), regular(tokens::size::BASE));
+    style
+        .text_styles
+        .insert(TextStyle::Small, regular(tokens::size::SMALL));
 }
 
 fn nav_tab_color(selected: bool, hovered: bool) -> egui::Color32 {

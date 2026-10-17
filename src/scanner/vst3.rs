@@ -4,23 +4,32 @@ use vst_scanner::ScanOptions;
 
 pub use scanner_types::{ScanNoticeLevel, ScanOutput};
 
-/// Default scan options for the GUI (matches C++ scanner defaults).
-pub fn app_scan_options() -> ScanOptions {
-    ScanOptions {
-        try_license_load: false,
-        ..ScanOptions::default()
+/// GUI scan options from Settings (“scan license-protected plugins”).
+pub fn app_scan_options(scan_license_protected: bool) -> ScanOptions {
+    if scan_license_protected {
+        ScanOptions {
+            try_license_load: true,
+            fast_license_skip: false,
+            ..ScanOptions::default()
+        }
+    } else {
+        ScanOptions {
+            try_license_load: false,
+            fast_license_skip: true,
+            ..ScanOptions::default()
+        }
     }
 }
 
 /// Scan explicit plugin paths (cache misses only).
 pub fn scan_vst3_paths(
     paths: &[PathBuf],
+    options: &ScanOptions,
     mut on_progress: impl FnMut(&str),
     mut on_notice: impl FnMut(ScanNoticeLevel, &str, &str),
 ) -> ScanOutput {
-    let options = app_scan_options();
     let output =
-        vst_scanner::scan_paths(paths, &options, 4, move |line| on_progress(line));
+        vst_scanner::scan_paths(paths, options, 4, move |line| on_progress(line));
     for plugin in &output.plugins {
         emit_plugin_notice(plugin, &mut on_notice);
     }
@@ -30,11 +39,11 @@ pub fn scan_vst3_paths(
 /// Scan a directory tree for VST3 modules (empty shard edge case).
 pub fn scan_vst3_directory(
     dir: &Path,
+    options: &ScanOptions,
     mut on_progress: impl FnMut(&str),
     mut on_notice: impl FnMut(ScanNoticeLevel, &str, &str),
 ) -> ScanOutput {
-    let options = app_scan_options();
-    let output = vst_scanner::scan_directory(dir, &options, |line| on_progress(line));
+    let output = vst_scanner::scan_directory(dir, options, |line| on_progress(line));
     for plugin in &output.plugins {
         emit_plugin_notice(plugin, &mut on_notice);
     }

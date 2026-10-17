@@ -194,7 +194,46 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         }
     }
 
+    ui.add_space(24.0);
+    ui.label(
+        egui::RichText::new("Scanning")
+            .text_style(theme::text::h3_style())
+            .color(theme::color::POWDER),
+    );
     ui.add_space(8.0);
+
+    const CHECKBOX_TEXT_INDENT: f32 = 22.0; // box + gap (matches theme checkbox)
+    const NOTE_FONT_SIZE: f32 = 12.0;
+
+    let mut scan_license = app.scan_license_protected;
+    ui.vertical(|ui| {
+        if theme::checkbox::default(
+            ui,
+            &mut scan_license,
+            "Scan license-protected plugins (PACE / iLok)",
+        )
+        .changed()
+        {
+            app.scan_license_protected = scan_license;
+            app.persist_path();
+        }
+        ui.horizontal(|ui| {
+            ui.add_space(CHECKBOX_TEXT_INDENT);
+            ui.label(
+                egui::RichText::new(
+                    "Disable this feature if you have issues with scanning license-protected \
+                     plugins. Those will be skipped if disabled.",
+                )
+                .font(egui::FontId::new(
+                    NOTE_FONT_SIZE,
+                    egui::FontFamily::Proportional,
+                ))
+                .color(theme::color::POWDER.gamma_multiply(0.7)),
+            );
+        });
+    });
+
+    ui.add_space(16.0);
     ui.label(
         egui::RichText::new("Saved automatically to your app config directory.")
             .small()
