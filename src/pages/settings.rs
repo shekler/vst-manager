@@ -3,6 +3,8 @@ use crate::theme;
 use eframe::egui;
 use std::path::PathBuf;
 
+const NOTE_FONT_SIZE: f32 = 12.0;
+
 pub struct DefaultFolder {
     pub label: &'static str,
     pub path: String,
@@ -203,7 +205,6 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     ui.add_space(8.0);
 
     const CHECKBOX_TEXT_INDENT: f32 = 22.0; // box + gap (matches theme checkbox)
-    const NOTE_FONT_SIZE: f32 = 12.0;
 
     let mut scan_license = app.scan_license_protected;
     ui.vertical(|ui| {
@@ -233,10 +234,111 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         });
     });
 
+    ui.add_space(24.0);
+    show_exclusions(app, ui);
+
     ui.add_space(16.0);
     ui.label(
         egui::RichText::new("Saved automatically to your app config directory.")
             .small()
             .weak(),
     );
+}
+
+fn show_exclusions(app: &mut App, ui: &mut egui::Ui) {
+    ui.label(
+        egui::RichText::new("Excluded plugins")
+            .text_style(theme::text::h3_style())
+            .color(theme::color::POWDER),
+    );
+    ui.add_space(8.0);
+    ui.label(
+        egui::RichText::new(
+            "Skipped when the file name contains this text, any version. \
+             WaveShell skips every Waves licensing plugin \
+             (WaveShell3-VST3 10.0.vst3, WaveShell1-VST3 16.7_x64.vst3, and later).",
+        )
+        .font(egui::FontId::new(
+            NOTE_FONT_SIZE,
+            egui::FontFamily::Proportional,
+        ))
+        .color(theme::color::POWDER.gamma_multiply(0.7)),
+    );
+    ui.add_space(8.0);
+
+    let mut remove_at = None;
+    if app.excluded_plugins.is_empty() {
+        ui.label(
+            egui::RichText::new("No exclusions — every discovered plugin is scanned.")
+                .small()
+                .weak(),
+        );
+    } else {
+        for (index, entry) in app.excluded_plugins.iter().enumerate() {
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(entry).color(theme::color::POWDER));
+                if ui
+                    .add(
+                        egui::Button::image_and_text(
+                            egui::Image::new(egui::include_image!("../../assets/close.svg"))
+                                .fit_to_exact_size(egui::vec2(16.0, 16.0))
+                                .tint(theme::color::RED),
+                            egui::RichText::new("Remove").color(theme::color::RED),
+                        )
+                        .frame(false),
+                    )
+                    .clicked()
+                {
+                    remove_at = Some(index);
+                }
+            });
+        }
+    }
+
+    ui.add_space(8.0);
+    let mut add = false;
+    ui.horizontal(|ui| {
+        let field_width = (ui.available_width() - 88.0).max(120.0);
+        let response = egui::Frame::NONE
+            .inner_margin(egui::vec2(10.0, 6.0))
+            .corner_radius(4)
+            .fill(theme::color::ONYX)
+            .stroke(egui::Stroke::new(
+                1.0,
+                theme::color::POWDER.gamma_multiply(0.3),
+            ))
+            .show(ui, |ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut app.exclusion_input)
+                        .frame(egui::Frame::NONE)
+                        .desired_width(field_width)
+                        .hint_text("WaveShell"),
+                )
+            })
+            .inner;
+        let submitted =
+            response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
+        if theme::button::powder(ui, "Add").clicked() || submitted {
+            add = true;
+        }
+    });
+
+    if let Some(index) = remove_at {
+        app.excluded_plugins.remove(index);
+        app.persist_path();
+        app.reload_cached_library();
+    }
+    if add {
+        let entry = app.exclusion_input.trim().to_string();
+        let duplicate = app
+            .excluded_plugins
+            .iter()
+            .any(|existing| existing.eq_ignore_ascii_case(&entry));
+        if !entry.is_empty() && !duplicate {
+            app.excluded_plugins.push(entry);
+            app.exclusion_input.clear();
+            app.persist_path();
+            app.reload_cached_library();
+        }
+    }
 }

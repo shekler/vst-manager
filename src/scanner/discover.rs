@@ -2,9 +2,28 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+/// File-name fragments excluded before scan. `WaveShell` matches every Waves
+/// shell regardless of version (`WaveShell3-VST3 10.0.vst3`,
+/// `WaveShell1-VST3 16.7_x64.vst3`, …).
+pub fn default_plugin_exclusions() -> Vec<String> {
+    vec!["WaveShell".to_string()]
+}
+
+/// Case-insensitive substring match against the plugin file or bundle name.
+pub fn plugin_name_excluded(path: &Path, exclusions: &[String]) -> bool {
+    let Some(name) = path.file_name() else {
+        return false;
+    };
+    let name = name.to_string_lossy().to_ascii_lowercase();
+    exclusions.iter().any(|entry| {
+        let needle = entry.trim();
+        !needle.is_empty() && name.contains(&needle.to_ascii_lowercase())
+    })
+}
+
 /// Recursive walk: `.vst3` bundles (file or folder) under `root`.
 /// VST2 `.dll` paths are omitted until a VST2 scanner exists (avoids VST3 loader errors).
-pub fn discover_plugin_paths(root: &Path) -> Result<Vec<PathBuf>, String> {
+pub fn discover_plugin_paths(root: &Path, exclusions: &[String]) -> Result<Vec<PathBuf>, String> {
     let mut raw = Vec::new();
 
     for entry in WalkDir::new(root)
@@ -13,7 +32,7 @@ pub fn discover_plugin_paths(root: &Path) -> Result<Vec<PathBuf>, String> {
         .filter_map(|e| e.ok())
     {
         let path = entry.path();
-        if discover_skip_reason(path).is_some() {
+        if discover_skip_reason(path).is_some() || plugin_name_excluded(path, exclusions) {
             continue;
         }
 
@@ -31,7 +50,7 @@ pub fn discover_plugin_paths(root: &Path) -> Result<Vec<PathBuf>, String> {
     let mut paths: Vec<PathBuf> = raw
         .into_iter()
         .map(|p| bundle_root(&p))
-        .filter(|p| discover_skip_reason(p).is_none())
+        .filter(|p| discover_skip_reason(p).is_none() && !plugin_name_excluded(p, exclusions))
         .collect();
     paths.sort_by(|a, b| a.cmp(b));
 
@@ -149,5 +168,23 @@ mod tests {
         );
         #[cfg(not(all(windows, target_pointer_width = "64")))]
         assert!(discover_skip_reason(path).is_none());
+    }
+
+    #[test]
+    fn waveshell_exclusion_ignores_version() {
+        let exclusions = default_plugin_exclusions();
+        for path in [
+            r"C:\Program Files\Common Files\VST3\WaveShell3-VST3 10.0.vst3",
+            r"C:\Program Files\Common Files\VST3\WaveShell3-VST3 10.0_x64.vst3",
+            r"C:\Program Files\Common Files\VST3\WaveShell1-VST3 16.7_x64.vst3",
+            r"C:\Program Files\Common Files\VST3\WaveShell1-VST3 14.17_x64.vst3",
+            r"C:\Program Files\VSTPlugins\WaveShell3-VST 11.2_x64.dll",
+        ] {
+            assert!(plugin_name_excluded(Path::new(path), &exclusions), "{path}");
+        }
+        assert!(!plugin_name_excluded(
+            Path::new(r"C:\Program Files\Common Files\VST3\Waveform Compressor.vst3"),
+            &exclusions
+        ));
     }
 }

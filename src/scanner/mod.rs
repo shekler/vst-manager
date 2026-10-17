@@ -12,6 +12,7 @@ use std::sync::mpsc::Sender;
 use std::thread;
 use std::time::Instant;
 
+pub use discover::{default_plugin_exclusions, plugin_name_excluded};
 pub use scanner_types::{PluginInfo, ScanNoticeLevel, ScanOutput};
 
 /// Events streamed to the UI while a scan runs.
@@ -28,13 +29,16 @@ pub enum ScanEvent {
     },
 }
 
-/// Plugins previously scanned under any of `roots`.
-pub fn load_cached_plugins(roots: &[PathBuf]) -> Vec<PluginInfo> {
+/// Plugins previously scanned under any of `roots`, minus name exclusions.
+pub fn load_cached_plugins(roots: &[PathBuf], exclusions: &[String]) -> Vec<PluginInfo> {
     let cache = PluginCache::load();
     let mut plugins = Vec::new();
     let mut seen = HashSet::new();
     for root in roots {
         for mut plugin in cache.plugins_under_root(root) {
+            if plugin_name_excluded(Path::new(&plugin.path), exclusions) {
+                continue;
+            }
             if seen.insert(plugin.path.clone()) {
                 plugin.ensure_derived_fields();
                 plugins.push(plugin);
@@ -66,6 +70,7 @@ pub struct ScanReport {
 pub fn scan_directories_with_sender(
     roots: &[PathBuf],
     scan_license_protected: bool,
+    exclusions: &[String],
     event_tx: Sender<ScanEvent>,
 ) -> Result<ScanReport, String> {
     let started = Instant::now();
@@ -94,6 +99,12 @@ pub fn scan_directories_with_sender(
         events.log("License-protected plugins: skipped (fast scan — enable in Settings)".into());
     }
     log_worker_exe_hint(&events);
+    if !exclusions.is_empty() {
+        events.log(format!(
+            "Excluding file names containing: {}",
+            exclusions.join(", ")
+        ));
+    }
 
     let mut cache = PluginCache::load();
     let mut shards_to_scan = HashSet::new();
@@ -103,7 +114,7 @@ pub fn scan_directories_with_sender(
 
     for root in &roots {
         events.log(format!("Discovering plugin paths in {}…", root.display()));
-        let discovered = discover::discover_plugin_paths(root)?;
+        let discovered = discover::discover_plugin_paths(root, exclusions)?;
         events.log(format!("Found {} plugin path(s)", discovered.len()));
 
         for plugin_path in &discovered {

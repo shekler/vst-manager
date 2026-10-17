@@ -17,6 +17,10 @@ fn default_scan_license_protected() -> bool {
     true
 }
 
+fn default_excluded_plugins() -> Vec<String> {
+    scanner::default_plugin_exclusions()
+}
+
 #[derive(Serialize, Deserialize)]
 struct Config {
     scan_path: String,
@@ -24,6 +28,9 @@ struct Config {
     selected_folders: Vec<String>,
     #[serde(default = "default_scan_license_protected")]
     scan_license_protected: bool,
+    /// File-name fragments skipped during discover and cache load.
+    #[serde(default = "default_excluded_plugins")]
+    excluded_plugins: Vec<String>,
 }
 
 impl Default for Config {
@@ -32,6 +39,7 @@ impl Default for Config {
             scan_path: String::new(),
             selected_folders: Vec::new(),
             scan_license_protected: true,
+            excluded_plugins: default_excluded_plugins(),
         }
     }
 }
@@ -87,6 +95,10 @@ pub struct App {
     pub(crate) selected_folders: HashSet<String>,
     /// When true, attempt factory load for PACE/iLok-style plugins (Settings).
     pub(crate) scan_license_protected: bool,
+    /// File-name fragments skipped during discover and cache load.
+    pub(crate) excluded_plugins: Vec<String>,
+    /// Draft row for adding an exclusion. Not persisted until Add.
+    pub(crate) exclusion_input: String,
     pub(crate) scan_results: Vec<scanner::PluginInfo>,
     /// Measured grid-row heights for virtual scrolling (`0` = not measured yet).
     pub(crate) plugin_row_heights: Vec<f32>,
@@ -146,12 +158,15 @@ fn scan_roots_from(selected_folders: &HashSet<String>, path_input: &str) -> Vec<
     roots
 }
 
-fn initial_cached_results(roots: &[PathBuf]) -> (Vec<scanner::PluginInfo>, String) {
+fn initial_cached_results(
+    roots: &[PathBuf],
+    exclusions: &[String],
+) -> (Vec<scanner::PluginInfo>, String) {
     if roots.is_empty() {
         return (Vec::new(), String::new());
     }
 
-    let plugins = scanner::load_cached_plugins(roots);
+    let plugins = scanner::load_cached_plugins(roots, exclusions);
     if plugins.is_empty() {
         return (Vec::new(), String::new());
     }
@@ -171,13 +186,16 @@ impl App {
         let config = Config::load();
         let path_input = config.scan_path;
         let selected_folders: HashSet<String> = config.selected_folders.into_iter().collect();
+        let excluded_plugins = config.excluded_plugins;
         let roots = scan_roots_from(&selected_folders, &path_input);
-        let (scan_results, status) = initial_cached_results(&roots);
+        let (scan_results, status) = initial_cached_results(&roots, &excluded_plugins);
         Self {
             current_page: Page::default(),
             path_input,
             selected_folders,
             scan_license_protected: config.scan_license_protected,
+            excluded_plugins,
+            exclusion_input: String::new(),
             scan_results,
             plugin_row_heights: Vec::new(),
             invalid_plugin_row_heights: Vec::new(),
@@ -201,8 +219,27 @@ impl App {
             scan_path: self.path_input.clone(),
             selected_folders,
             scan_license_protected: self.scan_license_protected,
+            excluded_plugins: self
+                .excluded_plugins
+                .iter()
+                .map(|entry| entry.trim().to_string())
+                .filter(|entry| !entry.is_empty())
+                .collect(),
         }
         .save();
+    }
+
+    /// Drop excluded shells from the in-memory library without a rescan.
+    pub(crate) fn reload_cached_library(&mut self) {
+        if self.scanning {
+            return;
+        }
+        let roots = self.scan_roots();
+        self.scan_results = scanner::load_cached_plugins(&roots, &self.excluded_plugins);
+        self.plugin_row_heights.clear();
+        self.invalid_plugin_row_heights.clear();
+        prune_vendor_filter(&mut self.filter_vendors, &self.scan_results);
+        prune_category_filter(&mut self.filter_categories, &self.scan_results);
     }
 
     pub(crate) fn scan_roots(&self) -> Vec<PathBuf> {
@@ -321,6 +358,7 @@ impl App {
         self.status = format!("Discovering plugins in {folder_count} folder(s)…");
 
         let scan_license_protected = self.scan_license_protected;
+        let exclusions = self.excluded_plugins.clone();
         thread::spawn(move || {
             let (event_tx, event_rx) = mpsc::channel();
             let ui_tx = tx.clone();
@@ -342,8 +380,12 @@ impl App {
                 }
             });
 
-            let result =
-                scanner::scan_directories_with_sender(&roots, scan_license_protected, event_tx);
+            let result = scanner::scan_directories_with_sender(
+                &roots,
+                scan_license_protected,
+                &exclusions,
+                event_tx,
+            );
             let _ = tx.send(ScanMsg::Done(result));
         });
     }
